@@ -1,0 +1,1803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ballpark</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script>
+// Pick the theme before the page paints: the saved choice, otherwise the device setting.
+(function(){var t=null;try{t=localStorage.getItem('bp_theme');}catch(e){}
+  if(t!=='light'&&t!=='dark') t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
+  document.documentElement.setAttribute('data-theme',t);
+  // Colours: "By game" for everyone. In the developer preview (dev.js) another palette can be picked; 'original' means none.
+  var p='games'; try{var s=localStorage.getItem('bp_dev')==='1'&&localStorage.getItem('bp_palette'); if(s) p=s;}catch(e){}
+  if(p!=='original') document.documentElement.setAttribute('data-palette',p);})();
+</script>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  /* ---- Ballpark theme. Light by default, dark via data-theme="dark" on <html>. ----
+     Soft cards on a muted background: thin lines, rounded corners, room to breathe. */
+  :root{
+    --bg:#e3e6ea; --panel:#f2f4f6; --inset:#fafbfc; --line:#d3d8de; --bd:#b4bbc5; --text:#1c2026; --muted:#566070;
+    --accent:#c2410c; --on-accent:#ffffff; --hd:#1c2026; --hi:#f2f4f6; --hm:#c9ced6;
+    --track:#d9dde3; --hover:#e6e9ed; --hl:#f9e3d0;
+    --good:#15803d; --on-good:#ffffff; --bad:#b91c1c; --warn:#a16207; --blue:#1d4ed8;
+    --present:#e0ab08; --on-present:#1c2026; --absent:#6b7280; --on-absent:#ffffff;
+    --key:#d3d8de; --on-key:#1c2026; --key-off:#6b7280; --on-key-off:#ffffff;
+    --top:#171a1f; --shade:rgba(20,23,28,.6);
+    --shadow:0 1px 2px rgba(20,23,28,.05),0 6px 20px rgba(20,23,28,.06);
+    --lina-card:#f8ecf0; --lina-line:#e9b4c5; --lina-chip:#fdf7f9; --lina-chip-line:#ecc3d0; --lina-ink:#8a2f50; --lina-sel:#fbdce6;
+    --head:"Barlow Condensed","Arial Narrow",sans-serif; --body:"Inter",system-ui,sans-serif;
+    --r:16px; --r2:10px; --r3:7px;
+    color-scheme:light;
+  }
+  :root[data-theme=dark]{
+    --bg:#0f1115; --panel:#171a20; --inset:#111419; --line:#272c35; --bd:#3b424d; --text:#e6e8ec; --muted:#9da6b3;
+    --accent:#ff8a4c; --on-accent:#0f1115; --hd:#e6e8ec; --hi:#0f1115; --hm:#3a4049;
+    --track:#2a3039; --hover:#1e232a; --hl:#37241a;
+    --good:#4ade80; --on-good:#0f1115; --bad:#ff7b7b; --warn:#facc15; --blue:#7cb7ff;
+    --present:#facc15; --on-present:#0f1115; --absent:#2a3039; --on-absent:#9da6b3;
+    --key:#3b424d; --on-key:#ffffff; --key-off:#1b1f25; --on-key-off:#7f8894;
+    --top:#0a0b0e; --shade:rgba(0,0,0,.72);
+    --shadow:0 1px 0 rgba(255,255,255,.02) inset,0 8px 24px rgba(0,0,0,.25);
+    --lina-card:#1f1a22; --lina-line:#5a3446; --lina-chip:#241c26; --lina-chip-line:#3d2c3a; --lina-ink:#f3c6d4; --lina-sel:#3a2232;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body)}
+  body{min-height:100vh}
+  .wrap{width:100%;max-width:1720px;margin:0 auto;padding:clamp(16px,2.4vw,36px) clamp(14px,2.6vw,44px) 48px}
+  .mono{font-family:inherit;font-variant-numeric:tabular-nums}
+  .muted{color:var(--muted)}
+  a{color:var(--accent-ink,var(--accent))}
+  button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* ---- top bar: name on the left, account things on the right ---- */
+  .topbar{background:var(--top);color:#fff}
+  header{max-width:1720px;margin:0 auto;padding:8px clamp(14px,2.6vw,44px);display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap}
+  h1{font:700 30px/1 var(--head);letter-spacing:.04em;text-transform:uppercase;margin:0 auto 0 0;padding:6px 0}
+  #gameTitle,#bestTop{display:none}
+  .lvlchip{height:36px;padding:0 12px;display:none;flex-direction:column;justify-content:center;gap:4px;background:transparent;color:#fff;border:1px solid #454c57;border-radius:var(--r2);font:700 16px/1 var(--head);letter-spacing:.08em}
+  .lvlchip.on{display:inline-flex}
+  .lvlchip:hover,.plusbtn:hover,.themebtn:hover{background:#262b33}
+  .lvlchip i{display:block;width:100%;min-width:54px;height:3px;border-radius:2px;background:#3a4049;overflow:hidden}
+  .lvlchip u{display:block;height:100%;background:var(--accent);transition:width .6s ease}
+  .plusbtn{height:36px;padding:0 14px;background:transparent;color:#fff;border:1px solid var(--accent);font-size:16px}
+  .themebtn{width:36px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;background:transparent;color:#fff;border:1px solid #454c57}
+  .themebtn svg{width:18px;height:18px;display:block}
+  #userChip{font-size:13px;color:#fff;white-space:nowrap;margin-left:6px} #userChip a{color:#c9ced6;margin-left:6px}
+  @media (max-width:420px){ #userChip .mono{display:none} #userChip{margin-left:0} h1{font-size:23px} header{gap:4px 8px} .lvlchip{padding:0 8px} .lvlchip i{min-width:44px} .plusbtn{padding:0 9px} }
+
+  /* ---- page layout: games list | the game | level, friends, archive ---- */
+  .layout{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(18px,2vw,32px);align-items:start}
+  main{min-width:0}
+  #side{display:none;flex-direction:column;gap:clamp(16px,1.6vw,24px);min-width:0}
+  .layout.split #side{display:flex}
+  .layout.split #side>div{animation:rise .45s ease both}
+  .layout.split #side>div:nth-child(3){animation-delay:.06s} .layout.split #side>div:nth-child(4){animation-delay:.12s}
+  #side>div:empty{display:none}
+  @media (min-width:900px){
+    .layout{grid-template-columns:clamp(190px,16vw,250px) minmax(0,1fr)}
+    .layout.split #side{grid-column:2}
+  }
+  @media (min-width:1240px){
+    .layout.split{grid-template-columns:clamp(190px,16vw,250px) minmax(0,1fr) clamp(280px,22vw,360px)}
+    .layout.split #side{grid-column:auto}
+  }
+
+  /* the games list. It is the navigation and today's checklist in one. */
+  .tabs{display:flex;flex-direction:column;gap:2px;min-width:0}
+  .navhd{display:flex;justify-content:space-between;align-items:baseline;padding:4px 12px 6px;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .navhd~.navhd{margin-top:18px}
+  .tabs a{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r2);color:var(--text);text-decoration:none;white-space:nowrap;transition:background .15s,transform .15s}
+  .tabs a .tl,.tabs a.bpb-tour{font:600 19px/1.1 var(--head);letter-spacing:.06em;text-transform:uppercase}
+  .tabs a .ts{font-size:13px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+  .tabs a .ts.open{color:var(--accent-ink,var(--accent))}
+  .tabs a:hover{background:var(--hover);transform:translateX(2px)}
+  .tabs a.sel{background:var(--panel);box-shadow:var(--shadow)}
+  .tabs a.sel .tl{font-weight:700;color:var(--accent-ink,var(--accent))}
+  .tabs a.linatab .tl{color:#d6477a} :root[data-theme=dark] .tabs a.linatab .tl{color:#ff9dbb}
+  .tabs a.bpb-tour{color:var(--muted)}
+  .navnote{padding:8px 12px 0;font-size:13px;color:var(--muted)} .navnote:empty{display:none}
+  @media (max-width:899px){
+    .tabs{flex-direction:row;gap:6px;overflow-x:auto;scrollbar-width:none;position:sticky;top:0;z-index:20;margin:-6px -14px 0;padding:8px 14px;background:var(--bg)}
+    .tabs::-webkit-scrollbar{display:none}
+    .navhd,.navnote{display:none}
+    .tabs a{flex-shrink:0;padding:8px 12px;background:var(--panel);border:1px solid var(--line)}
+    .tabs a:hover{transform:none}
+    .tabs a.sel{border-color:var(--accent)}
+    .tabs a .ts{display:none}
+    .tabs a.done .tl::after{content:" \2713";color:var(--good)}
+  }
+
+  /* side panels */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+  .phd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:16px 18px 8px}
+  .phd h2{font:700 20px/1.2 var(--head);letter-spacing:.08em;text-transform:uppercase;margin:0}
+  .phd span{font-size:12.5px;color:var(--muted);white-space:nowrap}
+  .phd span.ptag{font:700 13px/1 var(--head);color:var(--on-accent)}
+  .prow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px 18px;font-size:15px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .prow.rk{grid-template-columns:22px 1fr auto}
+  .prow.me{background:var(--hl)}
+  .prow b{font-weight:600}
+  .prow a{font-weight:600}
+  .prow .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .prow small{display:block;font-size:12.5px;color:var(--muted)}
+  .prow .lock{font:700 14px/1 var(--head);letter-spacing:.08em;padding:6px 12px;background:transparent;color:var(--text);border:1px solid var(--bd)}
+  .prow .lock:hover{background:var(--hover)}
+  .pnote{padding:4px 18px 16px;font-size:14px;color:var(--muted)}
+  .pbody{padding:4px 18px 14px}
+
+  /* ---- cards, headings, buttons, inputs ---- */
+  .card{--pad:clamp(20px,2.4vw,36px);background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:var(--pad)}
+  .game.on>*{animation:rise .35s ease both}
+  .screen.on{animation:rise .3s ease both}
+  .gh,.navrow h2{font:700 30px/1.1 var(--head) !important;letter-spacing:.05em;text-transform:uppercase;margin:0 0 10px}
+  .navrow{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+  .navrow h2{margin:0}
+  button{background:var(--accent);color:var(--on-accent);border:1px solid var(--accent);border-radius:var(--r2);font:700 18px/1.1 var(--head);letter-spacing:.06em;text-transform:uppercase;padding:11px 22px;cursor:pointer;transition:transform .12s ease,background .15s,border-color .15s,box-shadow .15s}
+  button:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.14)}
+  button:not(:disabled):active{transform:translateY(0) scale(.98);box-shadow:none}
+  button.ghost{background:transparent;color:var(--text);border-color:var(--bd)}
+  button.ghost:hover{background:var(--hover)}
+  button.sm{padding:6px 13px;font-size:15px}
+  button:disabled{opacity:.4;cursor:default}
+  form{display:flex;gap:10px}
+  input[type=text]{flex:1;min-width:0;background:var(--inset);border:1px solid var(--bd);border-radius:var(--r2);color:var(--text);font:600 20px var(--body);padding:13px 16px;outline:none;transition:border-color .15s,box-shadow .15s}
+  input[type=text]:focus{border-color:var(--accent)}
+  .ingroup{flex:1;display:flex;align-items:stretch;min-width:0;background:var(--inset);border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;transition:border-color .15s,box-shadow .15s}
+  .ingroup:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+  .ingroup input[type=text]{border:0;border-radius:0;background:transparent;flex:1;min-width:0}
+  .insuffix{display:flex;align-items:center;padding:0 16px;background:var(--hover);color:var(--text);border-left:1px solid var(--line);font:700 18px var(--head);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;max-width:45%;overflow:hidden;text-overflow:ellipsis}
+  @media (max-width:520px){ .insuffix{font-size:15px;padding:0 10px} }
+  .parsed{font-size:13px;margin-top:8px;min-height:18px}
+  .screen{display:none} .screen.on{display:block}
+  .game{display:none} .game.on{display:block}
+  .center{text-align:center}
+  .big{font:700 72px/1 var(--head)}
+  .opts{display:flex;gap:8px;justify-content:center;margin:18px 0}
+  .opts button{padding:6px 14px;font-size:16px}
+  .opts button.sel{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+  ul.rules{text-align:left;line-height:1.65;font-size:15px;padding-left:20px;color:var(--text)}
+
+  /* start cards: one line, fold-out rules, numbers along the bottom */
+  .lead{font-size:17px;line-height:1.5;margin:0 0 24px;max-width:60ch;color:var(--muted)}
+  .lead a{font-weight:600;white-space:nowrap}
+  .howrow{margin:0 0 22px}
+  .howlink{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border:1px solid var(--bd);border-radius:999px;color:var(--text);text-decoration:none;font:700 15px/1.2 var(--head);letter-spacing:.08em;text-transform:uppercase;transition:background .15s}
+  .howlink::before{content:"?";font:700 15px/1 var(--head)}
+  .howlink:hover{background:var(--hover)}
+  .howgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:18px;margin-top:8px}
+  .how{display:flex;flex-direction:column;gap:6px;padding:22px;border:1px solid var(--line);border-radius:var(--r2);background:var(--inset);transition:border-color .3s,box-shadow .3s}
+  .how.hit{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .how h3{font:700 24px/1.2 var(--head);letter-spacing:.06em;text-transform:uppercase;margin:0}
+  .how p{margin:0;color:var(--muted)}
+  .how .demo{max-width:none;background:var(--panel)}
+  .how .rules{margin:10px 0 12px;padding-left:18px;font-size:14.5px}
+  .how>a{margin-top:auto;font-weight:600}
+  .acts{display:flex;gap:10px;flex-wrap:wrap}
+  .statstrip{display:flex;align-items:center;justify-content:space-between;gap:16px 24px;flex-wrap:wrap;margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+  .statstrip .cells{display:flex;flex-wrap:wrap;gap:14px clamp(22px,3vw,44px)}
+  .statstrip .cells span{display:block;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+  .statstrip .cells b{display:block;font:700 28px/1.15 var(--head);margin-top:2px;white-space:nowrap}
+  .statstrip .act{display:flex;align-items:center;gap:14px;margin-left:auto}
+  .pluslink{font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .pluslink:hover{color:var(--text)}
+  .ptag{display:inline-block;font:700 13px/1 var(--head);letter-spacing:.1em;text-transform:uppercase;background:var(--accent);color:var(--on-accent);padding:3px 7px;border-radius:5px}
+
+  /* ---- Survival ---- */
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .mode{border:1px solid var(--line);border-radius:var(--r2);padding:20px;display:flex;flex-direction:column;gap:12px;background:var(--inset);transition:border-color .15s,transform .15s}
+  .mode:hover{border-color:var(--bd);transform:translateY(-2px)}
+  .mode .mt{font:700 22px/1.2 var(--head);letter-spacing:.08em;text-transform:uppercase} .mode .md{font-size:13.5px;line-height:1.4}
+  .mode .md:empty{display:none}
+  .mode button{align-self:flex-start}
+  .mode .opts{justify-content:flex-start;margin:0;flex-wrap:wrap}
+  @media (max-width:560px){ .modes{grid-template-columns:1fr} }
+  .hud{display:grid;grid-template-columns:1fr auto;align-items:stretch;margin-bottom:16px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+  .hud>div{padding:16px 20px}
+  .life-label{display:flex;justify-content:space-between;align-items:baseline;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px}
+  #lifeNum{font:700 22px/1 var(--head);letter-spacing:0}
+  .life{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;height:12px}
+  .seg{background:var(--track);border-radius:3px;position:relative;overflow:hidden}
+  .seg i{position:absolute;inset:0;background:var(--good);transform-origin:left;transition:transform .5s ease, background .3s}
+  .score{text-align:right;border-left:1px solid var(--line);min-width:120px}
+  .score .muted{font-size:11px !important;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+  .score b{font:700 40px/1 var(--head);display:block;margin-top:4px}
+  .hudbar{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin:0 0 16px}
+  .timer{height:6px;border-radius:3px;background:var(--track);overflow:hidden;margin:14px 0 20px}
+  .timer i{display:block;height:100%;background:var(--accent);width:100%}
+  .timerrow{display:flex;align-items:center;gap:10px;margin:0 0 24px}
+  .timerrow .timer{flex:1;margin:0}
+  .tleft{font:700 18px/1 var(--head);color:var(--muted);min-width:34px;text-align:right}
+  .q{font-size:clamp(22px,2.3vw,34px);line-height:1.3;margin:0 0 10px;font-weight:600;letter-spacing:-.01em;min-height:60px;max-width:30ch}
+  .unit{color:var(--accent-ink,var(--accent));font-size:14px;margin-bottom:18px}
+  .unitbadge{display:inline-flex;align-items:baseline;gap:8px;margin:4px 0 22px}
+  .unitbadge .ul{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+  .unitbadge .uv{font:700 clamp(19px,2vw,24px)/1.3 var(--head);letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink,var(--accent))}
+  .reveal{margin-top:26px;display:none}
+  .reveal.show{display:block;animation:rise .35s ease both}
+  .verdict{margin-top:4px}
+  .ratio{font:700 clamp(24px,2.6vw,34px)/1.1 var(--head);letter-spacing:.03em;text-transform:uppercase}
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .cbox{padding:14px 16px;border:1px solid var(--line);border-radius:var(--r2);background:var(--inset)}
+  .cbox.you{border-color:var(--bad)} .cbox.ans{border-color:var(--good)}
+  .cbox .cl{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:6px;text-align:left}
+  .cbox.you .cl::before,.cbox.ans .cl::before{content:"";width:9px;height:9px;border-radius:50%;display:inline-block}
+  .cbox.you .cl::before{border:2px solid var(--bad)} .cbox.ans .cl::before{background:var(--good)}
+  .cbox .cv{font-size:clamp(21px,2vw,28px);font-weight:600;margin-top:4px;word-break:break-word;line-height:1.2}
+  .scale{position:relative;height:54px;margin:34px 0 6px;border-top:2px solid var(--bd)}
+  .tick{position:absolute;top:0;width:2px;height:6px;background:var(--bd)}
+  .pin{position:absolute;top:-9px;width:16px;height:16px;border-radius:50%;transform:translateX(-50%);box-shadow:0 0 0 3px var(--panel)}
+  .pin.a{background:var(--good)} .pin.g{background:var(--panel);border:3px solid var(--bad)}
+  .gap{position:absolute;top:-3px;height:4px;background:var(--bad);opacity:.7}
+  .pinlbl{position:absolute;top:16px;font-size:12px;font-weight:600;transform:translateX(-50%);white-space:nowrap}
+  .row{display:flex;justify-content:space-between;gap:10px;font-size:15px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .row:last-of-type{border-bottom:0}
+  .dmgline{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-top:6px;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .dmg{font:700 30px/1 var(--head);margin:0}
+  .fact{font-size:14px;color:var(--muted);margin-top:12px;line-height:1.5}
+  .nextrow{display:flex;justify-content:space-between;align-items:center;margin-top:18px}
+  .kbd{font-size:12px}
+  .flash{animation:flash .5s}
+  @keyframes flash{0%{background:color-mix(in srgb,var(--bad) 28%,var(--panel))}100%{background:var(--panel)}}
+  @media (max-width:520px){ .cmp{grid-template-columns:1fr} .cbox .cv{font-size:19px} }
+  .hist{max-height:55vh;overflow:auto;text-align:left;font-size:13px;margin-top:14px}
+  .hrow{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .hrow .hq{line-height:1.35}
+  .hrow .hsub{font-size:12px;color:var(--muted);margin-top:2px}
+  .hrow .hd{white-space:nowrap;font-weight:700}
+  .runs{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+  .run{border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;background:var(--inset)}
+  .run summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:12px 14px}
+  .run summary::-webkit-details-marker{display:none}
+  .run summary:hover{background:var(--hover)}
+  .run[open] summary{border-bottom:1px solid var(--line)}
+  .run .rank{font-size:15px;color:var(--muted)}
+  .run .rs{font:700 28px/1 var(--head);text-align:right}
+  .run .meta{font-size:12px;color:var(--muted)}
+  .run .strip{font-size:12px;letter-spacing:1px;word-break:break-all;margin-top:3px}
+  .run .hist{max-height:60vh;padding:0 14px 10px;margin:0}
+  .run.newrun{border-color:var(--accent)}
+  .empty{text-align:center;padding:30px 0}
+
+  /* ---- login ---- */
+  #authGate{position:fixed;inset:0;background:var(--shade);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .authcard{width:100%;max-width:400px;animation:rise .35s ease both}
+  #authForm{display:flex;flex-direction:column;gap:10px}
+  #authForm input{background:var(--inset);border:1px solid var(--bd);border-radius:var(--r2);color:var(--text);font:500 16px var(--body);padding:13px 16px;outline:none}
+  #authForm input:focus{border-color:var(--accent)}
+
+  /* ---- Friends ---- */
+  .fh{font:700 20px/1.2 var(--head);letter-spacing:.08em;text-transform:uppercase;margin:32px 0 6px}
+  .ft{width:100%;border-collapse:collapse;font-size:14px}
+  .ft th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:10px 8px;border-bottom:1px solid var(--bd)}
+  .ft td{padding:10px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .ft tr.meRow td{background:var(--hl)}
+  #dayBody,#allTime{overflow-x:auto}
+  .daybar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .daybar input[type=date]{background:var(--inset);border:1px solid var(--bd);border-radius:var(--r2);color:var(--text);padding:6px 10px;font:500 14px var(--body)}
+  .daychips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .daychip.sel{border-color:var(--accent);color:var(--accent-ink,var(--accent))}
+  .cellbtn{background:none;border:1px solid transparent;border-radius:var(--r3);color:var(--text);padding:4px 8px;font:500 14px var(--body);letter-spacing:0;text-transform:none;cursor:pointer;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .cellbtn:not(:disabled):hover{border-color:var(--bd);background:var(--hover);transform:none;box-shadow:none}
+  .detbox{background:var(--inset);border:1px solid var(--line);border-radius:var(--r2);padding:14px 16px;max-height:60vh;overflow:auto}
+  .dethead{font:700 17px/1.2 var(--head);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;color:var(--accent-ink,var(--accent))}
+  .pill{display:inline-block;background:var(--hover);border:1px solid var(--line);border-radius:999px;padding:1px 10px;font-size:13px}
+  .minirow{display:flex;gap:4px;margin:3px 0} .minirow .t{width:30px;height:30px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font:700 17px var(--head)}
+
+  /* ---- More/Less ---- */
+  .mlhead{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--muted)}
+  .dots{display:grid;grid-template-columns:repeat(25,1fr);gap:3px;margin:12px 0 16px}
+  .dots i{height:6px;border-radius:3px;background:var(--track);transition:background .3s}
+  .dots i.ok{background:var(--good)} .dots i.no{background:var(--bad)} .dots i.cur{background:var(--text)}
+  .dots i:nth-child(5n){margin-right:6px}
+  .mlq{text-align:center;font-size:15px;margin-bottom:14px;min-height:20px}
+  .mlboard{display:grid;grid-template-columns:1fr 1fr;gap:16px;position:relative;overflow:hidden;padding:4px}
+  .mlcard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:22px 18px;min-height:max(300px,48vh);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:10px;transition:transform .45s ease, opacity .45s ease, border-color .3s}
+  .orb{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:52px;height:52px;border-radius:50%;background:var(--hd);color:var(--hi);display:flex;align-items:center;justify-content:center;font:700 18px var(--head);text-transform:uppercase;box-shadow:0 0 0 6px var(--bg);pointer-events:none}
+  .mlcard .ic{font-size:44px;line-height:1;margin-bottom:2px}
+  .mlcard .nm{font-size:clamp(19px,1.8vw,26px);font-weight:600;line-height:1.25}
+  .mlcard .sb{font-size:13px;color:var(--muted)}
+  .mlcard .val{font:700 clamp(28px,2.6vw,40px)/1.1 var(--head);margin-top:6px}
+  .mlcard .lbl{font-size:12px;color:var(--muted)}
+  .mlcard.ok{border-color:var(--good)} .mlcard.no{border-color:var(--bad)}
+  .mlbtns{display:flex;flex-direction:column;gap:8px;margin-top:8px;width:100%;max-width:190px}
+  .mlbtns button{width:100%}
+  .slideL{transform:translateX(calc(-100% - 16px))}
+  .fadeOut{opacity:0;transform:translateX(-40%)}
+  @keyframes enterR{from{opacity:0;transform:translateX(60%)}to{opacity:1;transform:none}}
+  .enter{animation:enterR .4s ease}
+  .mlgrid{margin:16px auto 0;display:table;font-size:18px;line-height:1.5}
+  .mlgrid div span{font-size:12px;color:var(--muted);margin-left:8px}
+  @media (max-width:520px){ .mlcard .ic{font-size:34px} .mlcard{min-height:200px;padding:14px 10px} .mlcard .nm{font-size:16px} .mlcard .val{font-size:22px} }
+
+  /* ---- Clueless ---- */
+  .cllist{margin-top:14px;display:flex;flex-direction:column;gap:6px}
+  .clrow{position:relative;display:flex;justify-content:space-between;padding:9px 14px;background:var(--inset);border:1px solid var(--line);border-radius:var(--r3);overflow:hidden;font-size:15px}
+  .clrow .fill{position:absolute;left:0;top:0;bottom:0;opacity:.26}
+  .clrow span{position:relative}
+  .clrow.last{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  #clLast .clrow{margin-top:12px}
+  .clsep{height:1px;background:var(--line);margin:12px 0 6px}
+  .cllist .clrow,#clLast .clrow{flex-shrink:0;min-height:42px;align-items:center;box-sizing:border-box}
+  .clw{display:flex;align-items:baseline;gap:10px} .clrank{min-width:64px;font-variant-numeric:tabular-nums} .clrow .clnum{font-size:12px;position:relative}
+
+  /* ---- Wordy ---- */
+  .wordy .wdgrid{display:grid;gap:6px;justify-content:center;margin:16px 0}
+  .wdrow{display:grid;grid-template-columns:repeat(5,56px);gap:6px}
+  .wdrow .t{width:56px;height:56px;border:2px solid var(--line);border-radius:var(--r3);display:flex;align-items:center;justify-content:center;font:700 32px var(--head);text-transform:uppercase}
+  .wdrow .t.filled{border-color:var(--bd);animation:pop .1s}
+  .t.c{background:var(--good);border-color:var(--good);color:var(--on-good)} .t.p{background:var(--present);border-color:var(--present);color:var(--on-present)} .t.a{background:var(--absent);border-color:var(--absent);color:var(--on-absent)}
+  .t.flip{animation:flip .45s ease both}
+  @keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
+  @keyframes pop{50%{transform:scale(1.08)}}
+  .wdrow.shake{animation:shk .35s}
+  @keyframes shk{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+  .wdmsg{text-align:center;min-height:24px;font-weight:700;opacity:0;transition:opacity .2s;margin-top:8px}
+  .wdmsg.show{opacity:1}
+  .wdkb{display:flex;flex-direction:column;gap:6px;align-items:center}
+  .kbrow{display:flex;gap:5px}
+  .key{min-width:36px;height:50px;padding:0 6px;background:var(--key);color:var(--on-key);border:0;border-radius:var(--r3);font:700 19px var(--head);letter-spacing:0}
+  .key.wide{min-width:62px;font-size:16px}
+  .key.c{background:var(--good);color:var(--on-good)} .key.p{background:var(--present);color:var(--on-present)} .key.a{background:var(--key-off);color:var(--on-key-off)}
+  .wdhelp{font-size:14px;line-height:1.6;background:var(--inset);border:1px solid var(--line);border-radius:var(--r2);padding:14px;margin-top:10px}
+  .wdex{margin:6px 0} .wdex .t{display:inline-flex;width:26px;height:26px;border-radius:5px;align-items:center;justify-content:center;font:700 16px var(--head);margin:0 6px 0 0}
+  .wdstats{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;margin-top:16px}
+  .wdstats b{display:block;font:700 32px/1.1 var(--head)} .wdstats span{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .dist{display:flex;align-items:center;gap:8px;margin:3px 0;font-size:13px}
+  .dist i{display:block;background:var(--key);color:var(--on-key);padding:2px 6px;border-radius:4px;text-align:right;font-style:normal}
+  .dist i.hl{background:var(--good);color:var(--on-good)}
+  #wdSub{display:flex;justify-content:space-between;gap:10px}
+  @media (max-width:420px){ .wdrow{grid-template-columns:repeat(5,48px)} .wdrow .t{width:48px;height:48px;font-size:26px} .key{min-width:28px;height:46px} .key.wide{min-width:50px} }
+  @media (min-width:900px){
+    .wdrow{grid-template-columns:repeat(5,64px)} .wdrow .t{width:64px;height:64px;font-size:36px}
+    .key{min-width:44px;height:56px;font-size:21px} .key.wide{min-width:74px}
+    .cllist{max-height:60vh;overflow:auto}
+    .lgrid{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+  }
+
+  /* ---- Party: the game on the left, players and chat on the right ---- */
+  .pt{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(16px,1.6vw,24px);align-items:start}
+  .pt[hidden]{display:none}
+  @media (min-width:1100px){ .pt{grid-template-columns:minmax(0,1fr) clamp(280px,24vw,360px)} }
+  .pt-side{display:flex;flex-direction:column;gap:clamp(16px,1.6vw,24px);min-width:0}
+  .pt-lbl,.pt-code span{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .pt-code{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;margin:4px 0 26px}
+  .pt-code b{font:700 64px/1 var(--head);letter-spacing:.14em}
+  .pt-set .opts{justify-content:flex-start;margin:8px 0 20px}
+  #ptCode{text-transform:uppercase;letter-spacing:.2em}
+  .pt-tag{font-style:normal;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-left:8px}
+  .pt-in{display:inline-block;width:9px;height:9px;border-radius:50%;border:2px solid var(--bd);margin-right:8px}
+  .pt-in.on{background:var(--good);border-color:var(--good)}
+  .pt-log{max-height:240px;overflow:auto;padding:0 18px 10px;font-size:14px;line-height:1.45}
+  .pt-log div{padding:3px 0;overflow-wrap:anywhere} .pt-log b{font-weight:600;margin-right:6px}
+  .pt-log:empty::before{content:"No messages yet.";color:var(--muted)}
+  .pt-say{display:flex;gap:8px;padding:10px 14px 14px;border-top:1px solid var(--line)}
+  .pt-say input[type=text]{font:500 15px var(--body);padding:8px 12px}
+  .pt-unit{font-size:.6em;font-weight:500;color:var(--muted)}
+  .pt-scale{position:relative;height:50px;margin:40px 12px 10px;border-top:2px solid var(--bd)}
+  .pt-ans{position:absolute;left:50%;top:-20px;height:38px;width:2px;margin-left:-1px;background:var(--good)}
+  .pt-dot{position:absolute;top:-13px;width:24px;height:24px;margin-left:-12px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px/1 var(--head);background:var(--panel);border:2px solid var(--bd);color:var(--text)}
+  .pt-dot.me{background:var(--accent);border-color:var(--accent);color:var(--on-accent);z-index:1}
+  .pt-ends{position:absolute;left:0;right:0;top:24px;display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+  .pt-ends span:nth-child(2){color:var(--good);font-weight:600}
+  .pt-win{font:700 clamp(30px,3.4vw,46px)/1.1 var(--head);letter-spacing:.04em;text-transform:uppercase;margin:0 0 18px}
+  #ptBar{transform-origin:left center;will-change:transform}
+  .pt-rule{font-size:13.5px;line-height:1.55;color:var(--muted);margin:-6px 0 20px;max-width:60ch}
+  p.lead+.pt-rule{margin:14px 0 0}
+  .pill.pt-sips{font-weight:600;white-space:nowrap;border-color:var(--accent);color:var(--accent-ink,var(--accent))}
+  /* Archive: calendar and streaks */
+  .ar-cells{display:flex;flex-wrap:wrap;gap:14px clamp(22px,3vw,44px);margin:4px 0 26px}
+  .ar-cells span{display:block;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .ar-cells b{display:block;font:700 30px/1.15 var(--head)}
+  .ar-nav{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .ar-nav b{font:700 22px/1 var(--head);letter-spacing:.06em;text-transform:uppercase;min-width:190px;text-align:center}
+  .ar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;max-width:720px}
+  .ar-grid em{font-style:normal;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:center;padding-bottom:2px}
+  .ar-d{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;padding:8px 2px 9px;background:var(--inset);color:var(--text);border:1px solid var(--line);border-radius:var(--r3);font:inherit;letter-spacing:0;text-transform:none;box-shadow:none}
+  .ar-d:not(:disabled):hover{transform:none;box-shadow:none;border-color:var(--bd)}
+  .ar-d b{font:700 17px/1 var(--head)}
+  .ar-d.off{opacity:.35;background:transparent}
+  .ar-d i{display:flex;gap:2px;justify-content:center;width:100%}
+  .ar-d u{display:block;height:4px;width:13%;max-width:9px;border-radius:2px;background:var(--track);text-decoration:none}
+  .ar-d .t5 u.on{background:var(--accent)} .ar-d .t3 u{height:3px} .ar-d .t3 u.on{background:var(--good)}
+  .ar-d.live{background:color-mix(in srgb,var(--accent) 16%,var(--inset));border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+  .ar-d.live.jl{border-top-left-radius:0;border-bottom-left-radius:0} .ar-d.live.jr{border-top-right-radius:0;border-bottom-right-radius:0}
+  .ar-d.live.jr::after{content:"";position:absolute;left:100%;top:-1px;bottom:-1px;width:8px;background:color-mix(in srgb,var(--accent) 16%,var(--inset));border-top:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));border-bottom:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));pointer-events:none}
+  .ar-d.live.kept{background:var(--inset);border-style:dashed}   /* a missed day the streak saver forgave */
+  .ar-key .k4::before{height:12px;border-radius:3px;background:var(--inset);border:1px dashed color-mix(in srgb,var(--accent) 45%,var(--line))}
+  .ar-d.today b{color:var(--accent-ink,var(--accent))} .ar-d.today{border-color:var(--accent)}
+  .ar-d.sel{outline:2px solid var(--text);outline-offset:1px;z-index:1}
+  .ar-d.here b{text-decoration:underline}
+  .ar-key{display:flex;flex-wrap:wrap;gap:6px 18px;margin:14px 0 0;font-size:12.5px;color:var(--muted)}
+  .ar-key span::before{content:"";display:inline-block;width:12px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle;background:var(--accent)}
+  .ar-key .k2::before{background:var(--good)} .ar-key .k3::before{height:12px;border-radius:3px;background:color-mix(in srgb,var(--accent) 16%,var(--inset));border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line))}
+  .ar-day{margin-top:24px;padding-top:20px;border-top:1px solid var(--line);max-width:720px}
+  .ar-rows .prow{padding:9px 4px} .ar-rows .prow:first-child{border-top:0}
+  .ar-bar{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-bottom:16px;padding:10px 16px;border:1px solid var(--accent);border-radius:var(--r2);background:color-mix(in srgb,var(--accent) 10%,var(--panel));font-size:14.5px}
+  .ar-bar b{font-weight:600;margin-right:auto} .ar-bar a{font-weight:600}
+  /* Drinks: one-phone drinking games */
+  .dk-names{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .dk-names:empty::before{content:"Nobody yet.";color:var(--muted);font-size:14px}
+  .dk-name{display:inline-flex;align-items:center;gap:4px;padding:4px 4px 4px 14px;border:1px solid var(--bd);border-radius:999px;font-weight:600;font-size:15px;background:var(--inset)}
+  .dk-name button{padding:2px 9px;font:400 18px/1 var(--body);background:transparent;color:var(--muted);border:0;box-shadow:none}
+  #dkAdd,#dkAnswer{display:flex;flex-wrap:wrap;gap:10px}
+  #dkAdd input{flex:1 1 160px;max-width:320px} #dkAnswer input{flex:1 1 200px}
+  .dk-turn{display:flex;flex-direction:column;gap:2px;margin:16px 0 18px}
+  .dk-turn b{font:700 clamp(40px,6vw,64px)/1 var(--head);letter-spacing:.03em;text-transform:uppercase;color:var(--accent-ink,var(--accent));overflow-wrap:anywhere}
+  .dk-shown{font-size:clamp(19px,2vw,24px);line-height:1.4;margin:6px 0 18px} .dk-shown b{font-variant-numeric:tabular-nums}
+  .dk-two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .dk-two button{padding:20px 12px;font-size:24px}
+  .dk-verdict{font:700 clamp(30px,4.4vw,48px)/1.05 var(--head);letter-spacing:.04em;text-transform:uppercase;margin:16px 0 0;animation:rise .3s ease both}
+  .dk-verdict.wrong{color:var(--bad)} .dk-verdict.safe{color:var(--good)} .dk-verdict.streak{color:var(--accent-ink,var(--accent))}
+  .dk-tally{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:26px;padding-top:18px;border-top:1px solid var(--line)}
+  .dk-tally>div{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r3);background:var(--inset);font-size:14.5px;min-width:0}
+  .dk-tally>div.on{border-color:var(--accent)}
+  .dk-tally span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+  .dk-tally i{font-style:normal;font-size:9px;letter-spacing:2px;color:var(--good)} .dk-tally b{font-variant-numeric:tabular-nums}
+  /* Atlas: geography games */
+  .at-modes{grid-template-columns:repeat(3,1fr)}
+  @media (max-width:1000px){ .at-modes{grid-template-columns:1fr} }
+  .at-ico{width:34px;height:34px;fill:none;stroke:var(--accent-ink,var(--accent));stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  .at-modes .mode .acts{margin-top:auto;padding-top:6px}
+  .at-modes .mode button{padding:9px 16px;font-size:16px}
+  .at-marks{display:flex;gap:5px;margin:12px 0 18px}
+  .at-marks i{flex:1;max-width:44px;height:5px;border-radius:3px;background:var(--track)}
+  .at-marks i.ok{background:var(--good)} .at-marks i.no{background:var(--bad)} .at-marks i.now{background:var(--muted)}
+  .at-stage{display:flex;align-items:center;justify-content:center;margin-bottom:20px;padding:clamp(18px,3vw,34px);background:var(--inset);border:1px solid var(--line);border-radius:var(--r2)}
+  .at-flag{display:block;width:min(100%,360px);aspect-ratio:4/3;border:1px solid var(--bd);border-radius:4px;background:#fff;box-shadow:0 8px 22px rgba(0,0,0,.2)}
+  .at-shape{display:block;width:min(100%,300px);aspect-ratio:1}
+  .at-shape path{fill:color-mix(in srgb,var(--accent) 28%,var(--inset));stroke:var(--accent);stroke-width:1.4;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+  .at-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .at-opts button{padding:14px 12px;font:600 17px/1.2 var(--body);letter-spacing:0;text-transform:none}
+  .at-opts button.ok{background:var(--good);border-color:var(--good);color:var(--on-good);opacity:1}
+  .at-opts button.no{background:var(--bad);border-color:var(--bad);color:var(--panel);opacity:1}
+  @media (min-width:900px){ .at-opts{grid-template-columns:1fr 1fr 1fr} }
+  @media (max-width:560px){ .at-opts{grid-template-columns:1fr 1fr} .at-opts button{padding:12px 8px;font-size:15.5px} }
+  #atAnswer{display:flex;flex-wrap:wrap;gap:10px}
+  #atAnswer input{flex:1 1 200px}
+  .at-said{min-height:28px;margin-top:12px;font-size:18px;font-weight:600}
+  .at-said.ok{color:var(--good)} .at-said.no{color:var(--bad)}
+  .at-said.ok::before{content:"✓ "} .at-said.no::before{content:"✗ "}
+  .at-big{font:700 clamp(54px,7vw,84px)/1 var(--head);margin:16px 0 4px}
+  .at-big span{font-size:.38em;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+  .at-review{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px}
+  .at-review>div{display:flex;flex-direction:column;gap:5px;padding:10px;min-width:0;border:1px solid var(--line);border-top:3px solid var(--good);border-radius:var(--r3);background:var(--inset);font-size:13.5px;line-height:1.3}
+  .at-review>div.no{border-top-color:var(--bad)}
+  .at-review b{font-weight:600} .at-review s{color:var(--muted)}
+  .at-flag.sm{width:76px;box-shadow:none;margin-bottom:3px} .at-shape.sm{width:64px;margin-bottom:3px}
+  .at-ends{display:flex;align-items:baseline;gap:6px 12px;flex-wrap:wrap;font:700 clamp(26px,3vw,40px)/1.1 var(--head);letter-spacing:.04em;text-transform:uppercase;margin:14px 0 16px}
+  .at-ends i,.at-way i{font-style:normal;color:var(--muted)}
+  .at-map{display:block;width:100%;aspect-ratio:16/9;max-height:56vh;margin-bottom:16px;border:1px solid var(--line);border-radius:var(--r2);background-color:var(--inset);
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:44px 44px;background-position:center}
+  @media (max-width:700px){ .at-map{aspect-ratio:4/3} }
+  #g-atlas .k-good{--c:var(--good)} #g-atlas .k-near{--c:var(--present)} #g-atlas .k-far{--c:var(--bad)} #g-atlas .k-shown{--c:var(--muted)} #g-atlas .k-end{--c:var(--accent)}
+  .at-map path{vector-effect:non-scaling-stroke;stroke-width:1.3;stroke-linejoin:round;fill:color-mix(in srgb,var(--c) 34%,var(--inset));stroke:var(--c)}
+  .at-map path.k-shown{stroke-dasharray:4 3;fill:color-mix(in srgb,var(--c) 14%,var(--inset))}
+  .at-map path.new{animation:atIn .7s ease both}
+  .at-map circle{fill:none;stroke:var(--c);stroke-width:2;vector-effect:non-scaling-stroke}
+  @keyframes atIn{from{opacity:0}}
+  .at-map text{font-family:var(--body);font-weight:600;text-anchor:middle;dominant-baseline:central;fill:var(--text);stroke:var(--inset);paint-order:stroke;stroke-linejoin:round;pointer-events:none}
+  #atGuess{display:flex;gap:10px}
+  .at-ac{position:relative;flex:1;min-width:0;display:flex}
+  #atList{position:absolute;left:0;right:0;bottom:calc(100% + 6px);z-index:30;margin:0;padding:6px;list-style:none;background:var(--panel);border:1px solid var(--bd);border-radius:var(--r2);box-shadow:0 10px 30px rgba(0,0,0,.24)}
+  #atList li{padding:9px 12px;border-radius:var(--r3);font-size:16px;cursor:pointer}
+  #atList li.sel,#atList li:hover{background:var(--hl)}
+  .at-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .at-chip{padding:5px 12px;border-radius:999px;font-size:14px;font-weight:600;border:1px solid var(--c);background:color-mix(in srgb,var(--c) 18%,transparent)}
+  .at-legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:16px;font-size:12.5px;color:var(--muted)}
+  .at-legend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:6px}
+  .at-legend button{margin-left:auto}
+  .at-verdict{font:700 26px/1.2 var(--head);letter-spacing:.05em;text-transform:uppercase;margin:16px 0 14px}
+  .at-verdict.won{color:var(--good)}
+  .at-way{margin:0 0 20px;font-size:15px;line-height:1.7} .at-way .pt-lbl{display:block}
+  #ptMain,#ptPlayers{transition:opacity .3s}
+  .pd-wait #ptMain,.pd-wait #ptPlayers{opacity:0}
+  /* Party: the podium that comes to the front when a game ends */
+  .p1{--m:#e9b949;--mr:#a97a0c} .p2{--m:#c5ccd5;--mr:#7f8a97} .p3{--m:#d08e58;--mr:#8f5426}
+  .pd-back{position:fixed;inset:0;z-index:120;background:var(--shade);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px;cursor:pointer;animation:pdIn .25s both;transition:opacity .25s}
+  .pd-back.out{opacity:0}
+  .pd{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));align-items:end;gap:10px;width:min(calc(var(--n)*170px),100%);padding:30px 22px 0;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 18px 50px rgba(0,0,0,.3);overflow:hidden;animation:pdUp .35s cubic-bezier(.2,.8,.2,1) both}
+  .pd-col{display:flex;flex-direction:column;min-width:0}
+  .pd-who{display:flex;flex-direction:column;align-items:center;gap:3px;padding:0 2px 12px;min-width:0;animation:pdDrop .45s cubic-bezier(.2,.8,.2,1) calc(var(--d) + .3s) both}
+  .pd-who b{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 20px/1.15 var(--head);letter-spacing:.03em}
+  .pd-who span{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .pd-col.me .pd-who b{color:var(--accent-ink,var(--accent))}
+  .pd-medal{position:relative;width:40px;height:40px;border-radius:50%;margin:18px 0 8px;background:var(--m);border:3px solid var(--mr);box-shadow:inset 0 0 0 3px rgba(255,255,255,.4)}
+  .pd-medal::before{content:"";position:absolute;left:50%;top:-21px;width:26px;height:20px;margin-left:-13px;background:var(--mr);clip-path:polygon(0 0,32% 0,50% 55%,68% 0,100% 0,66% 100%,34% 100%)}
+  .p1 .pd-medal{animation:pop .5s ease calc(var(--d) + .85s) both}
+  .pd-step{display:flex;align-items:flex-start;justify-content:center;padding-top:10px;height:64px;background:var(--inset);border:1px solid var(--bd);border-bottom:0;border-top:4px solid var(--m);border-radius:var(--r3) var(--r3) 0 0;font:700 38px/1 var(--head);color:var(--muted);transform-origin:bottom;animation:pdGrow .5s cubic-bezier(.2,.8,.2,1) var(--d) both}
+  .p1 .pd-step{height:128px} .p2 .pd-step{height:94px}
+  .pd-rank{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--m);border:2px solid var(--mr);color:#1c2026;font:700 13px/1 var(--head);font-style:normal}
+  @keyframes pdIn{from{opacity:0}} @keyframes pdUp{from{opacity:0;transform:translateY(16px) scale(.97)}}
+  @keyframes pdDrop{from{opacity:0;transform:translateY(-14px)}} @keyframes pdGrow{from{transform:scaleY(0)}}
+
+  /* ---- Lina's Corner keeps its own pink look ---- */
+  .lina{border-color:var(--lina-line);background:var(--lina-card);border-radius:20px}
+  .lina .navrow h2{font:700 22px/1.2 var(--body) !important;letter-spacing:0;text-transform:none}
+  .lina button{font:600 14px/1.2 var(--body);letter-spacing:0;text-transform:none;border-radius:12px;padding:9px 14px}
+  .lina .ghost{border-color:var(--lina-line)}
+  .lina .fh{font:700 16px/1.2 var(--body);letter-spacing:0;text-transform:none}
+  .lgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;margin-top:12px}
+  @media (max-width:640px){.lgrid{grid-template-columns:1fr}}
+  .stage{position:relative;border-radius:18px;overflow:hidden;cursor:pointer;aspect-ratio:300/360;max-height:70vh;margin:0 auto;background:#ffe1ea}
+  .stage svg{display:block;width:100%;height:100%}
+  .lrow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .lrow input{flex:1;min-width:120px;background:var(--inset);border:1px solid var(--lina-line);border-radius:10px;color:var(--text);font:600 15px var(--body);padding:10px 12px;outline:none}
+  .lrow input:focus{border-color:#ff8fab}
+  .lina button.pink{background:#ff8fab;color:#3a0f1e;border-color:#ff8fab}
+  .ltabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .lina .ltab{background:transparent;border:1px solid var(--lina-line);color:var(--lina-ink);padding:6px 12px;font-size:13px;border-radius:999px}
+  .lina .ltab.sel{background:#ff8fab;color:#3a0f1e;border-color:#ff8fab}
+  .lopts{display:flex;flex-wrap:wrap;gap:7px;align-content:flex-start}
+  .lina .lchip{background:var(--lina-chip);border:1px solid var(--lina-chip-line);color:var(--text);padding:8px 12px;font-size:14px;font-weight:500;border-radius:12px;display:inline-flex;align-items:center;gap:6px}
+  .lina .lchip.sel{border-color:#ff8fab;background:var(--lina-sel);color:var(--lina-ink)}
+  .lchip .dot{width:14px;height:14px;border-radius:50%;display:inline-block}
+  .swl{width:100%;font-size:12px;margin-top:8px}
+  .sw{display:flex;flex-wrap:wrap;gap:7px;width:100%}
+  .lina .swb{width:30px;height:30px;padding:0;border-radius:50%;border:2px solid var(--lina-chip-line)}
+  .lina .swb.sel{border-color:var(--text);box-shadow:0 0 0 2px #ff8fab}
+  .closet{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px}
+  .cl{position:relative;text-align:center}
+  .lina .clpick{padding:0;background:none;border:2px solid var(--lina-chip-line);border-radius:12px;overflow:hidden;width:100%;display:block}
+  .lina .clpick:hover{border-color:#ff8fab}
+  .clpick svg{display:block;width:100%}
+  .cln{font-size:12px;color:var(--lina-ink);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lina .cladd{position:absolute;top:4px;left:4px;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:#ff8fab;color:#3a0f1e;font-size:16px;font-weight:700;line-height:22px}
+  .lina .clsure{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:5px;padding:6px;border-radius:12px;background:var(--lina-card);border:2px solid #ff8fab;text-align:center;font-size:13px;line-height:1.25}
+  .lina .clsure b{overflow-wrap:anywhere}
+  .lina .clsure button{padding:6px 4px;font-size:13px}
+  .lina .scene{border-radius:16px;overflow:hidden;border:2px solid var(--lina-chip-line);max-width:760px}
+  .lina .scene svg{display:block;width:100%;height:auto}
+  .lina .scene-empty{padding:26px 16px;font-size:14px;text-align:center}
+  .lina #linaSceneCats:empty,.lina #linaSceneBg:empty{display:none}
+  .lina #linaSceneCats,.lina #linaSceneBg{margin-top:10px}
+  .lina .cldel{position:absolute;top:4px;right:4px;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:#000a;color:#fff;font-size:14px;line-height:22px}
+  .pet{position:absolute;color:#ff6b9a;font-weight:700;font-size:18px;pointer-events:none;animation:petUp 1.2s ease-out forwards}
+  @keyframes petUp{from{opacity:1;transform:translate(-50%,0) scale(.8)}to{opacity:0;transform:translate(-50%,-80px) scale(1.3)}}
+  .kitty{transform-origin:150px 330px}
+  .kitty.wiggle{animation:wig .45s ease}
+  @keyframes wig{25%{transform:rotate(-3deg)}75%{transform:rotate(3deg)}}
+  .twinkle{animation:tw 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+  @keyframes tw{50%{opacity:.25}}
+  .floaty{animation:fl 2.4s ease-in-out infinite}
+  @keyframes fl{50%{opacity:.5}}
+
+  /* ---- pop-up windows and toasts ---- */
+  .bpm-back{position:fixed;inset:0;z-index:120;background:var(--shade);backdrop-filter:blur(3px);display:flex;align-items:flex-start;justify-content:center;padding:5vh 12px;overflow:auto}
+  .bpm{width:100%;max-width:560px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 24px 70px rgba(0,0,0,.35);animation:rise .3s ease both}
+  .bpm.wide{max-width:940px}
+  .bpm-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:18px 18px 0 26px}
+  .bpm-hd h2{font:700 28px/1.2 var(--head);letter-spacing:.05em;text-transform:uppercase;margin:0;display:flex;align-items:center;gap:10px}
+  .bpm-x{width:36px;height:36px;padding:0;background:transparent;border:1px solid var(--bd);color:var(--text);font-size:20px;line-height:1}
+  .bpm-body{padding:14px 26px 26px}
+  /* toasts sit top-centre, stay about 12 s (longer while hovered) and show a thin bar counting down */
+  .bpt-wrap{position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:130;display:flex;flex-direction:column;gap:10px;width:min(420px,calc(100vw - 28px))}
+  .bpt{position:relative;overflow:hidden;display:block;width:100%;padding:14px 18px 16px;text-align:left;text-transform:none;letter-spacing:0;font:15px/1.4 var(--body);background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 14px 40px rgba(0,0,0,.28);animation:bptIn .45s cubic-bezier(.2,.9,.3,1.2) both}
+  @keyframes bptIn{from{opacity:0;transform:translateY(-18px) scale(.96)}to{opacity:1;transform:none}}
+  .bpt.out{animation:bptOut .3s ease forwards}
+  @keyframes bptOut{to{opacity:0;transform:translateY(-10px)}}
+  .bpt .th{display:block;color:var(--accent-ink,var(--accent));font:700 14px/1.3 var(--head);letter-spacing:.12em;text-transform:uppercase}
+  /* ---- pictures and the account window ---- */
+  .av{display:inline-grid;place-items:center;flex:none;border-radius:50%;object-fit:cover;vertical-align:middle;background:var(--hd);color:var(--hi);font-family:var(--head);font-weight:700;line-height:1;text-transform:uppercase}
+  td .av{margin-right:8px}
+  .acctbtn{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 10px 0 5px;background:transparent;color:#fff;border:1px solid transparent;border-radius:999px;font:inherit;text-transform:none;letter-spacing:0;box-shadow:none}
+  .acctbtn:hover{background:#3b3f5e;transform:none;box-shadow:none}
+  .acctbtn .av{background:#5a5f85;color:#fff}
+  .ac-top{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}
+  .ac-name{font:700 30px/1.1 var(--head);letter-spacing:.04em;text-transform:uppercase}
+  .ac-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+  .ac-form{display:grid;gap:8px;max-width:400px}
+  .ac-form input[type=password]{width:100%;background:var(--inset);border:1px solid var(--bd);border-radius:var(--r2);color:var(--text);font:500 16px var(--body);padding:10px 13px;outline:none}
+  .ac-form input[type=password]:focus{border-color:var(--accent)}
+  .ac-msg{font-size:13px;line-height:1.45;color:var(--muted);margin:8px 0 0;min-height:19px}
+  .ac-msg.bad{color:var(--bad)}
+  .ac-link{font-size:15px;margin-left:4px}
+  button.ghost.ac-danger{color:var(--bad);border-color:var(--bad)}
+  .ac-warn{border:1px solid var(--bad);border-radius:var(--r2);padding:14px 16px;font-size:15px;line-height:1.5}
+  .ac-warn b{color:var(--bad)}
+  .ac-warn ul{margin:8px 0 14px;padding-left:20px}
+  .ac-kill{background:var(--bad);border-color:var(--bad);color:#fff;padding:8px 14px;font-size:15px}
+  @media (max-width:420px){ .acctbtn{padding:0 3px} }
+  /* ---- the friends box ---- */
+  .fr{margin:14px 0 22px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+  .fr-head{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:center;justify-content:space-between}
+  .fr-add{display:flex;gap:8px;flex:1 1 300px;max-width:460px}
+  .fr-add input[type=text]{font:500 16px var(--body);padding:9px 13px}
+  .fr-code{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+  .fr-code b{font-size:18px;letter-spacing:.08em;color:var(--text)}
+  .fr-msg{font-size:13px;color:var(--muted);margin:8px 0 0;min-height:19px}
+  .fr-msg.bad{color:var(--bad)}
+  .fr-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+  .fr-lbl{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-right:4px}
+  .fr-chip{display:inline-flex;align-items:center;gap:7px;padding:4px 6px 4px 10px;background:var(--inset);border:1px solid var(--line);border-radius:999px;font-size:15px;font-weight:500}
+  .fr-chip .av{margin-left:-5px}
+  .fr-chip button.sm{padding:4px 10px;font-size:14px}
+  .fr-x{padding:0 7px;height:24px;min-width:24px;background:transparent;border:0;color:var(--muted);font:500 16px/1 var(--body);letter-spacing:0;text-transform:none;border-radius:999px;box-shadow:none}
+  .fr-x:hover{color:var(--text);background:var(--hover);transform:none;box-shadow:none}
+  .fr-x.sure{color:var(--bad);font-size:13px;font-weight:600}
+  .fr-none{font-size:14px;margin:12px 0 0;max-width:640px}
+  .frn{display:inline-grid;place-items:center;min-width:18px;height:18px;margin-left:7px;padding:0 5px;border-radius:999px;background:var(--accent);color:var(--on-accent);font:700 12px/1 var(--body);letter-spacing:0;vertical-align:middle}
+  .sitefoot{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:36px;padding-top:16px;border-top:1px solid var(--line);font-size:13px}
+  .sitefoot a,.authlinks a{color:var(--muted)}
+  .authlinks{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:14px;font-size:12px}
+  .bpt .tb{display:block;position:relative}
+  .bpt .th{padding-right:34px}
+  .bpt .tx{position:absolute;top:6px;right:6px;z-index:1;width:34px;height:34px;display:grid;place-items:center;font-size:22px;line-height:1;color:var(--muted);border-radius:8px}
+  .bpt .tx:hover{color:var(--text);background:var(--inset)}
+  .bpt .tb b{display:block;font:700 26px/1.15 var(--head);letter-spacing:.04em;text-transform:uppercase}
+  .bpt .tm{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--accent);transform-origin:left;animation:bptTime 12s linear forwards}
+  .bpt:hover .tm{animation-play-state:paused}
+  @keyframes bptTime{to{transform:scaleX(0)}}
+  /* the "something good happened" version: a soft glow, one sweep of light, a few specks. Deliberately brief. */
+  .bpt.cele{border-color:var(--accent)}
+  .bpt.cele::before{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,color-mix(in srgb,var(--accent) 20%,transparent) 50%,transparent 65%);transform:translateX(-100%);animation:bptShine 1.5s ease .25s 2;pointer-events:none}
+  @keyframes bptShine{to{transform:translateX(100%)}}
+  .bpt.cele{animation:bptIn .45s cubic-bezier(.2,.9,.3,1.2) both,bptGlow 1.3s ease-out .2s 2}
+  @keyframes bptGlow{0%{box-shadow:0 14px 40px rgba(0,0,0,.28),0 0 0 0 color-mix(in srgb,var(--accent) 40%,transparent)}100%{box-shadow:0 14px 40px rgba(0,0,0,.28),0 0 0 22px transparent}}
+  .bpt-fx{position:fixed;left:50%;top:110px;width:0;height:0;z-index:129;pointer-events:none}
+  .bpt-fx i{position:absolute;left:0;top:0;width:7px;height:7px;border-radius:50%;opacity:0;animation:bptSpeck 1.1s ease-out forwards}
+  @keyframes bptSpeck{0%{opacity:.9;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.4)}}
+
+  /* ---- tiny looping demos inside "How to play". The resting state is the finished picture. ---- */
+  .demo{display:flex;flex-direction:column;gap:8px;max-width:400px;margin:14px 0 0;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r2);background:var(--inset);font-size:13px;line-height:1.3;overflow:hidden}
+  .demo b{font-weight:600}
+  .demo .d1{animation:dShow1 7s infinite} .demo .d2{animation:dShow2 7s infinite} .demo .d3{animation:dShow3 7s infinite}
+  @keyframes dShow1{0%,14%{opacity:0;transform:translateY(5px)}20%,100%{opacity:1;transform:none}}
+  @keyframes dShow2{0%,39%{opacity:0;transform:translateY(5px)}45%,100%{opacity:1;transform:none}}
+  @keyframes dShow3{0%,64%{opacity:0;transform:translateY(5px)}70%,100%{opacity:1;transform:none}}
+  .demo .dq{font-weight:600;font-size:14px}
+  .demo .dline{display:flex;align-items:center;gap:8px}
+  .demo .dinp{display:inline-flex;min-width:74px;padding:5px 9px;border:1px solid var(--bd);border-radius:6px;background:var(--panel);font-weight:600;font-variant-numeric:tabular-nums}
+  .demo .dtype{display:inline-block;overflow:hidden;white-space:nowrap;width:3ch;animation:dType 7s steps(3) infinite}
+  @keyframes dType{0%,8%{width:0}30%,100%{width:3ch}}
+  .demo .dunit{color:var(--muted)}
+  .demo .dres{display:flex;justify-content:space-between;gap:10px}
+  .demo .dgood{color:var(--good);font-weight:600}
+  .demo .dlife{height:6px;border-radius:3px;background:var(--track);overflow:hidden}
+  .demo .dlife i{display:block;height:100%;width:96%;background:var(--good);animation:dLife 7s infinite}
+  @keyframes dLife{0%,46%{width:100%}54%,100%{width:96%}}
+  .demo.dm-ml{flex-direction:row;gap:10px}
+  .demo .dcard{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 6px;border:1px solid var(--line);border-radius:8px;background:var(--panel);text-align:center}
+  .demo .dbtn{font:700 13px/1 var(--head);letter-spacing:.08em;text-transform:uppercase;padding:5px 12px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);animation:dPress 7s infinite}
+  @keyframes dPress{0%,30%{background:transparent;color:var(--text);border-color:var(--bd);transform:none}36%{transform:scale(.9)}44%,100%{background:var(--accent);color:var(--on-accent);border-color:var(--accent);transform:none}}
+  .demo .drow{position:relative;display:flex;padding:5px 10px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+  .demo .drow i{position:absolute;left:0;top:0;bottom:0;opacity:.28}
+  .demo .drow span{position:relative;font-variant-numeric:tabular-nums}
+  .demo .dtiles{display:flex;gap:4px}
+  .demo .dtiles span{width:28px;height:28px;border-radius:5px;display:flex;align-items:center;justify-content:center;font:700 17px var(--head)}
+
+  /* ---- level, profile and achievements ---- */
+  .xpbar{height:8px;border-radius:4px;background:var(--track);overflow:hidden} .xpbar i{display:block;height:100%;border-radius:4px;background:var(--accent);transition:width .6s ease}
+  .xpnote{font-size:13px;color:var(--muted);margin-top:8px}
+  .pf-top{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center}
+  .pf-lv{width:92px;height:92px;border-radius:var(--r);display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--hd);color:var(--hi)}
+  .pf-lv span{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+  .pf-lv b{font:700 50px/1 var(--head)}
+  .pf-title{font:700 30px/1.1 var(--head);letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px}
+  .pf-cells{display:flex;flex-wrap:wrap;gap:14px clamp(22px,3vw,44px);margin-top:24px;padding-top:20px;border-top:1px solid var(--line)}
+  .pf-cells span{display:block;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .pf-cells b{display:block;font:700 28px/1.15 var(--head)}
+  .ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:8px}
+  .ach{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r2);background:var(--inset);opacity:.72}
+  .ach.got{opacity:1;border-color:var(--bd)}
+  .ach .mk{width:14px;height:14px;margin-top:3px;border-radius:50%;border:2px solid var(--muted)}
+  .ach.got .mk{background:var(--good);border-color:var(--good)}
+  .ach b{font-weight:600}
+  .ach p{margin:2px 0 0;font-size:13px;line-height:1.4;color:var(--muted)}
+  .ach .xp{font:700 15px/1.4 var(--head);color:var(--muted);white-space:nowrap}
+  .ach.got .xp{color:var(--accent-ink,var(--accent))}
+  .ach .pg{height:4px;border-radius:2px;background:var(--track);margin-top:8px;overflow:hidden} .ach .pg i{display:block;height:100%;background:var(--muted)}
+
+  /* ---- Plus (the paid version; preview only) ---- */
+  .plus-lead{font-size:16px;line-height:1.5;margin:0 0 14px;color:var(--muted)}
+  .plus-cmp{width:100%;border-collapse:collapse;font-size:15px}
+  .plus-cmp th{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--bd);text-align:center}
+  .plus-cmp th:first-child,.plus-cmp td:first-child{text-align:left;padding-left:0}
+  .plus-cmp td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:center;width:64px}
+  .plus-cmp td:first-child{width:auto}
+  .plus-cmp td small{display:block;color:var(--muted);font-size:13px;font-weight:400}
+  .plus-cmp .y{font-weight:700;color:var(--good)} .plus-cmp .n{color:var(--muted)}
+  .plus-cmp tr.only td:first-child{font-weight:600}
+  .plus-bill{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 14px}
+  .plus-opt{display:block;text-align:left;text-transform:none;letter-spacing:0;font:14px/1.4 var(--body);background:var(--inset);color:var(--text);border:1px solid var(--line);padding:12px 14px}
+  .plus-opt.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .plus-opt b{display:block;font:700 28px/1.1 var(--head)}
+  .plus-cta{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .plus-note{font-size:13px;line-height:1.45;color:var(--muted);margin:12px 0 0;min-height:19px}
+  /* a Plus member: filled button, no "Plus" tags on things that are now simply theirs */
+  .plusbtn.on,.plusbtn.on:hover{background:var(--accent);color:var(--on-accent)}
+  :root[data-plan=plus] .pluslink .ptag{display:none}
+  :root[data-plan=plus] .pluslink{color:var(--accent-ink,var(--accent))}
+  .st7{display:grid;grid-template-columns:repeat(7,38px);gap:4px}
+  .st7 span{padding:5px 0;text-align:center;font-weight:600;border-radius:var(--r3);background:var(--hover);border:1px solid var(--line)}
+  .st7 span.no{background:transparent;color:var(--muted);font-weight:400}
+
+  @media (prefers-reduced-motion: reduce){ *,*::before,*::after{animation-duration:.01ms !important;animation-delay:0s !important;animation-iteration-count:1 !important;transition-duration:.01ms !important} .bpt .tm{display:none} }
+</style>
+<style>
+/* ---- Standard colours: "By game". Every game has its own colour and the page takes it on while you are in that game.
+   The rules sit on data-palette, which the script at the top sets to "games". Without the attribute the earlier
+   orange theme above shows through; dev.js adds more palettes for trying out. ---- */
+:root[data-palette]{
+  --bg:#e4e6ee; --panel:#f1f2f7; --inset:#fafaff; --line:#d2d5e2; --bd:#aeb3c8; --text:#2D3047; --muted:#5a5e7a;
+  --hd:#2D3047; --hi:#f1f2f7; --hm:#c9cce0; --track:#d8dbe8; --hover:#e5e7f1;
+  --good:#13857a; --on-good:#ffffff; --bad:#c9303e; --warn:#806600; --blue:#4a4fa3; --present:#f3e24f; --on-present:#2D3047;
+  --key:#d2d5e2; --on-key:#2D3047; --top:#2D3047;
+}
+:root[data-theme=dark][data-palette]{
+  --bg:#1b1d2c; --panel:#252840; --inset:#1f2236; --line:#373b57; --bd:#4d5278; --text:#eceefa; --muted:#a9aecb;
+  --hd:#eceefa; --hi:#1b1d2c; --hm:#3f4466; --track:#373b57; --hover:#2d3150;
+  --good:#2ec4b3; --on-good:#12141f; --bad:#ff6b76; --warn:#FFFD82; --blue:#a9afee; --present:#FFFD82; --on-present:#2D3047;
+  --key:#4d5278; --on-key:#ffffff; --top:#141623;
+}
+/* top bar details that are fixed greys in the original */
+:root[data-palette] .lvlchip,:root[data-palette] .themebtn{border-color:#5a5f85}
+:root[data-palette] .lvlchip:hover,:root[data-palette] .plusbtn:hover,:root[data-palette] .themebtn:hover{background:#3b3f5e}
+:root[data-palette] .lvlchip i{background:#4d5278}
+:root[data-palette] :is(button,a,input,summary):focus-visible{outline-color:var(--accent-ink)}
+
+/* where the second and third colour go. One-accent palettes do not set them, so they fall back to the accent. */
+:root[data-palette] .xpbar i,:root[data-palette] .lvlchip u,:root[data-palette] .bpt .tm{background:var(--a2,var(--accent))}
+:root[data-palette] .tabs a .ts.open,:root[data-palette] .unitbadge .uv,:root[data-palette] .ach.got .xp,:root[data-palette] .bpt .th{color:var(--a2-ink,var(--accent-ink))}
+:root[data-palette] .ptag,:root[data-palette] .phd span.ptag{background:var(--a3,var(--accent));color:var(--on-a3,var(--on-accent))}
+:root[data-palette] .plusbtn{border-color:var(--a3,var(--accent))}
+:root[data-palette] .plusbtn.on,:root[data-palette] .plusbtn.on:hover{background:var(--a3,var(--accent));color:var(--on-a3,var(--on-accent))}
+:root[data-palette] .gh::after{content:"";display:var(--ghbar,none);width:36px;height:4px;border-radius:2px;margin-top:10px;background:var(--a2,var(--accent))}
+/* By game: Survival watermelon, More/Less tangerine, Guessless canary, Clueless verdigris, Wordy (and every other page) indigo */
+:root[data-palette=games]{--accent:#4a4fa3;--on-accent:#ffffff;--accent-ink:#4a4fa3;--hl:#dfe1f6;--a3:#FFFD82;--on-a3:#2D3047;--ghbar:block}
+:root[data-theme=dark][data-palette=games]{--accent:#a9afee;--on-accent:#12141f;--accent-ink:#a9afee;--hl:#33375c}
+:root[data-palette=games]:has(#g-survival.on){--accent:#d63a48;--on-accent:#ffffff;--accent-ink:#b82533;--hl:#fbdcdf}
+:root[data-theme=dark][data-palette=games]:has(#g-survival.on){--accent:#ff6b76;--on-accent:#12141f;--accent-ink:#ff7b85;--hl:#4a2633}
+:root[data-palette=games]:has(#g-moreless.on){--accent:#FF9B71;--on-accent:#2D3047;--accent-ink:#a8431c;--hl:#ffe3d6}
+:root[data-theme=dark][data-palette=games]:has(#g-moreless.on){--accent:#FF9B71;--on-accent:#2D3047;--accent-ink:#FF9B71;--hl:#4c3233}
+:root[data-palette=games]:has(#g-guessless.on){--accent:#2D3047;--on-accent:#FFFD82;--accent-ink:#756100;--hl:#fffbb0}
+:root[data-theme=dark][data-palette=games]:has(#g-guessless.on){--accent:#FFFD82;--on-accent:#2D3047;--accent-ink:#FFFD82;--hl:#45452c}
+:root[data-palette=games]:has(#g-clueless.on){--accent:#14857a;--on-accent:#ffffff;--accent-ink:#0c6b63;--hl:#d3eee9}
+:root[data-theme=dark][data-palette=games]:has(#g-clueless.on){--accent:#2ec4b3;--on-accent:#12141f;--accent-ink:#45d3c2;--hl:#1d4745}
+:root[data-palette=games] .topbar{border-bottom:4px solid;border-image:linear-gradient(90deg,#E84855 0 20%,#FF9B71 20% 40%,#FFFD82 40% 60%,#1B998B 60% 80%,#5a60b8 80% 100%) 1}
+:root[data-palette=games] .tabs a[data-g] .tl::before{content:"";display:inline-block;width:9px;height:9px;margin-right:9px;border-radius:50%;vertical-align:1px;background:var(--gc,transparent)}
+:root[data-palette=games] .tabs a[data-g=survival],:root[data-palette=games] #how-survival{--gc:#E84855}
+:root[data-palette=games] .tabs a[data-g=moreless],:root[data-palette=games] #how-moreless{--gc:#FF9B71}
+:root[data-palette=games] .tabs a[data-g=guessless],:root[data-palette=games] #how-guessless{--gc:#e0d400}
+:root[data-palette=games] .tabs a[data-g=clueless],:root[data-palette=games] #how-clueless{--gc:#1B998B}
+:root[data-palette=games] .tabs a[data-g=wordy],:root[data-palette=games] #how-wordy{--gc:#5a60b8}
+:root[data-theme=dark][data-palette=games] .tabs a[data-g=guessless],:root[data-theme=dark][data-palette=games] #how-guessless{--gc:#FFFD82}
+:root[data-theme=dark][data-palette=games] .tabs a[data-g=wordy],:root[data-theme=dark][data-palette=games] #how-wordy{--gc:#a9afee}
+:root[data-palette=games] .how{border-top:3px solid var(--gc,var(--line))}
+:root[data-palette=games] .tabs a.bpb-tour{padding-left:30px}
+@media (max-width:899px){ :root[data-palette=games] .tabs a.bpb-tour{padding-left:12px} }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <header>
+    <h1>Ballpark <span id="gameTitle">Survival</span></h1>
+    <span class="mono" id="bestTop"></span>
+    <button type="button" class="lvlchip" id="lvlChip" aria-label="Your level and achievements"></button>
+    <button type="button" class="plusbtn" id="plusBtn" data-plus="top">Plus</button>
+    <button type="button" class="themebtn" id="themeBtn" aria-label="Switch between light and dark mode"></button>
+  </header>
+</div>
+<div class="wrap">
+ <div class="layout" id="layout">
+ <!-- The games list is the navigation and today's checklist in one: each game shows today's result. -->
+ <nav class="tabs" id="tabs" aria-label="Games">
+   <div class="navhd"><span>Today</span><span id="navDone"></span></div>
+   <a href="#survival" data-g="survival"><span class="tl">Survival</span><span class="ts" id="st-sv"></span></a>
+   <a href="#moreless" data-g="moreless"><span class="tl">More/Less</span><span class="ts" id="st-ml"></span></a>
+   <a href="#guessless" data-g="guessless"><span class="tl">Guessless</span><span class="ts" id="st-gl"></span></a>
+   <a href="#clueless" data-g="clueless"><span class="tl">Clueless</span><span class="ts" id="st-cl"></span></a>
+   <a href="#wordy" data-g="wordy"><span class="tl">Wordy</span><span class="ts" id="st-wd"></span></a>
+   <div class="navnote" id="navNote"></div>
+   <div class="navhd"><span>More</span></div>
+   <a href="#atlas" data-g="atlas"><span class="tl">Atlas</span><span class="ts" id="st-at"></span></a>
+   <a href="#party" data-g="party"><span class="tl">Party</span></a>
+   <a href="#drinks" data-g="drinks"><span class="tl">Drinks</span></a>
+   <a href="#archive" data-g="archive"><span class="tl">Archive</span></a>
+   <a href="#friends" data-g="friends"><span class="tl">Friends</span></a>
+   <a href="#howto" data-g="howto"><span class="tl">How to play</span></a>
+   <a href="#lina" data-g="lina" class="linatab"><span class="tl">Lina's Corner ♡</span></a>
+ </nav>
+ <main>
+
+  <section class="game on" id="g-survival">
+  <!-- START -->
+  <div class="card screen on" id="start">
+    <h2 class="gh">Survival</h2>
+    <p class="lead">Estimate real-world numbers. Each miss costs life by how many powers of ten you are off, and you start with 10. <a href="#howto" data-how="survival">More info</a></p>
+    <div class="modes">
+      <div class="mode"><div class="mt">Daily run</div><div class="muted md">Same questions for everyone. One try.</div>
+        <button id="goDaily">Play today's run</button><div class="muted mono md" id="dailyStat"></div></div>
+      <div class="mode"><div class="mt">Practice run</div><div class="muted md">Random questions, any time.</div>
+        <div class="opts" id="timeOpts">
+          <button class="ghost" data-t="10">10 s</button>
+          <button class="ghost sel" data-t="15">15 s</button>
+          <button class="ghost" data-t="0">No timer</button>
+        </div>
+        <div class="opts" id="packOpts" aria-label="Questions"></div>
+        <button class="ghost" id="go">Start practice run</button></div>
+    </div>
+    <div class="statstrip"><div class="cells" id="svStat"></div><div class="act"><a href="#" class="pluslink" data-plus="stats">Detailed statistics <span class="ptag">Plus</span></a><button class="ghost sm" id="runsFromStart">Best runs</button></div></div>
+  </div>
+
+  <!-- GAME -->
+  <div class="screen" id="game">
+    <div class="hud">
+      <div>
+        <div class="life-label"><span class="muted">Life</span><span class="mono" id="lifeNum">10.00</span></div>
+        <div class="life" id="life"></div>
+      </div>
+      <div class="score"><span class="muted" style="font-size:12px">Survived</span><b class="mono" id="score">0</b></div>
+    </div>
+    <div class="hudbar"><button class="ghost sm" id="endRun">End run</button></div>
+    <div class="card" id="qcard">
+      <div class="timerrow"><div class="timer"><i id="bar"></i></div><span class="mono tleft" id="tleft"></span></div>
+      <p class="q" id="q"></p>
+      <div class="unitbadge"><span class="ul">Answer in</span><span class="uv" id="unit"></span></div>
+      <form id="f" autocomplete="off">
+        <div class="ingroup"><input type="text" id="inp" placeholder="Your estimate" inputmode="text"><span class="insuffix" id="inpUnit"></span></div>
+        <button id="sub">Guess</button>
+      </form>
+      <div class="parsed muted mono" id="parsed"></div>
+
+      <div class="reveal" id="rev">
+        <div class="verdict"><div class="ratio" id="ratio"></div></div>
+        <div class="cmp">
+          <div class="cbox you"><div class="cl">Your guess</div><div class="cv mono" id="yg"></div></div>
+          <div class="cbox ans"><div class="cl">Correct answer</div><div class="cv mono" id="ans"></div></div>
+        </div>
+        <div class="scale" id="scale"></div>
+        <div class="dmgline"><span class="muted">Life change</span><b class="dmg mono" id="dmg"></b><span class="muted mono" id="lifeAfter"></span></div>
+        <div class="fact" id="fact"></div>
+        <div class="nextrow"><span class="muted kbd">Press Enter ↵</span><button id="next">Next →</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OVER -->
+  <div class="card screen" id="over">
+    <div class="center">
+      <div class="muted">Run over. You survived</div>
+      <div class="big mono" id="finalScore">0</div>
+      <div class="muted" id="finalSub">questions</div>
+      <div class="muted mono" id="avgErr" style="margin-top:8px;font-size:13px"></div>
+      <div style="margin-top:18px;display:flex;gap:10px;justify-content:center">
+        <button id="again">Play again</button>
+        <button class="ghost" id="copy">Copy result</button>
+        <button class="ghost" id="runsFromOver">Best runs</button>
+      </div>
+    </div>
+    <div class="hist" id="hist"></div>
+  </div>
+
+  <!-- BEST RUNS -->
+  <div class="card screen" id="runsScreen">
+    <div class="navrow">
+      <h2 style="margin:0;font-size:20px">Best runs</h2>
+      <div style="display:flex;gap:8px"><button class="ghost" id="runsBack" style="padding:8px 14px;font-size:14px">← Back</button><button id="runsPlay" style="padding:8px 14px;font-size:14px">Play</button></div>
+    </div>
+    <div class="muted" style="font-size:13px">Your ten best runs. Click one to see every guess.</div>
+    <div class="muted mono" id="storeNote" style="font-size:12px;margin-top:6px"></div>
+    <div class="runs" id="runsList"></div>
+    <div style="text-align:right;margin-top:14px"><button class="ghost" id="clearRuns" style="padding:6px 12px;font-size:12px">Clear saved runs</button></div>
+  </div>
+
+  </section>
+
+  <!-- ================= MORE / LESS ================= -->
+  <section class="game" id="g-moreless">
+    <div class="card" id="mlIntro">
+      <h2 class="gh">More or Less</h2>
+      <p class="lead">Two things, one number: is the new one more, or less? 25 picks across 5 categories. <a href="#howto" data-how="moreless">More info</a></p>
+      <div class="acts">
+        <button id="mlDaily">Play today's game</button><button class="ghost" id="mlPractice">Practice game</button>
+      </div>
+      <div class="statstrip"><div class="cells" id="mlStat"></div><div class="act"><a href="#" class="pluslink" data-plus="stats">Detailed statistics <span class="ptag">Plus</span></a></div></div>
+    </div>
+    <div id="mlPlay" style="display:none">
+      <div class="mlhead"><span id="mlCat" class="mono"></span><span style="display:flex;gap:10px;align-items:center"><span class="mono" id="mlScore"></span><button class="ghost sm" id="mlQuit">← Menu</button></span></div>
+      <div class="dots" id="mlDots"></div>
+      <div class="mlq muted" id="mlQ"></div>
+      <div class="mlboard" id="mlBoard"></div>
+      <div class="muted center" id="mlSrc" style="font-size:12px;margin-top:10px"></div>
+    </div>
+    <div class="card" id="mlEnd" style="display:none">
+      <div class="center"><div class="muted" id="mlEndLbl">Today's score</div><div class="big mono" id="mlFinal">0</div><div class="muted">out of 25</div></div>
+      <div class="mlgrid mono" id="mlGrid"></div>
+      <div class="center" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px">
+        <button id="mlCopy">Copy result</button><button class="ghost" id="mlAgain">Practice game</button><button class="ghost" id="mlBack">Back</button>
+      </div>
+      <div class="hist" id="mlHist" style="margin-top:16px"></div>
+    </div>
+  </section>
+
+  <!-- ================= GUESSLESS ================= -->
+  <section class="game" id="g-guessless">
+    <div class="card" id="glIntro">
+      <h2 class="gh">Guessless</h2>
+      <p class="lead">Five questions, one guess each, no timer. The closer you are, the more of the 100 points per question you keep. <a href="#howto" data-how="guessless">More info</a></p>
+      <div class="acts">
+        <button id="glDaily">Play today's 5</button><button class="ghost" id="glPractice">Practice round</button>
+      </div>
+      <div class="statstrip"><div class="cells" id="glStat"></div><div class="act"><a href="#" class="pluslink" data-plus="stats">Detailed statistics <span class="ptag">Plus</span></a></div></div>
+    </div>
+    <div class="card" id="glPlay" style="display:none">
+      <div class="mlhead"><span id="glCat" class="mono"></span><span style="display:flex;gap:10px;align-items:center"><span class="mono" id="glTotal"></span><button class="ghost sm" id="glQuit">← Menu</button></span></div>
+      <p class="q" id="glQ" style="margin-top:14px"></p>
+      <div class="unitbadge"><span class="ul">Answer in</span><span class="uv" id="glUnit"></span></div>
+      <form id="glForm" autocomplete="off"><div class="ingroup"><input type="text" id="glInp" placeholder="Your estimate"><span class="insuffix" id="glInpUnit"></span></div><button id="glSub">Guess</button></form>
+      <div class="parsed muted mono" id="glParsed"></div>
+      <div class="reveal" id="glRev">
+        <div class="verdict"><div class="ratio" id="glRatio"></div></div>
+        <div class="cmp">
+          <div class="cbox you"><div class="cl">Your guess</div><div class="cv mono" id="glYg"></div></div>
+          <div class="cbox ans"><div class="cl">Correct answer</div><div class="cv mono" id="glAns"></div></div>
+        </div>
+        <div class="scale" id="glScale"></div>
+        <div class="dmgline"><span class="muted">Points</span><b class="dmg mono" id="glPts"></b><span class="muted mono">out of 100</span></div>
+        <div class="fact" id="glFact"></div>
+        <div class="nextrow"><span class="muted kbd">Press Enter ↵</span><button id="glNext">Next →</button></div>
+      </div>
+    </div>
+    <div class="card" id="glEnd" style="display:none">
+      <div class="center"><div class="muted" id="glEndLbl">Today's score</div><div class="big mono" id="glFinal">0</div><div class="muted">out of 500</div></div>
+      <div class="hist" id="glHist" style="margin-top:14px"></div>
+      <div class="center" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px">
+        <button id="glCopy">Copy result</button><button class="ghost" id="glAgain">Practice round</button><button class="ghost" id="glBack">Back</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CLUELESS ================= -->
+  <section class="game" id="g-clueless">
+    <div class="card" id="clIntro">
+      <h2 class="gh">Clueless</h2>
+      <p class="lead">Find the secret word. Every guess gets a rank: #1 is the word itself, and a lower number means closer in meaning. <a href="#howto" data-how="clueless">More info</a></p>
+      <div class="acts">
+        <button id="clDaily">Play today's word</button><button class="ghost" id="clPractice">Random word</button>
+      </div>
+      <div class="statstrip"><div class="cells" id="clStat"></div><div class="act"><a href="#" class="pluslink" data-plus="stats">Detailed statistics <span class="ptag">Plus</span></a></div></div>
+    </div>
+    <div class="card" id="clPlay" style="display:none">
+      <div class="mlhead"><span class="mono" id="clLbl"></span><span class="mono" id="clCount"></span></div>
+      <form id="clForm" autocomplete="off" style="margin-top:14px"><input type="text" id="clInp" placeholder="Type a word" autocapitalize="off" spellcheck="false"><button id="clSub">Guess</button></form>
+      <div class="parsed mono" id="clMsg"></div>
+      <div id="clLast"></div>
+      <div class="cllist" id="clList"></div>
+      <div style="display:flex;gap:8px;justify-content:space-between;margin-top:14px;flex-wrap:wrap">
+        <button class="ghost" id="clBackBtn" style="padding:8px 14px;font-size:14px">← Menu</button>
+        <span style="display:flex;gap:8px"><button class="ghost" id="clHint" style="padding:8px 14px;font-size:14px">Hint</button><button class="ghost" id="clGive" style="padding:8px 14px;font-size:14px">Give up</button></span>
+      </div>
+      <div id="clWin" style="display:none;margin-top:18px"></div>
+    </div>
+  </section>
+
+  <section class="game" id="g-wordy"></section>
+
+  <section class="game" id="g-lina"></section>
+
+  <!-- Atlas: geography games, filled in by atlas.js and judged by the server (geo-server.js) -->
+  <section class="game" id="g-atlas"></section>
+
+  <!-- Party: private lobbies, filled in by party.js and judged by the server (party-server.js) -->
+  <section class="game" id="g-party"></section>
+
+  <!-- Drinks: drinking games, filled in by drinks.js; the one-phone games are judged by the server (drinks-server.js) -->
+  <section class="game" id="g-drinks"></section>
+
+  <!-- Archive: calendar, streaks and the way into past days (archive.js, day.js) -->
+  <section class="game" id="g-archive"></section>
+
+  <section class="game" id="g-friends">
+    <div class="card"><div class="navrow"><h2 style="margin:0;font-size:20px">Friends</h2><button class="ghost" style="padding:6px 12px;font-size:13px" onclick="window.onFriendsTab()">Refresh</button></div>
+    <div id="friendsBody"></div></div>
+  </section>
+
+  <!-- ================= HOW TO PLAY ================= -->
+  <section class="game" id="g-howto">
+   <div class="card"><h2 class="gh">How to play</h2>
+   <div class="howgrid">
+    <div class="how" id="how-survival"><h3>Survival</h3><p>Estimate real-world numbers. Every miss costs life.</p>
+    <div class="demo" aria-hidden="true"><div class="dq">How tall is the Eiffel Tower?</div><div class="dline"><span class="dinp"><span class="dtype">300</span></span><span class="dunit">metres</span></div><div class="dres d2"><span>Answer <b>330</b></span><span class="dgood">costs 0.04 life</span></div><div class="dlife"><i></i></div></div>
+    <ul class="rules">
+      <li>A guess costs life by how many powers of ten it is off: 10× off costs 1.0, 2× off costs 0.3.</li>
+      <li>Within 5% heals 0.2. Running out of time costs 2.0.</li>
+      <li>Shorthand works: <span class="mono">3.5k</span>, <span class="mono">8b</span>, <span class="mono">2e9</span>, <span class="mono">40 million</span>.</li>
+      <li>Answers are reference figures. Some are rounded, and the note says so.</li>
+    </ul>
+    <a href="#survival">Play Survival</a></div>
+    <div class="how" id="how-moreless"><h3>More/Less</h3><p>Is the new one more, or less? 25 picks.</p>
+    <div class="demo dm-ml" aria-hidden="true"><div class="dcard"><b>Mount Everest</b><span>8,849 m</span></div><div class="dcard"><b>Mont Blanc</b><span class="dbtn">Less</span><span class="dgood d3">4,806 m, correct</span></div></div>
+      <ul class="rules">
+        <li>5 categories with 5 comparisons each.</li>
+        <li>The daily game is the same for everyone.</li>
+      </ul>
+    <a href="#moreless">Play More/Less</a></div>
+    <div class="how" id="how-guessless"><h3>Guessless</h3><p>Five questions, one guess each, no timer.</p>
+    <div class="demo" aria-hidden="true"><div class="dq">How many bones are in an adult body?</div><div class="dline"><span class="dinp"><span class="dtype">180</span></span><span class="dunit">bones</span></div><div class="dres d2"><span>Answer <b>206</b></span><span class="dgood">94 points</span></div></div>
+      <ul class="rules">
+        <li>Spot on scores 100, 2× off about 70, 10× off nothing.</li>
+        <li>Shorthand works: <span class="mono">3k</span>, <span class="mono">2e6</span>, <span class="mono">40 million</span>.</li>
+      </ul>
+    <a href="#guessless">Play Guessless</a></div>
+    <div class="how" id="how-clueless"><h3>Clueless</h3><p>Find the secret word. Every guess gets a rank.</p>
+    <div class="demo" aria-hidden="true"><div class="drow d1"><i style="width:8%;background:var(--bad)"></i><span><b>#5278</b> water</span></div><div class="drow d2"><i style="width:45%;background:var(--warn)"></i><span><b>#311</b> music</span></div><div class="drow d3"><i style="width:100%;background:var(--good)"></i><span><b>#1</b> song</span></div></div>
+      <ul class="rules">
+        <li>#1 is the secret word, #2 the closest word, and so on.</li>
+        <li>"Close" means used in similar contexts, as judged by a language model.</li>
+        <li>Unlimited guesses. You can take a hint or give up.</li>
+      </ul>
+    <a href="#clueless">Play Clueless</a></div>
+    <div class="how" id="how-wordy"><h3>Wordy</h3><p>Find the five-letter word.</p>
+    <div class="demo" aria-hidden="true"><div class="dtiles d1"><span class="t a">S</span><span class="t p">T</span><span class="t a">O</span><span class="t a">R</span><span class="t a">E</span></div><div class="dtiles d3"><span class="t c">P</span><span class="t c">L</span><span class="t c">A</span><span class="t c">N</span><span class="t c">T</span></div></div>
+    <ul class="rules">
+      <li>Five letters, six tries.</li>
+      <li>Green: right letter, right spot. Yellow: right letter, wrong spot. Grey: not in the word.</li>
+    </ul>
+    <a href="#wordy">Play Wordy</a></div>
+   </div></div>
+  </section>
+ </main>
+ <aside id="side" aria-label="Today's games, your level and friends"><div id="sdToday"></div><div id="sdLevel"></div><div id="sdFriends"></div><div id="sdArchive"></div></aside>
+ </div>
+ <footer class="sitefoot"><a href="/pricing">Pricing</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refunds">Refunds</a><a href="/imprint">Impressum</a></footer>
+</div>
+
+<script src="site-info.js"></script>
+<script src="day.js"></script>
+<script src="away.js"></script>
+<script src="auth.js"></script>
+<script src="games-data.js"></script>
+<script src="packs-data.js"></script>
+<script>
+// ---------- Question bank ----------
+// a = answer, u = unit, n = note. Only positive quantities (log scoring).
+const Q = [
+ {q:"How tall is the Eiffel Tower, including its antennas?",a:330,u:"metres",n:"About 330 m since a new antenna was added in 2022."},
+ {q:"How tall is Mount Everest above sea level?",a:8849,u:"metres",n:"8,848.86 m, per the 2020 China–Nepal survey."},
+ {q:"How fast does light travel in a vacuum?",a:299792,u:"kilometres per second",n:"Exactly 299,792.458 km/s, by definition."},
+ {q:"What is the average distance from the Earth to the Moon?",a:384400,u:"kilometres",n:"Mean distance. It varies from about 363,000 to 406,000 km."},
+ {q:"What is the average distance from the Earth to the Sun?",a:149600000,u:"kilometres",n:"1 astronomical unit = 149,597,871 km."},
+ {q:"How many bones does a typical adult human have?",a:206,u:"bones",n:"Newborns have roughly 270; many fuse during growth."},
+ {q:"How many keys are on a standard modern piano?",a:88,u:"keys",n:"52 white and 36 black."},
+ {q:"How many member states does the United Nations have?",a:193,u:"countries",n:"South Sudan, in 2011, was the most recent to join."},
+ {q:"What is the Earth's mean diameter?",a:12742,u:"kilometres",n:"Mean value. It is slightly wider at the equator."},
+ {q:"How many people live on Earth?",a:8.1e9,u:"people",n:"Roughly 8.1–8.2 billion as of the mid-2020s (UN estimates)."},
+ {q:"How deep is the Challenger Deep, the deepest point of the Mariana Trench?",a:10935,u:"metres",n:"Measurements range from about 10,900 to 11,000 m."},
+ {q:"How long can a blue whale grow?",a:30,u:"metres",n:"Recorded maximum is about 30 m; most adults are 24–27 m."},
+ {q:"How tall is the Burj Khalifa?",a:828,u:"metres",n:"The world's tallest building since 2010."},
+ {q:"How long is one year on Mars?",a:687,u:"Earth days",n:"One orbit of the Sun takes about 687 Earth days."},
+ {q:"How many teeth does a full set of adult human teeth have?",a:32,u:"teeth",n:"That count includes the four wisdom teeth."},
+ {q:"How fast does sound travel in dry air at 20 °C?",a:343,u:"metres per second",n:"Speed of sound increases with temperature."},
+ {q:"How tall is the Statue of Liberty from ground level to the tip of the torch?",a:93,u:"metres",n:"About 46 m of that is the statue; the rest is the pedestal and foundation."},
+ {q:"What is the total area of Russia?",a:17098246,u:"square kilometres",n:"Largest country on Earth by area."},
+ {q:"How long is the Nile?",a:6650,u:"kilometres",n:"Commonly cited figure; river lengths depend on how the source is defined."},
+ {q:"How many squares are on a chessboard?",a:64,u:"squares",n:"An 8 × 8 grid."},
+ {q:"How many base pairs are in one copy of the human genome?",a:3.1e9,u:"base pairs",n:"About 3.1 billion (haploid). Each cell has two copies."},
+ {q:"How old is the universe?",a:13.8e9,u:"years",n:"About 13.8 billion years, based on cosmic microwave background data."},
+ {q:"How old is the Earth?",a:4.54e9,u:"years",n:"About 4.54 billion years, from radiometric dating."},
+ {q:"How many chemical elements are on the periodic table (confirmed)?",a:118,u:"elements",n:"Oganesson (118) is the heaviest confirmed element."},
+ {q:"How many seconds are in one day?",a:86400,u:"seconds",n:"24 × 60 × 60."},
+ {q:"How many hours are in a 365-day year?",a:8760,u:"hours",n:"365 × 24."},
+ {q:"How long is a marathon?",a:42195,u:"metres",n:"42.195 km, standardised in 1921."},
+ {q:"How deep is Lake Baikal at its deepest point?",a:1642,u:"metres",n:"The deepest lake in the world."},
+ {q:"What is the diameter of the Sun?",a:1391000,u:"kilometres",n:"About 109 times Earth's diameter."},
+ {q:"What is the diameter of the Moon?",a:3474,u:"kilometres",n:"About 27% of Earth's diameter."},
+ {q:"How tall is Mount Kilimanjaro?",a:5895,u:"metres",n:"The highest mountain in Africa."},
+ {q:"How far away is Proxima Centauri, the closest star to the Sun?",a:4.24,u:"light-years",n:"About 40 trillion km."},
+ {q:"How long is the main span of San Francisco's Golden Gate Bridge?",a:1280,u:"metres",n:"The main span between its towers is 1,280 m."},
+ {q:"How tall was the Great Pyramid of Giza when it was built?",a:146.6,u:"metres",n:"About 138.5 m today, after erosion and the loss of its capstone."},
+ {q:"How much water does an Olympic swimming pool hold (50 × 25 × 2 m)?",a:2500000,u:"litres",n:"That is the minimum size; many pools are deeper."},
+ {q:"How many neurons are in an adult human brain?",a:86e9,u:"neurons",n:"About 86 billion (Azevedo et al., 2009)."},
+ {q:"How many cells are in an adult human body?",a:3.7e13,u:"cells",n:"An estimate: about 37 trillion (Bianconi et al., 2013). Later estimates are similar."},
+ {q:"How long does sunlight take to reach Earth?",a:499,u:"seconds",n:"About 8 minutes 19 seconds."},
+ {q:"How fast does the International Space Station orbit?",a:28000,u:"km per hour",n:"About 7.66 km/s; it orbits Earth roughly every 92 minutes."},
+ {q:"What is the area of the Pacific Ocean?",a:165e6,u:"square kilometres",n:"Approximate figure; it covers about a third of Earth's surface."},
+ {q:"What is the diameter of Mars?",a:6779,u:"kilometres",n:"About 53% of Earth's diameter."},
+ {q:"How long is Earth's circumference at the equator?",a:40075,u:"kilometres",n:"The circumference through the poles is about 40,008 km."},
+ {q:"How many ways can a standard 3×3 Rubik's Cube be scrambled?",a:4.3252e19,u:"positions",n:"Exactly 43,252,003,274,489,856,000 reachable positions."},
+ {q:"In how many orders can a 52-card deck be shuffled (52!)?",a:8.0658e67,u:"orderings",n:"52! ≈ 8.07 × 10⁶⁷."},
+ {q:"How tall is Angel Falls in Venezuela, the world's highest waterfall?",a:979,u:"metres",n:"Its longest single drop is about 807 m."},
+ {q:"What is the area of Australia?",a:7688287,u:"square kilometres",n:"Mainland plus Tasmania and islands."},
+ {q:"What is the great-circle distance from London to New York City?",a:5570,u:"kilometres",n:"Approximate value; flight routes are usually somewhat longer."},
+ {q:"What is the Sun's surface temperature?",a:5772,u:"kelvin",n:"Effective temperature of the photosphere."},
+ {q:"How far away is the Andromeda Galaxy?",a:2.5e6,u:"light-years",n:"About 2.5 million ly. Estimates range from about 2.4 to 2.6 million."},
+ {q:"How many Earths would fit inside the Sun by volume?",a:1.3e6,u:"Earths",n:"About 1.3 million."},
+ {q:"How much does the Eiffel Tower's metal structure weigh?",a:7300,u:"tonnes",n:"About 10,100 t in total, including non-metal parts."},
+ {q:"What is the wingspan of a Boeing 747-400?",a:64.4,u:"metres",n:"The later 747-8 has a 68.4 m wingspan."},
+ {q:"What was Concorde's typical cruising speed?",a:2180,u:"km per hour",n:"About Mach 2.04 at cruising altitude."},
+ {q:"How long does light from the Moon take to reach Earth?",a:1.28,u:"seconds",n:"At the average Earth–Moon distance."},
+ {q:"How long would the DNA in one human cell be if stretched out?",a:2,u:"metres",n:"Rough figure, for all 46 chromosomes laid end to end."},
+ {q:"What is the mass of the Earth?",a:5.97e24,u:"kilograms",n:"5.972 × 10²⁴ kg."},
+ {q:"How many atoms are in 12 grams of carbon-12 (Avogadro's number)?",a:6.022e23,u:"atoms",n:"6.022 × 10²³, exact by definition since 2019."},
+ {q:"What is the density of gold?",a:19.3,u:"grams per cubic centimetre",n:"About 19.3 times the density of water."},
+ {q:"How many UN member states are in Africa?",a:54,u:"countries",n:"Counting UN members only."},
+ {q:"How many stickers are on a standard 3×3 Rubik's Cube?",a:54,u:"stickers",n:"6 faces × 9."},
+ {q:"How many minutes are in one week?",a:10080,u:"minutes",n:"7 × 24 × 60."},
+ {q:"How tall is the Leaning Tower of Pisa?",a:56,u:"metres",n:"About 56–57 m, depending on which side you measure."},
+ {q:"How fast does Earth travel in its orbit around the Sun?",a:107000,u:"km per hour",n:"About 29.8 km/s on average."},
+ {q:"How fast does the equator move as Earth rotates?",a:1670,u:"km per hour",n:"40,075 km in about 24 hours."},
+ {q:"How many litres of air does a resting adult breathe per minute?",a:6,u:"litres",n:"Rough figure: about 12 breaths of 0.5 L each. It varies a lot."},
+ {q:"How many piano strings does a typical modern grand piano have?",a:230,u:"strings",n:"Approximate value; it varies by model, usually about 220–240."},
+ {q:"What is the diameter of Jupiter?",a:139820,u:"kilometres",n:"Equatorial diameter, about 11 times Earth's."},
+ {q:"How long is the Panama Canal?",a:82,u:"kilometres",n:"About 82 km from the Atlantic to the Pacific."},
+ {q:"What is the mass of one litre of water?",a:1000,u:"grams",n:"At about 4 °C. This is the original definition of the kilogram."},
+ {q:"How many grains of rice are in a 1 kg bag (long-grain white)?",a:50000,u:"grains",n:"Rough estimate: one grain weighs about 0.02 g. It varies by variety."},
+ {q:"How much does a 1-euro coin weigh?",a:7.5,u:"grams",n:"Official specification: 7.50 g."},
+ {q:"How thick is a standard sheet of 80 gsm office paper?",a:0.1,u:"millimetres",n:"About 0.1 mm (100 µm)."},
+ {q:"What is the diameter of a human hair?",a:0.07,u:"millimetres",n:"Typically 0.02–0.18 mm; about 70 µm is a common midpoint."},
+ {q:"What is the diameter of a red blood cell?",a:0.0075,u:"millimetres",n:"About 7–8 µm."},
+ {q:"How tall is the Empire State Building, including the spire?",a:443,u:"metres",n:"The roof is at about 381 m."},
+ {q:"How many countries border Germany?",a:9,u:"countries",n:"More land neighbours than any other country in Europe."},
+ {q:"What is the mean distance between the Sun and Neptune?",a:4.5e9,u:"kilometres",n:"About 30 AU."},
+ // ---- space ----
+ {q:"What is the diameter of Saturn?",a:116460,u:"kilometres",n:"Equatorial diameter, not counting the rings."},
+ {q:"What is the diameter of Pluto?",a:2377,u:"kilometres",n:"Smaller than Earth's Moon (3,474 km)."},
+ {q:"How long is one day (rotation) on Jupiter?",a:9.9,u:"hours",n:"The fastest-spinning planet in the Solar System."},
+ {q:"How long does Venus take to rotate once on its axis?",a:243,u:"Earth days",n:"A Venus rotation is longer than its year (225 days)."},
+ {q:"How long is one year on Mercury?",a:88,u:"Earth days",n:"The shortest orbit of any planet."},
+ {q:"How long does Neptune take to orbit the Sun?",a:165,u:"Earth years",n:"It completed its first orbit since its discovery in 2011."},
+ {q:"How often does Halley's Comet return?",a:76,u:"years",n:"Roughly 75–79 years. Its next visit is in 2061."},
+ {q:"What is Earth's escape velocity?",a:11.2,u:"kilometres per second",n:"The speed needed to escape Earth's gravity from the surface, ignoring air resistance."},
+ {q:"What is the gravitational acceleration on the Moon's surface?",a:1.62,u:"metres per second²",n:"About 1/6 of Earth's 9.81 m/s²."},
+ {q:"What is the temperature at the Sun's core?",a:15e6,u:"kelvin",n:"About 15 million K, from solar models."},
+ {q:"What is the mass of the Sun?",a:1.989e30,u:"kilograms",n:"About 333,000 Earth masses."},
+ {q:"How many stars are in the Milky Way?",a:2e11,u:"stars",n:"Very uncertain: estimates range from about 100 to 400 billion."},
+ {q:"What is the diameter of the observable universe?",a:93e9,u:"light-years",n:"About 93 billion ly. It is larger than 13.8 billion × 2 because space has expanded."},
+ {q:"At what altitude does the International Space Station orbit?",a:400,u:"kilometres",n:"It varies, usually around 400–420 km."},
+ {q:"At what altitude do GPS satellites orbit?",a:20200,u:"kilometres",n:"Medium Earth orbit; each satellite circles Earth twice a day."},
+ {q:"At what altitude is geostationary orbit above the equator?",a:35786,u:"kilometres",n:"At this height, one orbit takes exactly one sidereal day."},
+ {q:"How far apart are Earth and Mars on average?",a:225e6,u:"kilometres",n:"Average figure; the distance swings from about 55 to 400 million km."},
+ {q:"At what height does the Kármán line (a common edge-of-space definition) sit?",a:100,u:"kilometres",n:"This is a convention; the US military and NASA use 50 miles (about 80 km)."},
+ // ---- human body ----
+ {q:"How much blood does an average adult have?",a:5,u:"litres",n:"Roughly 4.5–5.5 L, depending on body size."},
+ {q:"How long is the human small intestine?",a:6,u:"metres",n:"Commonly cited figure; living measurements are often shorter (about 3–5 m)."},
+ {q:"What is the surface area of an adult's skin?",a:1.8,u:"square metres",n:"Typical value is about 1.5–2 m²."},
+ {q:"How much does an adult human brain weigh?",a:1.4,u:"kilograms",n:"Average is about 1.3–1.4 kg."},
+ {q:"How many times does a human heart beat in an 80-year lifetime?",a:3e9,u:"beats",n:"Rough estimate: about 70 beats per minute over 80 years ≈ 2.9 billion."},
+ {q:"What is the top speed of nerve signals in fast myelinated fibres?",a:120,u:"metres per second",n:"Unmyelinated fibres can be as slow as about 0.5–2 m/s."},
+ {q:"How long does a typical full-term human pregnancy last, counted from the last period?",a:280,u:"days",n:"40 weeks."},
+ {q:"How many hairs are on an average human scalp?",a:100000,u:"hairs",n:"Rough estimate: typically 90,000–150,000, depending on hair colour."},
+ // ---- nature ----
+ {q:"How tall is Hyperion, the tallest known living tree?",a:116,u:"metres",n:"A coast redwood in California; its height grows slightly over time."},
+ {q:"How much does a bee hummingbird, the smallest bird, weigh?",a:2,u:"grams",n:"About 1.6–2 g."},
+ {q:"How long is an African elephant's pregnancy?",a:22,u:"months",n:"The longest pregnancy of any mammal."},
+ {q:"How tall can a giraffe grow?",a:5.5,u:"metres",n:"Large males reach up to about 5.5–5.9 m."},
+ {q:"How many bird species are there?",a:11000,u:"species",n:"Approximate; the count depends on the taxonomy used."},
+ {q:"How fast is the Atlantic Ocean widening?",a:2.5,u:"centimetres per year",n:"Roughly the speed your fingernails grow."},
+ {q:"How hot can a lightning bolt get?",a:30000,u:"kelvin",n:"Peak temperature is about 30,000 K, roughly five times the Sun's surface."},
+ {q:"How many islands make up Indonesia?",a:17000,u:"islands",n:"Approximate; official counts range from about 17,000 to 17,500."},
+ // ---- Earth & geography ----
+ {q:"How tall is Mont Blanc?",a:4806,u:"metres",n:"It varies by a metre or two with the ice cap."},
+ {q:"How tall is the Zugspitze, Germany's highest mountain?",a:2962,u:"metres",n:"On the border between Germany and Austria."},
+ {q:"What is the area of Germany?",a:357600,u:"square kilometres",n:"About 357,600 km²."},
+ {q:"How many people live in Germany?",a:83.5e6,u:"people",n:"About 83–84 million (Destatis, mid-2020s)."},
+ {q:"How long is the Rhine?",a:1230,u:"kilometres",n:"Long cited as 1,320 km, a historical typo corrected to about 1,230 km."},
+ {q:"How long is the Danube?",a:2850,u:"kilometres",n:"It flows through 10 countries, more than any other river."},
+ {q:"What is the area of the Sahara Desert?",a:9.2e6,u:"square kilometres",n:"Approximate; it is roughly the size of the USA."},
+ {q:"What is the area of Antarctica?",a:14.2e6,u:"square kilometres",n:"Approximate; its ice sheet grows in winter."},
+ {q:"What is the area of Greenland?",a:2166086,u:"square kilometres",n:"The world's largest island that is not a continent."},
+ {q:"What is the total surface area of the Earth?",a:510e6,u:"square kilometres",n:"About 71% is water."},
+ {q:"How much water is in all of Earth's oceans?",a:1.335e9,u:"cubic kilometres",n:"Approximate value (NOAA)."},
+ {q:"What is the area of Lake Superior?",a:82100,u:"square kilometres",n:"The largest freshwater lake by surface area."},
+ {q:"What is the area of the Caspian Sea?",a:371000,u:"square kilometres",n:"The largest inland body of water. It varies with water level."},
+ {q:"How deep is the Kola Superdeep Borehole, the deepest hole ever drilled?",a:12262,u:"metres",n:"Drilled in Russia; it reached its maximum depth in 1989."},
+ {q:"How thick is typical oceanic crust?",a:7,u:"kilometres",n:"Continental crust is much thicker, about 30–50 km."},
+ {q:"How deep is the boundary between Earth's mantle and its core?",a:2890,u:"kilometres",n:"The Gutenberg discontinuity."},
+ {q:"What is standard atmospheric pressure at sea level?",a:101325,u:"pascals",n:"1 atm, exactly, by definition."},
+ {q:"At what altitude do airliners typically cruise?",a:11000,u:"metres",n:"Roughly 35,000–38,000 ft (10.7–11.6 km)."},
+ // ---- engineering ----
+ {q:"How long is the Channel Tunnel between England and France?",a:50.5,u:"kilometres",n:"About 38 km of it is under the sea."},
+ {q:"How long is the Gotthard Base Tunnel in Switzerland?",a:57.1,u:"kilometres",n:"The world's longest railway tunnel, opened in 2016."},
+ {q:"How long was the Titanic?",a:269,u:"metres",n:"About 882 ft."},
+ {q:"How tall was the Saturn V rocket?",a:110.6,u:"metres",n:"Taller than the Statue of Liberty including its pedestal."},
+ {q:"What was the Saturn V rocket's mass at liftoff, fully fuelled?",a:2950,u:"tonnes",n:"About 2,900–3,000 t, depending on the mission."},
+ {q:"What is the maximum takeoff weight of an Airbus A380?",a:575,u:"tonnes",n:"The largest passenger airliner ever built."},
+ {q:"What is the rail speed record set by a French TGV in 2007?",a:574.8,u:"km per hour",n:"Set with a specially modified train; regular service runs at about 320 km/h."},
+ {q:"How much does a Nimitz-class aircraft carrier displace fully loaded?",a:100000,u:"tonnes",n:"Approximate; it varies slightly between ships."},
+ {q:"How many transistors are on Apple's M1 chip (2020)?",a:16e9,u:"transistors",n:"Apple's stated figure is 16 billion."},
+ // ---- everyday ----
+ {q:"How long is a standard credit card?",a:85.6,u:"millimetres",n:"ISO/IEC 7810 ID-1 format: 85.60 × 53.98 mm."},
+ {q:"How thick is a standard credit card?",a:0.76,u:"millimetres",n:"ISO/IEC 7810 specifies 0.76 mm."},
+ {q:"How much does an alkaline AA battery weigh?",a:23,u:"grams",n:"Typically about 23 g."},
+ {q:"How much does a standard European soda can hold?",a:330,u:"millilitres",n:"US cans are typically 355 ml (12 fl oz)."},
+ {q:"What is the area of one A4 sheet of paper?",a:623.7,u:"square centimetres",n:"210 × 297 mm. Sixteen A4 sheets make one A0, which is 1 m²."},
+ {q:"How much does one 80 gsm A4 sheet weigh?",a:5,u:"grams",n:"0.06237 m² × 80 g/m² ≈ 4.99 g."},
+ {q:"How much energy is in one gram of dietary fat?",a:9,u:"kilocalories",n:"Carbohydrates and protein have about 4 kcal per gram."},
+ {q:"How much energy is in one litre of petrol?",a:8.9,u:"kilowatt-hours",n:"Approximate; about 32 MJ per litre."},
+ {q:"What frequency is concert pitch A (A4)?",a:440,u:"hertz",n:"International standard tuning pitch."},
+ {q:"What is the upper limit of human hearing for a young adult?",a:20000,u:"hertz",n:"It drops with age, often to about 15,000 Hz or lower."},
+ {q:"What frequency is the lowest note on a standard piano?",a:27.5,u:"hertz",n:"A0, four octaves below A440."},
+ {q:"How many sheets of paper are in a standard ream?",a:500,u:"sheets",n:"The modern standard."},
+ {q:"How many letters are in the Hawaiian alphabet?",a:13,u:"letters",n:"5 vowels and 8 consonants, including the ʻokina."},
+ // ---- physics & chemistry ----
+ {q:"What is the mass of an electron?",a:9.109e-31,u:"kilograms",n:"9.109 × 10⁻³¹ kg."},
+ {q:"How many times heavier is a proton than an electron?",a:1836,u:"times",n:"The ratio is about 1836.15."},
+ {q:"What is the wavelength of green light?",a:530,u:"nanometres",n:"Green covers roughly 500–565 nm."},
+ {q:"What is the diameter of a hydrogen atom?",a:0.1,u:"nanometres",n:"Approximate value; about twice the Bohr radius (0.053 nm)."},
+ {q:"How fast does light travel in an optical fibre?",a:200000,u:"kilometres per second",n:"About 2/3 the speed of light in a vacuum (refractive index about 1.47)."},
+ {q:"What is the half-life of carbon-14?",a:5730,u:"years",n:"The basis of radiocarbon dating."},
+ {q:"What is the half-life of uranium-238?",a:4.47e9,u:"years",n:"About the same as the age of the Earth."},
+ {q:"At what temperature does liquid nitrogen boil?",a:77,u:"kelvin",n:"−196 °C."},
+ {q:"At what temperature does iron melt?",a:1538,u:"°C",n:"Pure iron; steels melt at somewhat different temperatures."},
+ {q:"At what temperature does tungsten melt?",a:3422,u:"°C",n:"The highest melting point of any metal."},
+ {q:"What is the gravitational acceleration at Earth's surface?",a:9.81,u:"metres per second²",n:"The standard value is 9.80665 m/s²."},
+ {q:"What was Usain Bolt's average speed in his 9.58 s 100 m world record?",a:10.44,u:"metres per second",n:"100 ÷ 9.58. His peak speed was about 12.4 m/s."},
+ // ---- computing ----
+ {q:"How many possible IPv4 addresses are there?",a:4294967296,u:"addresses",n:"2³²."},
+ {q:"How many possible IPv6 addresses are there?",a:3.4e38,u:"addresses",n:"2¹²⁸ ≈ 3.4 × 10³⁸."},
+ {q:"How many bytes are in one gibibyte (GiB)?",a:1073741824,u:"bytes",n:"2³⁰. A gigabyte (GB) is 10⁹ bytes."},
+ {q:"How many characters could the original tweets have?",a:140,u:"characters",n:"Raised to 280 in 2017."},
+ // ---- batch 3: space ----
+ {q:"What is the diameter of Venus?",a:12104,u:"kilometres",n:"Almost the same size as Earth."},
+ {q:"What is the diameter of Mercury?",a:4879,u:"kilometres",n:"The smallest planet."},
+ {q:"What is the diameter of Uranus?",a:50724,u:"kilometres",n:"About 4 times Earth's diameter."},
+ {q:"How far is Jupiter from the Sun on average?",a:778e6,u:"kilometres",n:"About 5.2 AU."},
+ {q:"How long does Saturn take to orbit the Sun?",a:29.4,u:"Earth years",n:"About 29.4 years."},
+ {q:"How long does Jupiter take to orbit the Sun?",a:11.9,u:"Earth years",n:"About 11.9 years."},
+ {q:"How tilted is Earth's axis?",a:23.4,u:"degrees",n:"This tilt causes the seasons."},
+ {q:"How long does the Moon take to orbit Earth (relative to the stars)?",a:27.3,u:"days",n:"Sidereal month. New moon to new moon takes about 29.5 days."},
+ {q:"How old is the Sun?",a:4.6e9,u:"years",n:"About 4.6 billion years."},
+ {q:"How far does light travel in one year?",a:9.46e12,u:"kilometres",n:"One light-year ≈ 9.46 trillion km."},
+ {q:"How many people have walked on the Moon?",a:12,u:"people",n:"All during Apollo missions, 1969–1972."},
+ {q:"How tall is Olympus Mons on Mars?",a:21.9,u:"kilometres",n:"About 22 km above the Martian datum, the tallest volcano in the Solar System."},
+ {q:"What is the average surface temperature on Venus?",a:465,u:"°C",n:"Hotter than Mercury, because of its thick CO₂ atmosphere."},
+ {q:"What is the gravitational acceleration on Mars?",a:3.72,u:"metres per second²",n:"About 38% of Earth's."},
+ {q:"How many times more massive than Earth is Jupiter?",a:318,u:"Earth masses",n:"More than twice all other planets combined."},
+ {q:"How long does sunlight take to reach Neptune?",a:4.2,u:"hours",n:"Approximate; about 30 AU away."},
+ {q:"How far away is Sirius, the brightest star in the night sky?",a:8.6,u:"light-years",n:"About 8.6 ly."},
+ {q:"How long does the Sun take to orbit the centre of the Milky Way?",a:230e6,u:"years",n:"Estimate; values range from about 225 to 250 million years."},
+ {q:"How much does the International Space Station weigh?",a:420,u:"tonnes",n:"Approximate; about 420,000 kg."},
+ {q:"How fast is Voyager 1 travelling away from the Sun?",a:17,u:"kilometres per second",n:"About 17 km/s (about 61,000 km/h)."},
+ {q:"How much power does the Sun give off?",a:3.8e26,u:"watts",n:"Its total luminosity is about 3.8 × 10²⁶ W."},
+ {q:"How much solar power reaches each square metre at the top of Earth's atmosphere?",a:1361,u:"watts per square metre",n:"The 'solar constant'."},
+ // ---- geography ----
+ {q:"How deep is the Grand Canyon at its deepest?",a:1800,u:"metres",n:"About 1.8 km (roughly 6,000 ft)."},
+ {q:"How long is the Grand Canyon?",a:446,u:"kilometres",n:"277 river miles."},
+ {q:"How tall is K2, the world's second-highest mountain?",a:8611,u:"metres",n:"On the Pakistan–China border."},
+ {q:"How tall is Mount Everest in feet?",a:29032,u:"feet",n:"8,848.86 m."},
+ {q:"How many countries are in the European Union?",a:27,u:"countries",n:"Since the UK left in 2020."},
+ {q:"How many states does Germany have?",a:16,u:"states",n:"Bundesländer."},
+ {q:"How many time zones does Russia span?",a:11,u:"time zones",n:"From Kaliningrad to Kamchatka."},
+ {q:"What is the area of Brazil?",a:8.5e6,u:"square kilometres",n:"The fifth-largest country."},
+ {q:"What is the area of the United States?",a:9.83e6,u:"square kilometres",n:"Total area, including water."},
+ {q:"What is the area of Canada?",a:9.98e6,u:"square kilometres",n:"The second-largest country."},
+ {q:"What is the area of China?",a:9.6e6,u:"square kilometres",n:"About 9.6 million km²."},
+ {q:"What is the area of India?",a:3.29e6,u:"square kilometres",n:"About 3.29 million km²."},
+ {q:"What is the area of Japan?",a:377975,u:"square kilometres",n:"About 14,000 islands."},
+ {q:"What is the area of Switzerland?",a:41285,u:"square kilometres",n:"About 41,000 km²."},
+ {q:"What is the area of Luxembourg?",a:2586,u:"square kilometres",n:"About 2,600 km²."},
+ {q:"What is the area of Monaco?",a:2.08,u:"square kilometres",n:"Including land reclaimed from the sea."},
+ {q:"What is the area of Iceland?",a:103000,u:"square kilometres",n:"About 103,000 km²."},
+ {q:"What is the area of the Mediterranean Sea?",a:2.5e6,u:"square kilometres",n:"Approximate value."},
+ {q:"How salty is the Dead Sea?",a:34,u:"percent salt",n:"About 34%, nearly 10 times saltier than the ocean."},
+ {q:"How tall is Victoria Falls?",a:108,u:"metres",n:"On the Zambia–Zimbabwe border."},
+ {q:"At what altitude is Lake Titicaca?",a:3812,u:"metres",n:"One of the highest large lakes."},
+ {q:"What is the average depth of Earth's oceans?",a:3700,u:"metres",n:"About 3.7 km."},
+ {q:"What percentage of Earth's surface is covered by water?",a:71,u:"percent",n:"About 71%."},
+ {q:"How fast can a tsunami travel across the deep ocean?",a:800,u:"km per hour",n:"Approximate; about as fast as a jet airliner."},
+ {q:"What was the magnitude of the strongest earthquake ever recorded?",a:9.5,u:"magnitude",n:"Chile, 1960."},
+ {q:"How long is the Mississippi River?",a:3730,u:"kilometres",n:"Approximate; river lengths vary with the measurement method."},
+ {q:"How much water does the Amazon discharge into the ocean?",a:209000,u:"cubic metres per second",n:"Average; more than the next several rivers combined."},
+ {q:"How many people lived on Earth in 1900?",a:1.6e9,u:"people",n:"About 1.6 billion."},
+ {q:"How many people live in China?",a:1.41e9,u:"people",n:"About 1.41 billion (mid-2020s)."},
+ // ---- buildings & engineering ----
+ {q:"How many floors does the Empire State Building have?",a:102,u:"floors",n:"Opened in 1931."},
+ {q:"How many floors does the Burj Khalifa have?",a:163,u:"floors",n:"Above-ground floors."},
+ {q:"How many steps lead up to the Statue of Liberty's crown?",a:354,u:"steps",n:"From the pedestal."},
+ {q:"How many rooms does Buckingham Palace have?",a:775,u:"rooms",n:"Including 78 bathrooms."},
+ {q:"How tall are the Petronas Towers in Kuala Lumpur?",a:452,u:"metres",n:"The world's tallest buildings from 1998 to 2004."},
+ {q:"How tall is the Shanghai Tower?",a:632,u:"metres",n:"China's tallest building."},
+ {q:"How tall is Toronto's CN Tower?",a:553,u:"metres",n:"The world's tallest free-standing structure until 2007."},
+ {q:"How tall is the Berlin TV Tower (Fernsehturm)?",a:368,u:"metres",n:"Germany's tallest structure."},
+ {q:"How tall is Cologne Cathedral?",a:157,u:"metres",n:"Its twin spires took over 600 years to finish."},
+ {q:"How tall is the Elizabeth Tower (Big Ben) in London?",a:96,u:"metres",n:"'Big Ben' is officially the name of the bell."},
+ {q:"How long is the arch span of the Sydney Harbour Bridge?",a:503,u:"metres",n:"Opened in 1932."},
+ {q:"How tall is the Hoover Dam?",a:221,u:"metres",n:"On the Colorado River."},
+ {q:"How long is the Three Gorges Dam in China?",a:2335,u:"metres",n:"The world's largest hydroelectric dam by capacity."},
+ {q:"How long is the Suez Canal?",a:193,u:"kilometres",n:"It links the Mediterranean and the Red Sea."},
+ {q:"How long is Germany's Kiel Canal?",a:98,u:"kilometres",n:"Among the world's busiest artificial waterways."},
+ {q:"How long is the Trans-Siberian Railway from Moscow to Vladivostok?",a:9289,u:"kilometres",n:"The journey takes about a week."},
+ {q:"How long is Japan's Seikan Tunnel?",a:53.85,u:"kilometres",n:"An undersea railway tunnel connecting Honshu and Hokkaido."},
+ {q:"How long was the Berlin Wall in total?",a:155,u:"kilometres",n:"Including the border between West Berlin and East Germany."},
+ {q:"How many years did the Berlin Wall stand?",a:28,u:"years",n:"1961–1989."},
+ {q:"How many stone blocks are in the Great Pyramid of Giza?",a:2.3e6,u:"blocks",n:"Estimate."},
+ {q:"What is the recommended speed on German autobahns without a limit?",a:130,u:"km per hour",n:"The 'Richtgeschwindigkeit': advisory, not mandatory."},
+ // ---- human body ----
+ {q:"What is a typical resting heart rate for an adult?",a:70,u:"beats per minute",n:"The normal range is about 60–100 bpm."},
+ {q:"How many bones are in the human skull?",a:22,u:"bones",n:"8 cranial and 14 facial bones."},
+ {q:"How many vertebrae does a human spine have?",a:33,u:"vertebrae",n:"Including the fused ones; 24 of them can move."},
+ {q:"How many ribs does a human have?",a:24,u:"ribs",n:"12 pairs."},
+ {q:"How fast does scalp hair grow?",a:1.25,u:"centimetres per month",n:"About 1–1.5 cm per month."},
+ {q:"How fast do fingernails grow?",a:3.5,u:"millimetres per month",n:"Toenails grow about half as fast."},
+ {q:"How many breaths does an adult take per day?",a:20000,u:"breaths",n:"Rough estimate, at about 12–20 breaths per minute."},
+ {q:"What share of the body's energy does the brain use?",a:20,u:"percent",n:"About 20%, despite being about 2% of body weight."},
+ {q:"How much of an adult human body is water?",a:60,u:"percent",n:"About 50–65%, depending on age and sex."},
+ {q:"How many protein-coding genes does a human have?",a:20000,u:"genes",n:"About 19,000–20,000."},
+ {q:"What is the pH of stomach acid?",a:2,u:"pH",n:"Typically about 1.5–3.5."},
+ {q:"How many atoms are in a human body?",a:7e27,u:"atoms",n:"Estimate, for a 70 kg adult."},
+ {q:"How old was the oldest person ever verified?",a:122,u:"years",n:"Jeanne Calment, 1875–1997."},
+ // ---- animals ----
+ {q:"How fast can a cheetah run?",a:100,u:"km per hour",n:"Approximate; measured top speeds are about 93–104 km/h."},
+ {q:"How much does an adult male African bush elephant weigh?",a:6000,u:"kilograms",n:"Typically about 5–6.5 tonnes."},
+ {q:"How much can a blue whale weigh?",a:150000,u:"kilograms",n:"Approximate; the largest exceed 150 tonnes."},
+ {q:"How fast can a peregrine falcon dive?",a:320,u:"km per hour",n:"The fastest animal; dives over 300 km/h are well documented."},
+ {q:"How fast can an ostrich run?",a:70,u:"km per hour",n:"The fastest bird on land."},
+ {q:"How many times per second does a honeybee beat its wings?",a:230,u:"beats per second",n:"Approximate; that's what makes the buzz."},
+ {q:"What is the wingspan of a bald eagle?",a:2,u:"metres",n:"About 1.8–2.3 m."},
+ {q:"How many hours a day does a domestic cat sleep?",a:15,u:"hours",n:"Typically 12–16 hours."},
+ {q:"How long is a dog's pregnancy?",a:63,u:"days",n:"About 9 weeks."},
+ {q:"How long is a horse's pregnancy?",a:340,u:"days",n:"About 11 months."},
+ {q:"How many eggs does a modern laying hen produce per year?",a:300,u:"eggs",n:"Approximate; wild ancestors laid far fewer."},
+ {q:"How much milk does a modern dairy cow give per day?",a:30,u:"litres",n:"Approximate; it varies widely by breed and farm."},
+ {q:"How many shark species are there?",a:540,u:"species",n:"Approximate; new ones are still being described."},
+ {q:"How many ant species have been described?",a:15000,u:"species",n:"Approximate; many more are probably undescribed."},
+ // ---- sport & games ----
+ {q:"How many squares are on a Scrabble board?",a:225,u:"squares",n:"15 × 15."},
+ {q:"How many letter tiles are in an English Scrabble set?",a:100,u:"tiles",n:"Including 2 blanks."},
+ {q:"How many dots are on a pair of standard dice in total?",a:42,u:"dots",n:"1+2+3+4+5+6 = 21 per die."},
+ {q:"How many cards are in a tarot deck?",a:78,u:"cards",n:"22 major and 56 minor arcana."},
+ {q:"How many squares are on a Monopoly board?",a:40,u:"squares",n:"Including the corners."},
+ {q:"How many tiles are in a double-six domino set?",a:28,u:"tiles",n:"Every pair of numbers from 0 to 6."},
+ {q:"How far apart are the bases in baseball?",a:27.43,u:"metres",n:"90 feet."},
+ {q:"How high is a tennis net at the centre?",a:91.4,u:"centimetres",n:"3 feet."},
+ {q:"How much does a regulation football (soccer ball) weigh?",a:430,u:"grams",n:"Rules allow 410–450 g."},
+ {q:"What is the maximum weight of a golf ball?",a:45.93,u:"grams",n:"1.62 ounces."},
+ {q:"How high is the net in men's volleyball?",a:2.43,u:"metres",n:"Women's: 2.24 m."},
+ {q:"What is the diameter of an ice hockey puck?",a:7.62,u:"centimetres",n:"3 inches."},
+ {q:"How long is the Formula 1 Monaco circuit?",a:3.337,u:"kilometres",n:"The shortest and slowest track on the calendar."},
+ {q:"How many players does a rugby union team have on the field?",a:15,u:"players",n:"Rugby league uses 13."},
+ {q:"How long is a bowling lane from the foul line to the head pin?",a:18.29,u:"metres",n:"60 feet."},
+ // ---- tech ----
+ {q:"How many pixels are on a 4K UHD screen?",a:8294400,u:"pixels",n:"3,840 × 2,160."},
+ {q:"How many pixels are on a 1080p Full HD screen?",a:2073600,u:"pixels",n:"1,920 × 1,080."},
+ {q:"How many characters are in the original ASCII set?",a:128,u:"characters",n:"7-bit encoding."},
+ {q:"How much data did a 3.5-inch floppy disk hold?",a:1.44,u:"megabytes",n:"High-density format."},
+ {q:"How much data does a single-layer DVD hold?",a:4.7,u:"gigabytes",n:"Dual-layer discs hold 8.5 GB."},
+ {q:"How much data does a single-layer Blu-ray disc hold?",a:25,u:"gigabytes",n:"Dual-layer discs hold 50 GB."},
+ {q:"How much music fits on a standard audio CD?",a:80,u:"minutes",n:"74–80 minutes, depending on the disc."},
+ {q:"How fast does a typical desktop hard drive spin?",a:7200,u:"rpm",n:"Laptop drives often spin at 5,400 rpm."},
+ {q:"What is the maximum speed of USB 3.0 (USB 3.2 Gen 1)?",a:5000,u:"megabits per second",n:"5 Gbit/s."},
+ {q:"How many keys are on a standard full-size US keyboard?",a:104,u:"keys",n:"European ISO layouts have 105."},
+ // ---- physics, chemistry, everyday ----
+ {q:"How fast does sound travel in water?",a:1480,u:"metres per second",n:"More than 4 times faster than in air."},
+ {q:"How fast does sound travel in steel?",a:5960,u:"metres per second",n:"Approximate; it varies by alloy."},
+ {q:"At what temperature does ethanol boil?",a:78,u:"°C",n:"At sea-level pressure."},
+ {q:"At what temperature does gold melt?",a:1064,u:"°C",n:"1,064 °C."},
+ {q:"At what temperature does aluminium melt?",a:660,u:"°C",n:"660 °C."},
+ {q:"What is the density of aluminium?",a:2.7,u:"grams per cubic centimetre",n:"About a third of steel's density."},
+ {q:"What is the density of osmium, the densest element?",a:22.6,u:"grams per cubic centimetre",n:"Slightly denser than iridium."},
+ {q:"What is the density of air at sea level?",a:1.225,u:"kilograms per cubic metre",n:"At 15 °C."},
+ {q:"What is the density of seawater?",a:1025,u:"kilograms per cubic metre",n:"Fresh water is about 1,000 kg/m³."},
+ {q:"What is the charge of one electron?",a:1.602e-19,u:"coulombs",n:"The elementary charge, exact by definition since 2019."},
+ {q:"How strong is Earth's magnetic field at the surface?",a:50,u:"microtesla",n:"About 25–65 µT, depending on location."},
+ {q:"What voltage does a car battery supply?",a:12,u:"volts",n:"A fully charged one measures about 12.6 V."},
+ {q:"How much electric current flows in a typical lightning strike?",a:30000,u:"amperes",n:"Approximate; strong strikes exceed 100,000 A."},
+ {q:"What is the half-life of plutonium-239?",a:24100,u:"years",n:"About 24,100 years."},
+ {q:"What percentage of air is nitrogen?",a:78,u:"percent",n:"Oxygen is about 21%."},
+ {q:"How much CO₂ does burning one litre of petrol release?",a:2.3,u:"kilograms",n:"Approximate; diesel releases about 2.6 kg per litre."},
+ {q:"How much water does it take to produce 1 kg of beef?",a:15000,u:"litres",n:"Global average estimate (Water Footprint Network)."},
+ {q:"How much water does it take to make one cotton T-shirt?",a:2700,u:"litres",n:"Estimate, mostly for growing the cotton."},
+ {q:"How many calories are in a medium banana?",a:105,u:"kilocalories",n:"About 105 kcal (USDA)."},
+ {q:"How much caffeine is in a cup of brewed coffee (240 ml)?",a:95,u:"milligrams",n:"USDA average; it varies a lot."},
+ {q:"How much sugar is in a 330 ml can of regular cola?",a:35,u:"grams",n:"Approximate; about 9 teaspoons."},
+ {q:"At what temperature does water boil, in Fahrenheit?",a:212,u:"°F",n:"At sea level, 100 °C."},
+ {q:"How much does a typical mid-size car weigh?",a:1500,u:"kilograms",n:"Approximate; EVs are often heavier."},
+ {q:"How many people were aboard the Titanic?",a:2224,u:"people",n:"Approximate; about 1,500 died."},
+ {q:"How long did the Hundred Years' War last?",a:116,u:"years",n:"1337–1453."},
+ {q:"How long did the Apollo 11 mission last?",a:8,u:"days",n:"About 8 days, 3 hours."},
+ {q:"How many lines are in a sonnet?",a:14,u:"lines",n:"Traditional form."},
+ {q:"How many strings does a concert pedal harp have?",a:47,u:"strings",n:"Usually 47."},
+];
+
+// ---------- Helpers ----------
+const $ = id => document.getElementById(id);
+const WORDS = {k:1e3,thousand:1e3,m:1e6,mil:1e6,mio:1e6,million:1e6,b:1e9,bn:1e9,billion:1e9,t:1e12,tn:1e12,trillion:1e12,quadrillion:1e15,quintillion:1e18};
+function parseNum(s){
+  if(!s) return NaN;
+  s = s.trim().toLowerCase().replace(/,/g,'').replace(/\s+/g,' ').replace(/\s*[×x*]\s*10\s*\^\s*/,'e').replace(/^10\s*\^\s*/,'1e');
+  const m = s.match(/^([0-9]*\.?[0-9]+(?:e[+-]?\d+)?)\s*([a-z]*)$/);
+  if(!m) return NaN;
+  let v = parseFloat(m[1]);
+  if(m[2]){ if(!(m[2] in WORDS)) return NaN; v *= WORDS[m[2]]; }
+  return v;
+}
+function fmt(v){
+  if(!isFinite(v)) return "—";
+  const a = Math.abs(v);
+  if(a>=1e15 || (a<0.001 && a>0)){ const e=Math.floor(Math.log10(a)); const c=v/Math.pow(10,e); return (+c.toPrecision(3))+" × 10"+sup(e); }
+  const names=[[1e12,"trillion"],[1e9,"billion"],[1e6,"million"]];
+  for(const [d,n] of names) if(a>=d) return (+(v/d).toPrecision(3))+" "+n;
+  if(a>=1000) return Math.round(v).toLocaleString('en-US');
+  return (+v.toPrecision(4)).toString();
+}
+function sup(n){const m={"-":"⁻","0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹"};return String(n).split('').map(c=>m[c]).join('');}
+function ratioText(g,a){const r=Math.max(g/a,a/g); if(r<1.005) return 'Exactly right!'; const x=(r<10? (+r.toFixed(2)).toString(): fmt(r)); return x+'× too '+(g>a?'high':'low');}
+function store(k,v){try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v);}catch(e){return null}}
+
+// ---------- State ----------
+const MAX=10, TIMEOUT_DMG=2, HEAL=0.2, HEAL_WITHIN=Math.log10(1.05);
+let life, score, deck, cur, timeLimit=15, tStart, raf, answered, history;
+
+// life bar
+const lifeEl=$('life'); for(let i=0;i<10;i++){const s=document.createElement('div');s.className='seg';s.innerHTML='<i></i>';lifeEl.appendChild(s);}
+function drawLife(){
+  const segs=lifeEl.querySelectorAll('.seg i');
+  const col = life>5?'var(--good)':life>2.5?'var(--warn)':'var(--bad)';
+  segs.forEach((el,i)=>{const f=Math.max(0,Math.min(1,life-i));el.style.transform=`scaleX(${f})`;el.style.background=col;});
+  $('lifeNum').textContent=Math.max(0,life).toFixed(2);
+}
+function showBest(){const b=store('bp_best');$('bestTop').textContent=b?`best ${b}`:'';svStatStrip();}
+// Stat cells shown at the bottom of each game's start card: [[label, value], ...]
+function statCells(pairs){return pairs.map(([l,v])=>`<div><span>${l}</span><b>${v}</b></div>`).join('');}
+function svStatStrip(){
+  try{
+    const t=svDaily.days[svToday()], b=store('bp_best'), n=loadRuns().length;
+    $('svStat').innerHTML=statCells([['Today', t?(t.score==null?'Unfinished':t.score):'–'],['Best', b||'–'],['Daily runs', Object.values(svDaily.days).filter(d=>d&&d.score!=null).length]]);
+  }catch(e){}
+}
+showBest();
+
+$('timeOpts').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  timeLimit=+b.dataset.t; userTimer=timeLimit;
+  [...$('timeOpts').children].forEach(x=>x.classList.toggle('sel',x===b));
+});
+
+// ---- question packs (Plus): a practice run can use an extra set of questions instead of the standard ones (packs-data.js).
+// Pack runs are for fun: they are not saved to the best runs, so the leaderboard always compares the same questions.
+const PACKS=window.BP_PACKS||{};
+const QALL=Q.concat(...Object.values(PACKS).map(p=>p.q));          // every question there is, for remembering a run by position
+let svPack='';                                                      // '' = the standard questions
+const packOn=()=>runMode==='practice'&&PACKS[svPack]?PACKS[svPack]:null;
+const svPool=()=>(packOn()?packOn().q:Q).slice();
+(function(){
+  const box=$('packOpts'), ids=Object.keys(PACKS); if(!ids.length){ box.style.display='none'; return; }
+  const member=()=>!!(window.bpPlus&&window.bpPlus.has());
+  const paint=()=>{ if(svPack&&!member()) svPack='';
+    box.innerHTML='<button class="ghost'+(svPack?'':' sel')+'" data-pack="">Standard</button>'+ids.map(id=>'<button class="ghost'+(svPack===id?' sel':'')+'" data-pack="'+id+'">'+PACKS[id].name+(member()?'':' <span class="ptag">Plus</span>')+'</button>').join(''); };
+  box.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.pack&&!member()){ if(window.bpPlus) window.bpPlus.open('packs'); return; }
+    svPack=b.dataset.pack; paint(); });
+  paint(); window.addEventListener('load',paint); new MutationObserver(paint).observe(document.documentElement,{attributes:true,attributeFilter:['data-plan']});
+})();
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function screen(id){['start','game','over','runsScreen'].forEach(s=>$(s).classList.toggle('on',s===id));}
+
+// ---- daily run: same seeded order for everyone ----
+let runMode='practice', svDaily={days:{}}, userTimer=15;
+function svToday(){const d=window.bpNow();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function seededShuffle(arr,seed){let h=2166136261;for(const c of seed){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}const r=()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};
+  const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function svDailyStat(){
+  const t=svDaily.days[svToday()];
+  $('goDaily').disabled=!!t; $('goDaily').textContent=t?'Done for today':"Play today's run";
+  $('dailyStat').textContent=t?(t.score==null?'Started but not finished: counts as today\'s try':'Resets at midnight'):'';
+  svStatStrip();
+}
+async function svDailySave(){
+  try{localStorage.setItem('bp_svdaily',JSON.stringify(svDaily));}catch(e){}
+  if(cloud) try{ await cloud.col.doc('x_daily').set(svDaily); }catch(e){}
+}
+async function svDailyLoad(){
+  try{const l=JSON.parse(localStorage.getItem('bp_svdaily')||'null'); if(l&&l.days) svDaily=l;}catch(e){}
+  if(cloud) try{ const d=await cloud.col.doc('x_daily').get(); if(d.exists&&d.data().days) svDaily={days:Object.assign({},svDaily.days,d.data().days)}; }catch(e){}
+  svDailyStat();
+}
+// Difficulty: 1 easy, 2 medium, 3 hard (huge/tiny magnitudes and known killers)
+const HARD_HINTS=['IPv6','electron','Avogadro','52!','Rubik','mass of the Sun','mass of the Earth','hydrogen atom','light travel in one year','atoms are in a human','power does the Sun','neurons','cells are in an adult','red blood cells','alveoli','base pairs','IPv4','gibibyte','stars are in the Milky Way','observable universe','orbit the centre of the Milky Way','heart beat in an 80-year','half-life of uranium','Earths would fit'];
+function qDiff(q){ if(HARD_HINTS.some(h=>q.q.includes(h))) return 3; const L=Math.abs(Math.log10(q.a)); return L>=12?3:L>=6?2:1; }
+function dailyDeck(day,suffix){
+  if(day<='2026-11-08') return seededShuffle(Q,'survival-'+day+(suffix||'')).reverse();   // keep the original order for past days
+  let h=2166136261; for(const c of 'ramp-'+day+(suffix||'')){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}
+  const r=()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};
+  const shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+  const pools={1:shuf(Q.filter(q=>qDiff(q)===1)),2:shuf(Q.filter(q=>qDiff(q)===2)),3:shuf(Q.filter(q=>qDiff(q)===3))};
+  const out=[];
+  for(let i=0;i<Q.length;i++){
+    // first 8 questions easy; medium ones creep in after ~5, hard ones after ~10, slowly getting more likely
+    const pH=i<10?0:Math.min(0.25,(i-10)/80), pM=i<5?0:Math.min(0.35,(i-5)/45), x=r();
+    let t = x<pH?3 : x<pH+pM?2 : 1;
+    if(!pools[t].length) t=[1,2,3].find(k=>pools[k].length);
+    out.push(pools[t].pop());
+  }
+  return out.reverse();                                   // reversed because the game pops from the end
+}
+function startRun(mode){
+  runMode = mode==='daily'?'daily':'practice';
+  if(runMode==='daily'){
+    if(svDaily.days[svToday()]) return svDailyStat();
+    svDaily.days[svToday()]={score:null,started:Date.now()}; svDailySave(); svDailyStat();
+  }
+  life=MAX; score=0; history=[];
+  deck = runMode==='daily' ? dailyDeck(svToday()) : shuffle(svPool());
+  if(runMode==='practice') timeLimit=userTimer;
+  $('score').textContent=0; drawLife(); screen('game'); nextQ();
+}
+function nextQ(){
+  if(!deck.length) deck = runMode==='daily' ? dailyDeck(svToday(),'-2') : shuffle(svPool());
+  cur=deck.pop(); answered=false;
+  $('q').textContent=cur.q; $('unit').textContent=cur.u; $('inpUnit').textContent=cur.u;
+  $('inp').value=''; $('inp').disabled=false; $('sub').disabled=false; $('parsed').textContent='';
+  $('rev').classList.remove('show');
+  $('inp').focus();
+  tStart=performance.now(); cancelAnimationFrame(raf);
+  $('bar').style.width='100%'; $('bar').style.background='var(--blue)';
+  if(runMode==='daily') timeLimit=15;
+  $('tleft').textContent=timeLimit?timeLimit+'s':'';
+  if(timeLimit) raf=requestAnimationFrame(tick); else $('bar').style.width='0%';
+  svSaveRun();
+}
+function tick(now){
+  const left=1-(now-tStart)/(timeLimit*1000);
+  $('bar').style.width=Math.max(0,left*100)+'%';
+  if(left<0.33) $('bar').style.background='var(--bad)';
+  $('tleft').textContent=Math.max(0,Math.ceil(left*timeLimit))+'s';
+  if(left<=0){ resolve(null); return; }
+  raf=requestAnimationFrame(tick);
+}
+$('inp').addEventListener('input',()=>{
+  const v=parseNum($('inp').value);
+  $('parsed').textContent = $('inp').value.trim()===''?'': isFinite(v)&&v>0 ? '= '+fmt(v)+' '+cur.u : 'enter a positive number (e.g. 2.5k, 3e6, 40 million)';
+});
+$('f').addEventListener('submit',e=>{
+  e.preventDefault();
+  if(answered){ advance(); return; }
+  const v=parseNum($('inp').value);
+  if(!(isFinite(v)&&v>0)){ $('parsed').textContent='enter a positive number (e.g. 2.5k, 3e6, 40 million)'; return; }
+  resolve(v);
+});
+
+function resolve(g){
+  if(answered) return; answered=true; cancelAnimationFrame(raf);
+  $('inp').disabled=true; $('sub').disabled=true;
+  let dmg, healed=false;
+  if(g===null){ dmg=TIMEOUT_DMG; }
+  else{
+    dmg=Math.abs(Math.log10(g/cur.a));
+    if(dmg<=HEAL_WITHIN){ healed=true; }
+  }
+  const before=life;
+  life = healed ? Math.min(MAX,life+HEAL) : life-dmg;
+  history.push({q:cur.q,u:cur.u,a:cur.a,g,dmg:healed?-HEAL:dmg});
+  drawLife();
+  if(!healed && dmg>0.3){ $('qcard').classList.remove('flash'); void $('qcard').offsetWidth; $('qcard').classList.add('flash'); }
+
+  const d=$('dmg');
+  if(g===null){ d.textContent='Time’s up  −'+TIMEOUT_DMG.toFixed(2); d.style.color='var(--bad)'; }
+  else if(healed){ d.textContent='Bullseye!  +'+HEAL.toFixed(2); d.style.color='var(--good)'; }
+  else { d.textContent='−'+dmg.toFixed(2); d.style.color= dmg<0.3?'var(--good)':dmg<1?'var(--warn)':'var(--bad)'; }
+
+  $('ans').textContent=fmt(cur.a)+' '+cur.u;
+  $('yg').textContent= g===null?'—':fmt(g)+' '+cur.u;
+  $('ratio').textContent= g===null?'You ran out of time':ratioText(g,cur.a);
+  $('ratio').style.color= g===null||(!healed&&dmg>=1)?'var(--bad)':healed||dmg<0.3?'var(--good)':'var(--warn)';
+  $('lifeAfter').textContent=`life ${before.toFixed(2)} → ${Math.max(0,life).toFixed(2)}`;
+  $('fact').textContent=cur.n;
+  drawScale(g,cur.a);
+  $('rev').classList.add('show');
+
+  if(life<=0){ $('next').textContent='See results →'; }
+  else { score++; $('score').textContent=score; $('next').textContent='Next →'; }
+  setTimeout(()=>$('next').focus(),30);
+  svSaveRun();
+}
+function drawScale(g,a,scEl){
+  const sc=scEl||$('scale'); sc.innerHTML='';
+  const la=Math.log10(a), lg=g?Math.log10(g):la;
+  const span=Math.max(2,Math.abs(lg-la)+1.2);
+  const mid=(la+lg)/2, lo=mid-span/2, hi=mid+span/2;
+  const pos=l=>((l-lo)/(hi-lo))*100;
+  for(let e=Math.ceil(lo);e<=Math.floor(hi);e++){
+    const t=document.createElement('div');t.className='tick';t.style.left=pos(e)+'%';sc.appendChild(t);
+    if(hi-lo<=12||e%2===0){const l=document.createElement('div');l.className='pinlbl muted mono';l.style.left=pos(e)+'%';l.style.top='-20px';l.textContent='10'+sup(e);sc.appendChild(l);}
+  }
+  if(g){
+    const gp=document.createElement('div');gp.className='gap';gp.style.left=Math.min(pos(la),pos(lg))+'%';gp.style.width=Math.abs(pos(la)-pos(lg))+'%';sc.appendChild(gp);
+    const p=document.createElement('div');p.className='pin g';p.style.left=pos(lg)+'%';sc.appendChild(p);
+  }
+  const p2=document.createElement('div');p2.className='pin a';p2.style.left=pos(la)+'%';sc.appendChild(p2);
+  const la2=document.createElement('div');la2.className='pinlbl mono';la2.style.color='var(--good)';la2.style.left=pos(la)+'%';la2.textContent='answer';sc.appendChild(la2);
+  if(g && Math.abs(pos(la)-pos(lg))>12){const lb=document.createElement('div');lb.className='pinlbl mono';lb.style.color='var(--bad)';lb.style.left=pos(lg)+'%';lb.textContent='you';sc.appendChild(lb);}
+}
+function advance(){ if(life<=0) gameOver(); else nextQ(); }
+$('next').addEventListener('click',advance);
+
+// ---- a run survives an accidental reload ----
+// Saved after every question and answer, and when the page is left. The clock keeps the time it had; reloading never adds any.
+function svSaveRun(){
+  try{
+    if(!deck||!cur||!$('game').classList.contains('on')) return;
+    const left=(!answered&&timeLimit)?Math.max(0,timeLimit*1000-(performance.now()-tStart)):null;
+    localStorage.setItem(window.bpRunKey('bp_sv_run'),JSON.stringify({mode:runMode,day:svToday(),t:Date.now(),life,score,history,timeLimit,pack:packOn()?svPack:'',deck:deck.map(q=>QALL.indexOf(q)),cur:QALL.indexOf(cur),answered:!!answered,left}));
+  }catch(e){}
+}
+function svClearRun(){ try{localStorage.removeItem(window.bpRunKey('bp_sv_run'));}catch(e){} }
+function svResume(){
+  let s=null; try{s=JSON.parse(localStorage.getItem(window.bpRunKey('bp_sv_run'))||'null');}catch(e){}
+  if(!s) return;
+  const stale=Date.now()-(s.t||0)>12*36e5;                       // a practice run left overnight is not worth reviving
+  if(!Array.isArray(s.deck)||!QALL[s.cur]||stale||(s.mode==='daily'&&s.day!==svToday())) return svClearRun();
+  if($('game').classList.contains('on')) return;
+  runMode=s.mode==='daily'?'daily':'practice'; life=s.life; score=s.score||0; history=Array.isArray(s.history)?s.history:[]; timeLimit=s.timeLimit||0;
+  svPack=runMode==='practice'&&PACKS[s.pack]?s.pack:'';
+  deck=s.deck.map(i=>QALL[i]).filter(Boolean);
+  $('score').textContent=score; drawLife(); screen('game');
+  if(s.answered){ if(life<=0) gameOver(); else nextQ(); return; }    // reloaded while looking at an answer: go on to the next question
+  deck.push(QALL[s.cur]); nextQ();
+  if(timeLimit&&typeof s.left==='number') tStart=performance.now()-(timeLimit*1000-s.left);
+}
+const svVisible=()=>$('g-survival').classList.contains('on');
+if(window.bpAway) bpAway.watch('sv',()=>svVisible()&&runMode==='daily'&&$('game').classList.contains('on'));   // see away.js
+window.addEventListener('pagehide',()=>{ if(svVisible()) svSaveRun(); });
+window.addEventListener('hashchange',()=>{ if(svVisible()) svSaveRun(); });   // runs before the tab switch pauses the clock
+if(window.claude&&claude.use) claude.use('user').then(()=>{
+  const onSurvival=()=>{ const h=(location.hash||'').replace('#',''); return !h||h==='survival'; };
+  if(onSurvival()) svResume();
+  else window.addEventListener('hashchange',function back(){ if(onSurvival()){ window.removeEventListener('hashchange',back); setTimeout(svResume,0); } });
+}).catch(()=>{});
+document.addEventListener('keydown',e=>{ if(e.key==='Enter' && answered && $('g-survival').classList.contains('on') && $('game').classList.contains('on') && document.activeElement!==$('next')){ e.preventDefault(); advance(); }});
+
+function dmgColor(d){return d<0?'var(--good)':d<0.3?'var(--good)':d<1?'var(--warn)':'var(--bad)';}
+function esc(t){return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function histHTML(h){
+  return h.map((r,i)=>`<div class="hrow"><div><div class="hq">${i+1}. ${esc(r.q)}</div><div class="hsub mono">You ${r.g===null?'ran out of time':'said '+esc(fmt(r.g))}, answer ${esc(fmt(r.a))} ${esc(r.u)}</div></div><div class="hd mono" style="color:${dmgColor(r.dmg)}">${r.dmg<0?'+'+(-r.dmg).toFixed(2):'−'+r.dmg.toFixed(2)}</div></div>`).join('');
+}
+function strip(h){return h.map(r=>r.dmg<0?'🎯':r.dmg<0.3?'🟩':r.dmg<1?'🟨':r.dmg<2?'🟧':'🟥').join('');}
+function avgErrOf(h){const real=h.filter(r=>r.g!==null);return real.length? real.reduce((s,r)=>s+Math.abs(Math.log10(r.g/r.a)),0)/real.length : null;}
+// Runs live in two places: this browser (instant, cache) and the viewer's private
+// account storage (durable). On load they are merged, so nothing local is lost.
+function loadRuns(){try{const r=JSON.parse(localStorage.getItem('bp_runs')||'[]');return Array.isArray(r)?r:[];}catch(e){return [];}}
+function saveRuns(r){try{localStorage.setItem('bp_runs',JSON.stringify(r));return true;}catch(e){return false;}}
+let cloud=null; // {col} once account storage is ready
+let cloudState='connecting';
+function setStorageNote(){
+  const el=$('storeNote'); if(!el) return;
+  el.textContent = cloudState==='ok' ? 'Saved on the Ballpark server under your account.'
+    : cloudState==='connecting' ? 'Connecting to account storage… (runs are also kept in this browser)'
+    : 'Server unreachable right now: this run may not be saved.';
+}
+function cleanRun(r){return {t:r.t,score:r.score,avg:r.avg??null,timer:r.timer??0,h:(r.h||[]).map(x=>({q:x.q,u:x.u,a:x.a,g:x.g??null,dmg:x.dmg}))};}
+async function withRetry(fn){try{return await fn();}catch(e){ if(e&&e.code==='unavailable'){await new Promise(r=>setTimeout(r,400+Math.random()*600));return await fn();} throw e; }}
+async function cloudSync(){
+  // Keep an untouched backup of whatever was in this browser before syncing.
+  try{ if(!localStorage.getItem('bp_runs_backup')) localStorage.setItem('bp_runs_backup', localStorage.getItem('bp_runs')||'[]'); }catch(e){}
+  const timer=setTimeout(()=>{ if(cloudState==='connecting'){cloudState='off';setStorageNote();} },10000);
+  try{
+    if(!window.claude||!claude.use) throw 0;
+    const db=await claude.use('db'); const user=await claude.use('user');
+    const uid = user ? await user.id() : null;
+    if(!db||!uid) throw 0;
+    const col=db.collection('data/users/'+uid);
+    const snap=await withRetry(()=>col.get());
+    const remote=snap.docs.filter(d=>d.exists).map(d=>({id:d.id,...d.data()})).filter(r=>typeof r.score==='number' && !String(r.id).startsWith('x_'));
+    const local=loadRuns();
+    const byId=new Map(); remote.forEach(r=>byId.set(r.id,r)); local.forEach(r=>{ if(r&&r.id&&!byId.has(r.id)) byId.set(r.id,r); });
+    const merged=rankRuns([...byId.values()]);
+    const keep=merged.slice(0,10), keepIds=new Set(keep.map(r=>r.id));
+    const remoteIds=new Set(remote.map(r=>r.id));
+    for(const r of keep) if(!remoteIds.has(r.id)) await withRetry(()=>col.doc(r.id).set(cleanRun(r)));
+    for(const r of remote) if(!keepIds.has(r.id)) await withRetry(()=>col.doc(r.id).delete());
+    saveRuns(keep);
+    const top=keep.length?keep[0].score:0; if(top>+(store('bp_best')||0)) store('bp_best',top);
+    cloud={col}; cloudState='ok';
+    if(window.onCloudReady) try{ await window.onCloudReady(col); }catch(e){}
+    svDailyLoad();
+  }catch(e){ cloudState='off'; }
+  clearTimeout(timer); setStorageNote(); showBest();
+  if($('runsScreen').classList.contains('on')) renderRuns();
+}
+async function cloudSave(run, evicted){
+  if(!cloud) return;
+  try{
+    await withRetry(()=>cloud.col.doc(run.id).set(cleanRun(run)));
+    for(const r of evicted) await withRetry(()=>cloud.col.doc(r.id).delete());
+  }catch(e){ cloudState='off'; setStorageNote(); }
+}
+function rankRuns(r){return r.sort((a,b)=> b.score-a.score || ((a.avg??99)-(b.avg??99)) || a.t-b.t);}
+let lastRunId=null;
+function recordRun(){
+  const run={id:Date.now()+'-'+Math.random().toString(36).slice(2,6),t:Date.now(),score,avg:avgErrOf(history),timer:timeLimit,mode:runMode,h:history};
+  let runs=rankRuns([...loadRuns(),run]);
+  const placed=runs.findIndex(r=>r.id===run.id);
+  const evicted=runs.slice(10);
+  runs=runs.slice(0,10);
+  saveRuns(runs);
+  if(placed>-1&&placed<10) cloudSave(run, evicted.filter(r=>r.id!==run.id));
+  lastRunId = placed>-1 && placed<10 ? run.id : null;
+  return placed;
+}
+function renderRuns(){
+  const runs=loadRuns(), list=$('runsList');
+  if(!runs.length){ list.innerHTML='<div class="empty muted">No runs saved yet. Finish a run and it shows up here.</div>'; return; }
+  list.innerHTML=runs.map((r,i)=>{
+    const d=new Date(r.t), ds=d.toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+    const av=r.avg==null?'—':r.avg.toFixed(2)+' OoM avg';
+    return `<details class="run${r.id===lastRunId?' newrun':''}"${r.id===lastRunId?' open':''}><summary>
+      <span class="rank mono">#${i+1}</span>
+      <span><span class="meta">${ds}, ${r.timer?r.timer+' s timer':'no timer'}, ${av}</span><div class="strip">${strip(r.h)}</div></span>
+      <span class="rs mono">${r.score}</span></summary>
+      <div class="hist">${histHTML(r.h)}</div></details>`;
+  }).join('');
+}
+function openRuns(from){ runsReturn=from; renderRuns(); setStorageNote(); screen('runsScreen'); }
+let runsReturn='start';
+$('runsFromStart').addEventListener('click',()=>openRuns('start'));
+$('runsFromOver').addEventListener('click',()=>openRuns('over'));
+$('runsBack').addEventListener('click',()=>screen(runsReturn));
+$('runsPlay').addEventListener('click',startRun);
+$('clearRuns').addEventListener('click',()=>{
+  const b=$('clearRuns');
+  if(b.dataset.armed){ const old=loadRuns(); if(cloud) old.forEach(r=>cloud.col.doc(r.id).delete().catch(()=>{})); saveRuns([]); store('bp_best','0'); try{localStorage.removeItem('bp_best')}catch(e){} delete b.dataset.armed; b.textContent='Clear saved runs'; lastRunId=null; renderRuns(); showBest(); }
+  else { b.dataset.armed='1'; b.textContent='Click again to confirm'; setTimeout(()=>{delete b.dataset.armed;b.textContent='Clear saved runs';},3000); }
+});
+
+function gameOver(){
+  svClearRun();
+  screen('over');
+  $('finalScore').textContent=score;
+  $('finalSub').textContent= score===1?'question':'questions';
+  const avg=avgErrOf(history);
+  $('avgErr').textContent = avg===null?'': `average error: ${avg.toFixed(2)} orders of magnitude (≈${Math.pow(10,avg).toFixed(1)}×)`;
+  const best=+(store('bp_best')||0);
+  if(packOn()){ lastRunId=null; $('finalSub').textContent+=' ('+packOn().name+')'; }      // pack runs are not ranked
+  else {
+    const placed=recordRun();
+    if(score>best){ store('bp_best',score); $('finalSub').textContent+=', a new best'; }
+    else if(placed>-1 && placed<10){ $('finalSub').textContent+=`, #${placed+1} in your best runs`; }
+  }
+  showBest();
+  if(runMode==='daily'){ svDaily.days[svToday()]={score,avg:avgErrOf(history),t:Date.now(),h:history}; svDailySave(); svDailyStat(); $('finalSub').textContent+=' (daily run)'; $('again').textContent='Practice run'; }
+  else $('again').textContent='Play again';
+  $('hist').innerHTML = histHTML(history);
+  $('again').focus();
+}
+$('endRun').addEventListener('click',()=>{
+  const b=$('endRun');
+  if(!b.dataset.armed){ b.dataset.armed='1'; b.textContent='Sure? Click again'; setTimeout(()=>{delete b.dataset.armed; b.textContent='End run';},3000); return; }
+  delete b.dataset.armed; b.textContent='End run'; cancelAnimationFrame(raf); answered=true; life=0; drawLife(); gameOver();
+});
+$('go').addEventListener('click',()=>startRun('practice'));
+$('goDaily').addEventListener('click',()=>startRun('daily'));
+svDailyLoad();
+cloudSync();
+if($('exportRuns')) $('exportRuns').addEventListener('click',async()=>{
+  let stats={}; try{stats=JSON.parse(localStorage.getItem('bp_stats')||'{}');}catch(e){}
+  const txt=JSON.stringify({v:1,runs:loadRuns(),stats});
+  try{ await navigator.clipboard.writeText(txt); $('exportRuns').textContent='Copied! Paste it into the hosted version'; }
+  catch(e){ $('exportRuns').textContent='Copy failed'; }
+  setTimeout(()=>$('exportRuns').textContent='Copy my data',3000);
+});
+$('again').addEventListener('click',()=>startRun('practice'));
+$('copy').addEventListener('click',async()=>{
+  const blocks=strip(history);
+  const txt=`Ballpark Survival: ${score} survived\n${blocks}`;
+  try{ await navigator.clipboard.writeText(txt); $('copy').textContent='Copied!'; }
+  catch(e){ $('copy').textContent='Copy failed'; }
+  setTimeout(()=>$('copy').textContent='Copy result',1500);
+});
+</script>
+<script src="games.js"></script>
+<script src="lina.js"></script>
+<script src="wordy-data.js"></script>
+<script src="wordy.js"></script>
+<script src="party.js"></script>
+<script src="atlas.js"></script>
+<script src="drinks.js"></script>
+<script src="ui.js"></script>
+<script src="levels.js"></script>
+<script src="account.js"></script>
+<script src="friends.js"></script>
+<script src="plus.js"></script>
+<script src="archive.js"></script>
+<script src="bot.js"></script>
+<script src="dev.js"></script>
+</body>
+</html>

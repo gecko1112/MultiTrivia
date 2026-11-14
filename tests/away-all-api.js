@@ -1,0 +1,47 @@
+const { spawn } = require('child_process');
+const fs = require('fs'), path = require('path');
+const project = process.argv[2] || require('path').join(__dirname, '..'), readDb = require('./db.js').readDb, patchDb = require('./db.js').patchDb, PORT = 3984, B = 'http://127.0.0.1:' + PORT;
+const data = path.join(__dirname, '.tmp', 'aadata'); fs.rmSync(data, { recursive: true, force: true }); fs.mkdirSync(data, { recursive: true });
+const wait = ms => new Promise(r => setTimeout(r, ms));
+(async () => {
+  const srv = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data }, stdio: 'ignore' }); await wait(900);
+  const jar = {};
+  const call = async (who, m, u, b) => { const r = await fetch(B + u, { method: m, headers: { 'Content-Type': 'application/json', cookie: jar[who] || '' }, body: b ? JSON.stringify(b) : undefined }); const sc = r.headers.get('set-cookie'); if (sc) jar[who] = sc.split(';')[0]; return { s: r.status, j: await r.json().catch(() => ({})) }; };
+  await call('anna', 'POST', '/api/signup', { username: 'anna', password: 'kiwi-lamp-4421' });
+  await call('ben', 'POST', '/api/signup', { username: 'ben', password: 'kiwi-lamp-4422' });
+  const D = '2026-11-12', out = [];
+  const away = (who, game, day) => call(who, 'POST', '/api/away', { game, day: day || D });
+  out.push(['unknown game refused', (await away('anna', 'xx')).s === 400]);
+  out.push(['bad day refused', (await away('anna', 'wd', '2099-01-01')).s === 400 && (await away('anna', 'wd', 'yesterday')).s === 400]);
+  await away('anna', 'wd'); await away('anna', 'wd'); await away('anna', 'ml'); await away('anna', 'sv');
+  await call('anna', 'PUT', '/api/docs/x_words', { days: { [D]: { solved: true, guesses: 3, word: 'crane', rows: [], words: [] } } });
+  await call('anna', 'PUT', '/api/docs/x_stats', { ml: { days: { [D]: { score: 20 } } } });
+  await call('anna', 'PUT', '/api/docs/x_daily', { days: { [D]: { score: 5, avg: 1, h: [] } } });
+  await away('anna', 'wd');
+  const row = async who => (await call(who, 'GET', '/api/day?date=' + D)).j.players.find(p => p.name === 'anna');
+  out.push(['a normal friend gets no count', !JSON.stringify(await row('ben')).includes('away')]);
+  out.push(['nor does the player', !JSON.stringify(await row('anna')).includes('away')]);
+  fs.writeFileSync(path.join(data, 'admins.txt'), 'ben\n');
+  let a = await row('ben');
+  out.push(['an admin sees it per game', a.wd.away === 2 && a.ml.away === 1 && a.sv.away === 1]);
+  out.push(['nothing counted after the game was finished', a.wd.away === 2]);
+  out.push(['locked details stay locked for the admin', a.wd.locked === true && !a.wd.word]);
+  await wait(400);
+  out.push(['the stored document is not changed', !JSON.stringify(readDb(project, data).docs).includes('away')]);
+
+  // party
+  const code = (await call('anna', 'POST', '/api/party/create')).j.code;
+  await call('anna', 'POST', '/api/party/' + code + '/join'); await call('ben', 'POST', '/api/party/' + code + '/join');
+  const state = async who => { const r = await fetch(B + '/api/party/' + code + '/events', { headers: { cookie: jar[who] } }); const rd = r.body.getReader(); let t = ''; while (!t.includes('event: state')) t += Buffer.from((await rd.read()).value).toString(); await rd.cancel().catch(() => {}); return JSON.parse(t.split('data: ')[1].split('\n')[0]); };
+  await call('anna', 'POST', '/api/party/' + code + '/away');
+  await call('anna', 'POST', '/api/party/' + code + '/start');
+  await call('anna', 'POST', '/api/party/' + code + '/away'); await call('anna', 'POST', '/api/party/' + code + '/away');
+  await call('anna', 'POST', '/api/party/' + code + '/guess', { value: 10 });
+  await call('anna', 'POST', '/api/party/' + code + '/away');
+  let s = await state('ben');
+  out.push(['party: admin sees two leaves, none from the lobby or after answering', s.players.find(p => p.id === 'anna').away === 2]);
+  s = await state('anna');
+  out.push(['party: a normal player sees none', !JSON.stringify(s.players).includes('away')]);
+  out.forEach(([n, ok]) => console.log((ok ? 'ok    ' : 'FAIL  ') + n));
+  srv.kill(); process.exitCode = out.every(o => o[1]) ? 0 : 1;
+})();

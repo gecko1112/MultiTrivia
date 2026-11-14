@@ -1,0 +1,7 @@
+{
+  "env": "sandbox",
+  "clientToken": "test_...",
+  "prices": { "month": "pri_...", "year": "pri_..." },
+  "webhookSecret": "pdl_ntfset_...",
+  "apiKey": "pdl_sdbx_apikey_..."
+}

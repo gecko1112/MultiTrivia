@@ -1,0 +1,7 @@
+data/
+backups/
+tests/.tmp/
+*.log
+.impeccable/tmp/
+.claude/settings.local.json
+node_modules/

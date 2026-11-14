@@ -1,0 +1,13 @@
+const { start, wait } = require('./lib');
+const W = Number(process.argv[3]) || 1440, H = Number(process.argv[4]) || 900;
+(async () => { const t = await start(process.argv[2] || require('path').join(__dirname, '..', '..'), W, H, 'wv17' + (W < 600 ? 'm' : '')); const { ev, shot, reload } = t;
+  try { await reload('#survival'); await ev(`document.querySelectorAll('.bpt').forEach(x=>x.remove())`);
+    await ev(`window.__o=0; bpToast('Achievement','Quick draw','Hit Fermi before he has flown off.',()=>{window.__o++},true); bpToast('Achievement','Second one','A longer text to see that nothing runs under the close button here.',()=>{window.__o++},false)`); await wait(700);
+    await shot('toast'); 
+    const r = await ev(`(()=>{const x=document.querySelector('.bpt .tx').getBoundingClientRect(); return Math.round(x.width)+'x'+Math.round(x.height)})()`);
+    await ev(`document.querySelector('.bpt .tx').click()`); await wait(100);
+    console.log('x size', r, '| after x: toasts', await ev(`document.querySelectorAll('.bpt').length`), 'opened', await ev(`window.__o`));
+    await ev(`document.querySelector('.bpt .tb').click()`); await wait(100);
+    console.log('after card click: toasts', await ev(`document.querySelectorAll('.bpt').length`), 'opened', await ev(`window.__o`), '| overflowX', await ev(`document.documentElement.scrollWidth-innerWidth`));
+    console.log('ERRORS', JSON.stringify(t.errors)); t.done(0);
+  } catch (e) { console.error('FAILED', e); t.done(1); } })();

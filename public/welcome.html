@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ballpark: daily guessing games</title>
+<meta name="description" content="Daily guessing and trivia games where being roughly right wins. Five short games a day, shared with friends. Free to play.">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script>(function(){var t=null;try{t=localStorage.getItem('bp_theme');}catch(e){}
+  if(t!=='light'&&t!=='dark') t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
+  document.documentElement.setAttribute('data-theme',t);})();</script>
+<link rel="stylesheet" href="/welcome.css">
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="/welcome">Ballpark</a>
+  <nav aria-label="Account"><a class="btn ghost" href="/">Log in</a><a class="btn" href="/">Create account</a></nav>
+</header>
+
+<main>
+<section class="hero" aria-labelledby="say">
+  <div class="ask">
+    <p class="q" id="exQ">How tall are the Petronas Towers in Kuala Lumpur?</p>
+    <div class="say"><h1 id="say">Expand <span>(and show off)</span> your everyday knowledge</h1><p>Guessing games for estimation and trivia lovers.</p></div>
+  </div>
+  <p class="verdict" id="exV"><b id="exX">1.13×</b> <span id="exW">too low</span></p>
+  <div class="scale" id="exS" role="img" aria-label="A number line. A guess of 400 metres sits a little below the answer, 452 metres.">
+    <div class="axis"></div>
+    <div class="ticks" id="exT"><i style="left:0%"><u>300</u></i><i style="left:41.5%"><u>400</u></i><i style="left:73.7%"><u>500</u></i><i style="left:100%"><u>600</u></i></div>
+    <div class="gap" id="exG" style="left:41.5%;width:17.6%"></div>
+    <div class="mark guess" id="exMg" style="left:41.5%"><span><small>A guess</small><b id="exGv">400 metres</b></span></div>
+    <div class="mark answer" id="exMa" style="left:59.1%"><span><small>The answer</small><b id="exAv">452 metres</b></span></div>
+  </div>
+  <div class="under">
+    <p>A question from Survival, the first of five daily games. Closer is better; spot on is rare.</p>
+    <button type="button" class="btn ghost" id="exNext" hidden>Another question</button>
+  </div>
+  <nav class="rest" aria-label="The other daily games">
+    <a href="#moreless" style="--c:var(--ml)"><b>More/Less</b><span>21 of 25</span></a>
+    <a href="#guessless" style="--c:var(--gl)"><b>Guessless</b><span>388 of 500</span></a>
+    <a href="#clueless" style="--c:var(--cl)"><b>Clueless</b><span>34 guesses</span></a>
+    <a href="#wordy" style="--c:var(--wd)"><b>Wordy</b><span>3 of 6</span></a>
+    <a class="btn turn" href="/">Your turn</a>
+  </nav>
+</section>
+
+<section class="game" id="moreless" style="--c:var(--ml)">
+  <div class="tell"><h2>More/Less</h2><p>Which of the two is bigger? Twenty-five calls a day.</p></div>
+  <div class="demo duel" role="img" aria-label="Mr. Brightside has 3.45 billion Spotify streams. Bohemian Rhapsody: more or less? Less, 3.26 billion.">
+    <div><b>Mr. Brightside</b><span>The Killers</span><strong>3.45 billion</strong></div>
+    <div class="vs">or</div>
+    <div><b>Bohemian Rhapsody</b><span>Queen</span><strong class="was">Less: 3.26 billion</strong></div>
+    <p class="fine">Spotify streams, September 2026.</p>
+  </div>
+</section>
+
+<section class="game flip" id="guessless" style="--c:var(--gl)">
+  <div class="tell"><h2>Guessless</h2><p>Five estimates. The closer you land, the more of the 100 points you keep.</p></div>
+  <div class="demo bars" role="img" aria-label="An example round: 90, 85, 62, 71 and 80 points, 388 of 500 in total.">
+    <div style="--w:90%"><span>90</span></div><div style="--w:85%"><span>85</span></div><div style="--w:62%"><span>62</span></div><div style="--w:71%"><span>71</span></div><div style="--w:80%"><span>80</span></div>
+    <p class="sum"><b>388</b> of 500</p>
+    <p class="fine">An example round.</p>
+  </div>
+</section>
+
+<section class="game" id="clueless" style="--c:var(--cl)">
+  <div class="tell"><h2>Clueless</h2><p>One hidden word. Every guess is ranked by how close it is in meaning.</p></div>
+  <ol class="demo ranks" aria-label="An example: ocean ranks 412, boat 57, river 12, stream 3.">
+    <li><span>ocean</span><b>#412</b></li><li><span>boat</span><b>#57</b></li><li><span>river</span><b>#12</b></li><li class="hot"><span>stream</span><b>#3</b></li>
+    <li class="fine">An example. Rank 1 is the word.</li>
+  </ol>
+</section>
+
+<section class="game flip" id="wordy" style="--c:var(--wd)">
+  <div class="tell"><h2>Wordy</h2><p>Five letters, six tries.</p></div>
+  <div class="demo tiles" role="img" aria-label="An example: crane, slant, then plant, solved in three tries.">
+    <div><i>C</i><i>R</i><i class="ok">A</i><i class="ok">N</i><i>E</i></div>
+    <div><i>S</i><i class="ok">L</i><i class="ok">A</i><i class="ok">N</i><i class="ok">T</i></div>
+    <div><i class="ok">P</i><i class="ok">L</i><i class="ok">A</i><i class="ok">N</i><i class="ok">T</i></div>
+    <p class="fine">An example.</p>
+  </div>
+</section>
+
+<section class="plain">
+  <div>
+    <h2>Between friends</h2>
+    <p>Everyone gets the same puzzles each day. Your results are shared with the friends you add and with nobody else, and theirs open once you have played.</p>
+  </div>
+  <div>
+    <h2>Free to play</h2>
+    <p>Every daily game is free. Also inside: the Atlas with flags, outlines and routes across borders, practice games, and live party rounds. <a href="/pricing">Ballpark Plus</a> adds past days, statistics and more.</p>
+  </div>
+</section>
+
+<section class="close">
+  <p class="yours" aria-hidden="true">Your turn</p>
+  <div class="go"><a class="btn turn" href="/">Create account</a><p>Then play today's five.</p></div>
+</section>
+</main>
+
+<footer><nav aria-label="About this site"><a href="/pricing">Pricing</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refunds">Refunds</a><a href="/imprint">Impressum</a></nav></footer>
+<script src="/welcome.js"></script>
+</body>
+</html>
