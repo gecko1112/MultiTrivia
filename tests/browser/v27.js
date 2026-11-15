@@ -83,6 +83,6 @@ const W = Number(process.argv[3]) || 1280, H = Number(process.argv[4]) || 900, T
     console.log('  after reload with empty storage -> same place:', (await txt('#score') + ' | ' + await txt('#q')) === svAt, '| in the game', await ev(`document.getElementById('game').classList.contains('on')`));
 
     console.log('server copy:', await ev(`fetch('/api/docs/x_run').then(r=>r.json()).then(j=>Object.entries(j.data.games).map(([g,v])=>g+':'+(v.done?'done':v.n)).join(' '))`),
-      '| on the server:', await ev(`Promise.all(['ml','gl','wd'].map(g=>fetch('/api/'+g+'/home').then(r=>r.json()).then(j=>g+' '+(j.going?'going':j.done?'done':'not started')))).then(a=>a.join(', '))`));
+      '| on the server:', await ev(`Promise.all(['ml','gl','wd','cl'].map(g=>fetch('/api/'+g+'/home').then(r=>r.json()).then(j=>g+' '+(j.going?'going':j.done?'done':'not started')))).then(a=>a.join(', '))`));
     console.log('ERRORS', JSON.stringify(t.errors.filter(e => !/401/.test(e)))); t.done(0);
   } catch (e) { console.error('FAILED', e); console.log('ERRORS', JSON.stringify(t.errors)); t.done(1); } })();

@@ -160,7 +160,7 @@ const validDocId = id => typeof id === 'string' && /^[A-Za-z0-9_\-.:~@+]{1,100}$
 // reader of results keeps working: x_stats.<game> holds the results, x_late.days[day].<game> marks an archive game.
 // Those parts belong to the server. Whatever the browser sends for them is replaced by what the server has, and
 // deleting the document keeps them.
-const SERVER_GAMES = ['ml', 'gl', 'wd'];
+const SERVER_GAMES = ['ml', 'gl', 'wd', 'cl'];
 const SERVER_DOCS = ['x_words'];                    // whole documents only the server writes (Wordy's results)
 function keepServerParts(id, old, body) {
   if (SERVER_DOCS.includes(id)) return old && typeof old === 'object' ? old : {};
@@ -330,6 +330,12 @@ const wordy = require('./wordy-server.js')({ words: require('./content/wordy.js'
   records: u => (db.wd[u] = db.wd[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
   mayArchive: u => hasPlus(u) });
 
+// ---------- Clueless (picked and judged on the server; daily guesses in db.cl, results in the account's x_stats.cl) ----------
+if (!db.cl) db.cl = {};
+const clueless = require('./clueless-server.js')({ data: require('./content/clueless.js'), send, readBody, save,
+  records: u => (db.cl[u] = db.cl[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
+  mayArchive: u => hasPlus(u) });
+
 // ---------- Drinks (one-phone drinking games, dealt and judged on the server) ----------
 if (!db.drinks) db.drinks = {};                     // per account: counters and earned badges of the drinking games
 const drinks = require('./drinks-server.js')({ send, readBody, party, geo, records: Object.assign(u => (db.drinks[u] = db.drinks[u] || {}), { save }) });
@@ -393,6 +399,7 @@ const server = http.createServer(async (req, res) => {
     if (await moreless.handle(req, res, url, query, user)) return;
     if (await guessless.handle(req, res, url, query, user)) return;
     if (await wordy.handle(req, res, url, query, user)) return;
+    if (await clueless.handle(req, res, url, query, user)) return;
     if (await drinks.handle(req, res, url, query, user)) return;
     if (await plus.handle(req, res, url, query, user)) return;
     if (await account.handle(req, res, url, query, user)) return;

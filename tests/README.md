@@ -18,9 +18,10 @@
 | `run-api.js` | Today's daily games in progress (`x_run`): only ever move forward, cannot be deleted |
 | `moreless-api.js` | More/Less dealt and judged on the server: no number before its call, the result can't be uploaded |
 | `guessless-api.js` | Guessless dealt and scored on the server: no answer before its estimate, the result can't be uploaded |
+| `clueless-api.js` | Clueless picked and judged on the server: ranks only for guesses, hints from the server, no word before the end |
 | `wordy-api.js` | Wordy picked and judged on the server: no word before the end, the results (`x_words`) can't be uploaded |
 
-Results the server decides (More/Less, Guessless and Wordy so far) can't be uploaded by a browser. A test that needs such a result puts it
+Results the server decides (all daily games except Survival so far) can't be uploaded by a browser. A test that needs such a result puts it
 in place the way an operator would, with `importStats` or `importData` from `seed.js` and a restart of its server.
 
 `tests/browser/` holds click-through runs in a headless Microsoft Edge (Windows). They are started one at a time,

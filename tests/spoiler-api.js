@@ -21,7 +21,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     x_daily: { days: { [D]: { score: 7, avg: 0.5, t: 1, h: [{ q: 'SECRETSV' }] } } },
   };
   for (const id of Object.keys(full)) await call('anna', 'PUT', '/api/docs/' + id, full[id]);
-  importData(data, { anna: { stats: { ml: full.x_stats.ml, gl: full.x_stats.gl }, words: full.x_words } });   // results the server decides come from the server, not the browser
+  importData(data, { anna: { stats: { ml: full.x_stats.ml, gl: full.x_stats.gl, cl: full.x_stats.cl }, words: full.x_words } });   // results the server decides come from the server, not the browser
   await wait(450); srv.kill(); await wait(400); srv = boot(); await up(PORT);   // the wait lets the server write to disk first
   const out = [];
   const day = async who => (await call(who, 'GET', '/api/day?date=' + D)).j;

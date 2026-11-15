@@ -42,9 +42,9 @@ const dealer = require(path.join(project, 'guessless-server.js'))({ cats: requir
     ok('opening it again shows the result', (await call('anna', 'POST', '/api/gl/start', { daily: true })).j.rec.total === v.total);
     ok('friends see the total', ((await call('ben', 'GET', '/api/day?date=' + D)).j.players.find(p => p.id === 'anna') || {}).gl.total === v.total);
 
-    await call('anna', 'PUT', '/api/docs/x_stats', { gl: { days: { [D]: { total: 500 } }, best: 500 }, cl: { days: {} } });
+    await call('anna', 'PUT', '/api/docs/x_stats', { gl: { days: { [D]: { total: 500 } }, best: 500 }, settings: { sound: 'off' } });
     st = (await call('anna', 'GET', '/api/docs/x_stats')).j.data;
-    ok('a browser upload cannot change the Guessless results', st.gl.days[D].total === v.total && st.gl.best === v.total && st.cl, st.gl);
+    ok('a browser upload cannot change the Guessless results', st.gl.days[D].total === v.total && st.gl.best === v.total && st.settings.sound === 'off', st.gl);
     await call('cleo', 'PUT', '/api/docs/x_stats', { gl: { days: { [D]: { total: 500 } } } });
     ok('an account that never played shows no total, whatever it uploads', !((await call('ben', 'GET', '/api/day?date=' + D)).j.players.find(p => p.id === 'cleo') || {}).gl);
 

@@ -64,6 +64,7 @@ window.onCloudReady=async function(col){
     if(d.exists) stats=merge(stats,srv);
     stats.ml=merge(blank(),{ml:srv.ml}).ml;   // More/Less and Guessless results come from the server only
     stats.gl=merge(blank(),{gl:srv.gl}).gl;
+    stats.cl=merge(blank(),{cl:srv.cl}).cl;
   }catch(e){}
   saveStats(); refreshIntros();
 };
@@ -278,60 +279,54 @@ $('glBack').addEventListener('click',()=>{show('gl','Intro');glStatLine();});
 $('glCopy').addEventListener('click',()=>{const r=glLast;const sq=p=>p>=90?'🟩':p>=70?'🟨':p>=30?'🟧':'🟥';copyText($('glCopy'),`Ballpark Guessless ${glLastDaily?todayKey():'(practice)'}: ${r.total}/500\n`+r.res.map(x=>sq(x.pts)).join(''),'Copy result');});
 
 // ===================== CLUELESS =====================
-let CL=null, cl=null, clLoading=null;
-function clLoad(){
-  if(CL) return Promise.resolve(CL);
-  if(window.CLUELESS&&window.CLUELESS.words){ const D=window.CLUELESS; D.index=new Map(D.words.map((w,i)=>[w,i])); CL=D; return Promise.resolve(D); }
-  if(clLoading) return clLoading;
-  clLoading=new Promise((res,rej)=>{
-    const s=document.createElement('script'); s.src='clueless-data.js';
-    s.onload=()=>{ const D=window.CLUELESS; D.index=new Map(D.words.map((w,i)=>[w,i])); CL=D; res(D); };
-    s.onerror=()=>{clLoading=null;rej();}; document.head.appendChild(s);
-  });
-  return clLoading;
+// Picked and judged on the server (clueless-server.js). The browser sends a word and gets back its rank; hints come
+// from the server too, and the hidden word only when the game is over. Nothing big is downloaded any more.
+let cl=null;          // the game on screen, as the server last described it
+let clHome=null;      // the menu's state from the server: { date, done, going, practice }
+let clBusy=false;
+async function clPost(act,body){
+  const r=await fetch('/api/cl/'+act,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({})); return { ok:r.ok, status:r.status, j };
 }
-function clRanks(t){ const b=atob(CL.ranks[t]); const u=new Uint8Array(b.length); for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i); return new Uint16Array(u.buffer); }
-function dayNum(){ const d=window.bpNow(); return Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-Date.UTC(2026,0,1))/864e5); }
-function clDailyTarget(){ const order=shuffleR(CL.targets,rngFrom('clueless-order-v1')); return order[((dayNum()%order.length)+order.length)%order.length]; }
+const clDayArg=()=>window.bpDay||undefined;
+async function clLoadHome(){ try{ const r=await fetch('/api/cl/home'+(window.bpDay?'?day='+window.bpDay:''),{credentials:'same-origin'}); if(r.ok) clHome=await r.json(); }catch(e){} }
 function clStatLine(){
-  const t=stats.cl.days[todayKey()];
+  const t=stats.cl.days[(clHome&&clHome.date)||todayKey()];
   const clSolvedIn=Object.values(stats.cl.days||{}).filter(d=>d&&d.solved).map(d=>d.guesses);
   $('clStat').innerHTML=statCells([['Today',t?(t.solved?t.guesses+' guesses':'Gave up'):'–'],['Solved',`${stats.cl.solved||0} of ${stats.cl.played||0}`],['Fewest guesses',clSolvedIn.length?Math.min(...clSolvedIn):'–']]);
-  $('clDaily').textContent=t?"See today's word":"Play today's word";
+  const done=!!t||!!(clHome&&clHome.done), going=!done&&!!(clHome&&clHome.going);
+  $('clDaily').textContent=done?"See today's word":going?"Continue today's word":"Play today's word";
 }
 function clShowIntro(){ if(cl&&$('clPlay').style.display!=='none') return; show('cl','Intro'); clStatLine(); }
-function clSaveProgress(){
-  if(!cl||!cl.daily) return;
-  const s={t:cl.target,g:cl.guesses.map(x=>x.w),h:cl.hints,done:cl.done};
-  try{localStorage.setItem('bp_cl_'+todayKey(),JSON.stringify(s));}catch(e){}
-  if(window.bpRun&&!window.bpDay){ if(cl.done) bpRun.done('cl'); else bpRun.set('cl',s.g.length+1,s); }   // today's guesses are also kept on the server (run.js)
+function clTakeStats(s){
+  stats.cl.played=s.played; stats.cl.solved=s.solved; if(s.day&&s.rec) stats.cl.days[s.day]=s.rec;
+  try{localStorage.setItem('bp_stats',JSON.stringify(stats));}catch(e){}
+}
+function clShow(v){
+  cl=v; show('cl','Play'); $('clWin').style.display='none'; $('clWin').innerHTML=''; $('clMsg').textContent='';
+  $('clLbl').textContent=v.daily?"Today's word":'Random word (practice)';
+  clRender();
+  if(v.done) clFinish(false); else $('clInp').focus();
 }
 async function clStart(daily){
-  $('clMsg').textContent=''; const btn=daily?$('clDaily'):$('clPractice'); const old=btn.textContent; btn.textContent='Loading words…';
-  try{ await clLoad(); }catch(e){ btn.textContent=old; $('clStat').textContent='Could not load the word list.'; return; }
-  btn.textContent=old;
-  let target, saved=null;
-  if(daily){ target=clDailyTarget(); try{saved=JSON.parse(localStorage.getItem('bp_cl_'+todayKey())||'null');}catch(e){} if(saved&&saved.t!==target) saved=null;
-    // guesses made in another browser today count too: go on from whichever copy has more
-    if(window.bpRun){ try{ await bpRun.ready(); }catch(e){} const far=bpRun.get('cl'); if(far&&far.t===target&&Array.isArray(far.g)&&!(saved&&saved.done)&&(!saved||far.g.length>saved.g.length)) saved=far; } }
-  else { const others=CL.targets.filter(t=>t!==clDailyTarget()); target=others[Math.floor(Math.random()*others.length)]; }
-  const ranks=clRanks(target);
-  cl={daily,target,ranks,guesses:[],hints:0,done:false,last:null};
-  show('cl','Play'); $('clWin').style.display='none'; $('clWin').innerHTML='';
-  $('clLbl').textContent=daily?"Today's word":'Random word (practice)';
-  const prior=stats.cl.days[todayKey()];
-  if(saved){ saved.g.forEach(w=>clAdd(w,true)); cl.hints=saved.h||0; if(saved.done) clFinish(saved.done==='won',true); }
-  else if(daily && prior){ clFinish(prior.solved,true); }
-  clRender(); if(!cl.done) $('clInp').focus();
+  if(clBusy) return; clBusy=true;
+  try{
+    const r=await clPost('start',{daily,day:daily?clDayArg():undefined});
+    if(!r.ok){ $('clStat').textContent=r.j.error||'Something went wrong. Try again.'; return; }
+    clShow(r.j);
+  }catch(e){ $('clStat').textContent='Could not reach the server. Try again.'; }
+  finally{ clBusy=false; }
 }
-function clAdd(w,silent){
-  const i=CL.index.get(w); if(i===undefined) return 'unknown';
-  if(cl.guesses.some(x=>x.w===w)){ cl.last=w; return 'dup'; }
-  const r=cl.ranks[i]; cl.guesses.push({w,r}); cl.last=w; return r;
+async function clResume(){                        // a game that was going when the page was left comes back
+  await clLoadHome();
+  if(!cl&&clHome&&(clHome.going||clHome.practice)){
+    try{ const r=await clPost('start',clHome.going?{daily:true,day:clDayArg()}:{daily:false,resume:true}); if(r.ok&&!r.j.done) clShow(r.j); }catch(e){}
+  }
+  if($('clIntro').style.display!=='none') clStatLine();
 }
 function clColor(r){return r<=300?'var(--good)':r<=1500?'var(--warn)':'var(--bad)';}
 function clRow(g,isLast){
-  const N=CL.words.length; const pct=Math.max(2,100*(1-Math.log(g.r)/Math.log(N)));
+  const N=cl.size||15000; const pct=Math.max(2,100*(1-Math.log(g.r)/Math.log(N)));
   const n=cl.guesses.indexOf(g)+1;
   return `<div class="clrow${isLast?' last':''}"><div class="fill" style="width:${pct}%;background:${clColor(g.r)}"></div><span class="clw"><b class="clrank" style="color:${clColor(g.r)}">#${g.r}</b> ${esc(g.w)}</span><span class="clnum muted" title="Guess number">guess ${n}</span></div>`;
 }
@@ -341,45 +336,56 @@ function clRender(){
   $('clLast').innerHTML=last?clRow(last,true):'';
   const sorted=cl.guesses.slice().sort((a,b)=>a.r-b.r);
   $('clList').innerHTML=sorted.length?'<div class="clsep"></div>'+sorted.map(g=>clRow(g,false)).join(''):'';
-  $('clHint').disabled=cl.done; $('clGive').disabled=cl.done; $('clInp').disabled=cl.done; $('clSub').disabled=cl.done;
+  $('clHint').disabled=!!cl.done; $('clGive').disabled=!!cl.done; $('clInp').disabled=!!cl.done; $('clSub').disabled=!!cl.done;
 }
-$('clForm').addEventListener('submit',e=>{
-  e.preventDefault(); if(!cl||cl.done) return;
+// the server's reply to a guess, a hint or giving up
+function clTake(v){
+  const was=cl; cl=Object.assign(v,{last:v.dup||v.last}); if(v.stats) clTakeStats(v.stats);
+  clRender();
+  if(v.done&&!was.done){ clFinish(true); }
+}
+$('clForm').addEventListener('submit',async e=>{
+  e.preventDefault(); if(!cl||cl.done||cl.busy) return;
   const w=$('clInp').value.trim().toLowerCase(); if(!w) return;
   if(!/^[a-z]+$/.test(w)){ $('clMsg').textContent='Letters only, one word.'; $('clMsg').style.color='var(--warn)'; return; }
-  const r=clAdd(w);
-  if(r==='unknown'){ $('clMsg').textContent=`"${w}" isn't in my word list. Try another word.`; $('clMsg').style.color='var(--warn)'; return; }
-  $('clMsg').textContent= r==='dup' ? `You already guessed "${w}".` : '';
-  $('clInp').value=''; clRender(); clSaveProgress();
-  if(r===1) clFinish(true,false);
+  const was=cl; was.busy=true;
+  let r; try{ r=await clPost('guess',{daily:was.daily,day:was.daily?clDayArg():undefined,i:was.i,word:w}); }catch(err){ was.busy=false; $('clMsg').textContent='Could not reach the server. Try again.'; return; }
+  was.busy=false; if(cl!==was) return;
+  if(!r.ok){ $('clMsg').textContent=r.j.error||'Try again.'; $('clMsg').style.color='var(--warn)'; return; }
+  $('clMsg').textContent=r.j.dup?`You already guessed "${r.j.dup}".`:''; $('clMsg').style.color='';
+  $('clInp').value=''; clTake(r.j);
 });
-$('clHint').addEventListener('click',()=>{
-  if(!cl||cl.done) return;
-  const best=cl.guesses.length?Math.min(...cl.guesses.map(g=>g.r)):1000;
-  let t=Math.max(2,Math.floor(best/2)); if(best<=2) t=2;
-  const byRank=new Map(); for(let i=0;i<cl.ranks.length;i++) byRank.set(cl.ranks[i],i);
-  for(let k=t;k>=2;k--){ const w=CL.words[byRank.get(k)]; if(!cl.guesses.some(g=>g.w===w)){ cl.hints++; clAdd(w); $('clMsg').textContent=`Hint: "${w}"`; $('clMsg').style.color='var(--blue)'; clRender(); clSaveProgress(); return; } }
-  $('clMsg').textContent='No more hints. You are very close!';
+$('clHint').addEventListener('click',async()=>{
+  if(!cl||cl.done||cl.busy) return;
+  const was=cl; was.busy=true;
+  let r; try{ r=await clPost('hint',{daily:was.daily,day:was.daily?clDayArg():undefined,i:was.i}); }catch(err){ was.busy=false; return; }
+  was.busy=false; if(cl!==was||!r.ok) return;
+  if(r.j.noHint){ $('clMsg').textContent='No more hints. You are very close!'; $('clMsg').style.color=''; }
+  else { $('clMsg').textContent=`Hint: "${r.j.hint}"`; $('clMsg').style.color='var(--blue)'; }
+  clTake(r.j);
 });
-$('clGive').addEventListener('click',()=>{ if(!cl||cl.done) return; if(!$('clGive').dataset.armed){ $('clGive').dataset.armed='1'; $('clGive').textContent='Sure? Click again'; setTimeout(()=>{delete $('clGive').dataset.armed;$('clGive').textContent='Give up';},3000); return; } delete $('clGive').dataset.armed; $('clGive').textContent='Give up'; clFinish(false,false); });
-$('clBackBtn').addEventListener('click',()=>{ show('cl','Intro'); clStatLine(); });
-function clFinish(won,restoring){
-  cl.done=won?'won':'lost'; clSaveProgress();
-  if(!restoring){
-    stats.cl.played++; if(won) stats.cl.solved++;
-    if(cl.daily && !stats.cl.days[todayKey()]) stats.cl.days[todayKey()]={solved:won,guesses:cl.guesses.length,hints:cl.hints,word:cl.target,list:cl.guesses.map(x=>[x.w,x.r])};
-    saveStats();
-  }
-  const byRank=[]; for(let i=0;i<cl.ranks.length;i++) if(cl.ranks[i]<=31) byRank[cl.ranks[i]]=CL.words[i];
-  const prior=cl.daily?stats.cl.days[todayKey()]:null;
-  const n=prior?prior.guesses:cl.guesses.length;
+$('clGive').addEventListener('click',async()=>{
+  if(!cl||cl.done||cl.busy) return;
+  if(!$('clGive').dataset.armed){ $('clGive').dataset.armed='1'; $('clGive').textContent='Sure? Click again'; setTimeout(()=>{delete $('clGive').dataset.armed;$('clGive').textContent='Give up';},3000); return; }
+  delete $('clGive').dataset.armed; $('clGive').textContent='Give up';
+  const was=cl; was.busy=true;
+  let r; try{ r=await clPost('giveup',{daily:was.daily,day:was.daily?clDayArg():undefined,i:was.i}); }catch(err){ was.busy=false; return; }
+  was.busy=false; if(cl!==was||!r.ok) return;
+  clTake(r.j);
+});
+$('clBackBtn').addEventListener('click',()=>{ show('cl','Intro'); if(cl&&cl.daily&&!cl.done) clHome=Object.assign({},clHome,{going:true}); clStatLine(); });
+// the end: the hidden word and the 30 closest words, both from the server. `fresh`: it ended just now.
+function clFinish(fresh){
+  if(fresh&&cl.daily){ clHome=Object.assign({},clHome,{done:true,going:false}); window.dispatchEvent(new Event('bp-saved')); }
+  if(fresh&&!cl.daily&&clHome) clHome.practice=false;
+  const won=cl.won, n=cl.guesses.length;
   $('clWin').style.display='';
-  $('clWin').innerHTML=`<div class="center"><div class="muted">${won?'You found it!':'The word was'}</div><div class="big" style="color:var(--accent-ink,var(--accent));font-size:44px">${esc(cl.target)}</div>
-    <div class="muted mono" style="margin-top:6px">${won?`${n} guesses${(prior?prior.hints:cl.hints)?`, ${prior?prior.hints:cl.hints} hints`:''}`:''}</div>
+  $('clWin').innerHTML=`<div class="center"><div class="muted">${won?'You found it!':'The word was'}</div><div class="big" style="color:var(--accent-ink,var(--accent));font-size:44px">${esc(cl.word||'')}</div>
+    <div class="muted mono" style="margin-top:6px">${won?`${n} guesses${cl.hints?`, ${cl.hints} hints`:''}`:''}</div>
     <div style="margin-top:12px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button id="clCopy">Copy result</button><button class="ghost" id="clMore">Random word</button></div></div>
     <div class="muted" style="font-size:13px;margin:16px 0 6px">The 30 closest words:</div>
-    <div class="mono" style="font-size:13px;line-height:1.7;color:var(--text)">${byRank.slice(2,32).map((w,i)=>`<span class="pill">#${i+2} ${esc(w)}</span>`).join(' ')}</div>`;
-  $('clCopy').addEventListener('click',()=>copyText($('clCopy'),`Ballpark Clueless ${cl.daily?todayKey():'(practice)'}: ${won?`solved in ${n} guesses`:'gave up'}`,'Copy result'));
+    <div class="mono" style="font-size:13px;line-height:1.7;color:var(--text)">${(cl.closest||[]).map((w,i)=>`<span class="pill">#${i+2} ${esc(w)}</span>`).join(' ')}</div>`;
+  $('clCopy').addEventListener('click',()=>copyText($('clCopy'),`Ballpark Clueless ${cl.daily?(cl.day||todayKey()):'(practice)'}: ${won?`solved in ${n} guesses`:'gave up'}`,'Copy result'));
   $('clMore').addEventListener('click',()=>clStart(false));
   clRender();
 }
@@ -388,5 +394,5 @@ $('clPractice').addEventListener('click',()=>clStart(false));
 
 route();
 // only once it is clear whose game this is, and after the server's copy of today's games has been read (run.js)
-if(window.claude&&claude.use) claude.use('user').then(()=>window.bpRun?bpRun.ready():null).then(()=>{ mlResume(); glResume(); refreshIntros(); }).catch(()=>{});
+if(window.claude&&claude.use) claude.use('user').then(()=>window.bpRun?bpRun.ready():null).then(()=>{ mlResume(); glResume(); clResume(); refreshIntros(); }).catch(()=>{});
 })();
