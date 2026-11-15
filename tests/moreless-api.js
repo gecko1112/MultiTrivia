@@ -8,7 +8,7 @@ const data = path.join(__dirname, '.tmp', 'mldata'); fs.rmSync(data, { recursive
 fs.writeFileSync(path.join(data, 'admins.txt'), 'anna');
 const wait = ms => new Promise(r => setTimeout(r, ms));
 // The test knows the answers the way only the server does: from the same dealing and the server-only data.
-const dealer = require(path.join(project, 'moreless-server.js'))({ cats: require(path.join(project, 'content/moreless.js')), publicDir: path.join(project, 'public'), send() {}, readBody() {}, records: () => ({}), docsOf: () => ({}), save() {}, mayArchive: () => true });
+const dealer = require(path.join(project, 'moreless-server.js'))({ cats: require(path.join(project, 'content/moreless.js')), questions: require(path.join(project, 'content/survival.js')), send() {}, readBody() {}, records: () => ({}), docsOf: () => ({}), save() {}, mayArchive: () => true });
 const rightCall = (cats, ci, si) => (cats[ci].chain[si + 1].v > cats[ci].chain[si].v ? 'more' : 'less');
 (async () => {
   const srv = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data, BP_FRIENDS: 'everyone' }, stdio: 'ignore' }); await up(PORT);

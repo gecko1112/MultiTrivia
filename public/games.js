@@ -9,15 +9,11 @@ if(document.getElementById('g-party')) TITLES.party='Party';
 if(document.getElementById('g-atlas')) TITLES.atlas='Atlas';
 if(document.getElementById('g-drinks')) TITLES.drinks='Drinks';
 if(document.getElementById('g-archive')) TITLES.archive='Archive';
-let svPausedAt=null;
+
 function route(){
   let g=(location.hash||'').replace('#','');
   if(!TITLES[g]) g='survival';
-  try{
-    const inQ=$('game').classList.contains('on') && !answered && timeLimit;
-    if(g!=='survival' && inQ && svPausedAt===null){ svPausedAt=performance.now(); cancelAnimationFrame(raf); }
-    if(g==='survival' && svPausedAt!==null){ tStart+=performance.now()-svPausedAt; svPausedAt=null; if(inQ) raf=requestAnimationFrame(tick); }
-  }catch(e){}
+  // Survival's clock does not pause on another tab: the server counts from the moment it showed the question.
   document.querySelectorAll('.game').forEach(el=>el.classList.toggle('on',el.id==='g-'+g));
   document.querySelectorAll('#tabs a').forEach(a=>a.classList.toggle('sel',a.dataset.g===g));
   $('gameTitle').textContent=TITLES[g];
@@ -394,5 +390,5 @@ $('clPractice').addEventListener('click',()=>clStart(false));
 
 route();
 // only once it is clear whose game this is, and after the server's copy of today's games has been read (run.js)
-if(window.claude&&claude.use) claude.use('user').then(()=>window.bpRun?bpRun.ready():null).then(()=>{ mlResume(); glResume(); clResume(); refreshIntros(); }).catch(()=>{});
+if(window.claude&&claude.use) claude.use('user').then(()=>{ mlResume(); glResume(); clResume(); refreshIntros(); }).catch(()=>{});
 })();

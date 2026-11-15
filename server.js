@@ -60,6 +60,11 @@ setInterval(backup, 6 * 60 * 60 * 1000).unref();
         const cur = docs.x_words || {};
         docs.x_words = Object.assign({}, d.words, cur, { days: Object.assign({}, d.words.days || {}, cur.days || {}) });
       }
+      if (d.daily && typeof d.daily === 'object') {       // Survival day results (x_daily); a finished result replaces an "only started" one
+        const cur = docs.x_daily || {}, days = Object.assign({}, cur.days || {});
+        for (const [day, r] of Object.entries(d.daily.days || {})) if (!days[day] || days[day].score == null) days[day] = r;
+        docs.x_daily = Object.assign({}, cur, { days });
+      }
       if (d.late && typeof d.late === 'object') {         // archive marks (x_late.days[day][game])
         const cur = docs.x_late || {}, days = Object.assign({}, cur.days || {});
         for (const [day, marks] of Object.entries(d.late)) days[day] = Object.assign({}, marks, days[day]);
@@ -160,8 +165,11 @@ const validDocId = id => typeof id === 'string' && /^[A-Za-z0-9_\-.:~@+]{1,100}$
 // reader of results keeps working: x_stats.<game> holds the results, x_late.days[day].<game> marks an archive game.
 // Those parts belong to the server. Whatever the browser sends for them is replaced by what the server has, and
 // deleting the document keeps them.
-const SERVER_GAMES = ['ml', 'gl', 'wd', 'cl'];
-const SERVER_DOCS = ['x_words'];                    // whole documents only the server writes (Wordy's results)
+const SERVER_GAMES = ['ml', 'gl', 'wd', 'cl', 'sv'];
+const SERVER_DOCS = ['x_words', 'x_daily'];         // whole documents only the server writes (Wordy's and Survival's daily results)
+// Survival's best runs are documents of their own (any id not starting with x_, holding a score): the server writes
+// them (survival-server.js), a browser can neither upload nor delete one.
+const isRunDoc = (id, d) => !String(id).startsWith('x_') && !!d && typeof d === 'object' && typeof d.score === 'number';
 function keepServerParts(id, old, body) {
   if (SERVER_DOCS.includes(id)) return old && typeof old === 'object' ? old : {};
   if (id === 'x_stats') {
@@ -246,7 +254,7 @@ function serveStatic(req, res, urlPath) {
 }
 
 // ---------- party mode (lobbies, judged entirely on the server) ----------
-const party = require('./party-server.js')({ publicDir: PUBLIC, send, readBody, displayName: u => (db.users[u] && db.users[u].display) || u, isAdmin });
+const party = require('./party-server.js')({ questions: require('./content/survival.js'), send, readBody, displayName: u => (db.users[u] && db.users[u].display) || u, isAdmin });
 
 // ---------- admin accounts: one username per line in data/admins.txt (or BP_ADMINS=name,name). Read on every use, no restart needed.
 // Admins see what other players are not shown, such as how often somebody left the page during an Atlas game.
@@ -314,7 +322,7 @@ const geo = require('./geo-server.js')({ dir: path.join(ROOT, 'geo'), send, read
 
 // ---------- More/Less (dealt and judged on the server; daily calls in db.ml, results in the account's x_stats.ml) ----------
 if (!db.ml) db.ml = {};
-const moreless = require('./moreless-server.js')({ cats: require('./content/moreless.js'), publicDir: PUBLIC, send, readBody, save,
+const moreless = require('./moreless-server.js')({ cats: require('./content/moreless.js'), questions: require('./content/survival.js'), send, readBody, save,
   records: u => (db.ml[u] = db.ml[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
   mayArchive: u => hasPlus(u) });                   // past days are a Plus feature
 
@@ -335,6 +343,12 @@ if (!db.cl) db.cl = {};
 const clueless = require('./clueless-server.js')({ data: require('./content/clueless.js'), send, readBody, save,
   records: u => (db.cl[u] = db.cl[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
   mayArchive: u => hasPlus(u) });
+
+// ---------- Survival (dealt, timed and judged on the server; daily estimates in db.sv, results in x_daily and best runs) ----------
+if (!db.sv) db.sv = {};
+const survival = require('./survival-server.js')({ questions: require('./content/survival.js'), packs: require('./content/packs.js'), send, readBody, save,
+  records: u => (db.sv[u] = db.sv[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
+  mayArchive: u => hasPlus(u), hasPlus: u => hasPlus(u) });    // past days and question packs are Plus features
 
 // ---------- Drinks (one-phone drinking games, dealt and judged on the server) ----------
 if (!db.drinks) db.drinks = {};                     // per account: counters and earned badges of the drinking games
@@ -400,6 +414,7 @@ const server = http.createServer(async (req, res) => {
     if (await guessless.handle(req, res, url, query, user)) return;
     if (await wordy.handle(req, res, url, query, user)) return;
     if (await clueless.handle(req, res, url, query, user)) return;
+    if (await survival.handle(req, res, url, query, user)) return;
     if (await drinks.handle(req, res, url, query, user)) return;
     if (await plus.handle(req, res, url, query, user)) return;
     if (await account.handle(req, res, url, query, user)) return;
@@ -459,10 +474,12 @@ const server = http.createServer(async (req, res) => {
         const body = await readBody(req);
         if (!body || typeof body !== 'object' || Array.isArray(body)) return send(res, 400, { error: 'body must be an object' });
         if (id === 'x_run') { const run = mergeRun(db.docs[user][id], body); db.docs[user][id] = run; save(); return send(res, 200, { ok: true, data: run }); }
+        if (isRunDoc(id, body) || isRunDoc(id, db.docs[user][id])) return send(res, 403, { error: 'Runs are recorded by the server.' });
         db.docs[user][id] = keepServerParts(id, db.docs[user][id], body); save(); return send(res, 200, { ok: true });
       }
       if (req.method === 'DELETE') {
         if (id === 'x_run') return send(res, 403, { error: 'A daily game in progress cannot be discarded.' });
+        if (isRunDoc(id, db.docs[user][id])) return send(res, 403, { error: 'Runs are recorded by the server.' });
         const kept = keepServerParts(id, db.docs[user][id], {});
         if (Object.keys(kept).length) db.docs[user][id] = kept; else delete db.docs[user][id];
         save(); return send(res, 200, { ok: true });

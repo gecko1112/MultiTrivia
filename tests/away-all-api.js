@@ -17,8 +17,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   out.push(['unknown game refused', (await away('anna', 'xx')).s === 400]);
   out.push(['bad day refused', (await away('anna', 'wd', '2099-01-01')).s === 400 && (await away('anna', 'wd', 'yesterday')).s === 400]);
   await away('anna', 'wd'); await away('anna', 'wd'); await away('anna', 'ml'); await away('anna', 'sv');
-  await call('anna', 'PUT', '/api/docs/x_daily', { days: { [D]: { score: 5, avg: 1, h: [] } } });
-  importData(data, { anna: { stats: { ml: { days: { [D]: { score: 20 } } } }, words: { days: { [D]: { solved: true, guesses: 3, word: 'crane', rows: [], words: [] } } } } });   // results come from the server, not the browser
+  importData(data, { anna: { stats: { ml: { days: { [D]: { score: 20 } } } }, words: { days: { [D]: { solved: true, guesses: 3, word: 'crane', rows: [], words: [] } } }, daily: { days: { [D]: { score: 5, avg: 1, h: [] } } } } });   // results come from the server, not the browser
   await wait(450); srv.kill(); await wait(400); srv = boot(); await up(PORT);
   await away('anna', 'wd');
   const row = async who => (await call(who, 'GET', '/api/day?date=' + D)).j.players.find(p => p.name === 'anna');

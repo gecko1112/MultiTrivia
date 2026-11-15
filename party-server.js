@@ -5,16 +5,11 @@
 // "start", "my guess is 5000", "next" or a chat line, and receives a picture of the lobby to draw.
 // Nothing a player changes in their own browser can alter a score. Keep it that way when adding modes.
 //
-// Known gap in this prototype: the questions are read from public/index.html, the same list Survival
-// uses in the browser, so somebody could look an answer up there. That closes when the question bank
-// moves to the server for all games.
+// The questions come from content/survival.js, which is never sent to the browser.
 //
 // Lobbies live in memory only: restarting the server ends all running parties. Chat is never stored.
 // Updates reach the players over Server-Sent Events (one long-lived GET per player), so no extra
 // packages are needed and it works through ngrok and a reverse proxy.
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
 const crypto = require('crypto');
 
 const MAX_PLAYERS = 12, MAX_ROOMS = 200, MAX_CHAT = 40, CHAT_LEN = 200;
@@ -28,17 +23,13 @@ const EMPTY_ROOM_MS = 10 * 60 * 1000;     // nobody connected this long: the lob
 const IDLE_ROOM_MS = 3 * 60 * 60 * 1000;
 const LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O: they get mistaken for 1 and 0
 
-function loadQuestions(publicDir) {
-  const html = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
-  const from = html.indexOf('const Q = ['), to = html.indexOf('\n];', from);
-  if (from < 0 || to < 0) throw new Error('question list not found in index.html');
-  const list = vm.runInNewContext('(' + html.slice(from + 'const Q = '.length, to + 2) + ')', {}, { timeout: 2000 });
+function usable(list) {
   return list.filter(q => q && typeof q.q === 'string' && typeof q.a === 'number' && q.a > 0 && isFinite(q.a));
 }
 
-module.exports = function createParty({ publicDir, send, readBody, displayName, isAdmin = () => false }) {
-  let QUESTIONS = [];
-  try { QUESTIONS = loadQuestions(publicDir); } catch (e) { console.error('Party mode is off:', e.message); }
+module.exports = function createParty({ questions, send, readBody, displayName, isAdmin = () => false }) {
+  const QUESTIONS = usable(Array.isArray(questions) ? questions : []);
+  if (!QUESTIONS.length) console.error('Party mode is off: no questions');
   const rooms = new Map();
   const hooks = {};                         // other parts of the server can listen in here (the Drinks badges do)
 
