@@ -32,8 +32,9 @@ ol{padding:0;list-style:none}
 .top{height:60px;background:var(--top);color:#fff;display:flex;align-items:center;gap:12px;padding:0 var(--pad)}
 .logo{font:700 30px/1 var(--head);letter-spacing:.04em;text-transform:uppercase;text-decoration:none;margin-right:auto}
 .top nav{display:flex;gap:10px}
+.top nav[hidden]{display:none}
 .btn{display:inline-flex;align-items:center;justify-content:center;font:700 16px/1 var(--head);letter-spacing:.1em;text-transform:uppercase;text-decoration:none;white-space:nowrap;
-  padding:11px 16px;border-radius:10px;border:1px solid var(--btn);background:var(--btn);color:#fff;cursor:pointer;transition:transform .2s var(--out),background-color .2s}
+  min-height:44px;padding:11px 16px;border-radius:10px;border:1px solid var(--btn);background:var(--btn);color:#fff;cursor:pointer;transition:transform .2s var(--out),background-color .2s}
 .btn:hover{transform:translateY(-1px);background:var(--btn-hover);border-color:var(--btn-hover)}
 .btn:active{transform:none}
 .btn.ghost{background:transparent;border-color:#6b7099;color:inherit}
@@ -132,10 +133,15 @@ ol{padding:0;list-style:none}
 .plain h2{font:700 clamp(34px,3.6vw,52px)/1 var(--head);text-transform:uppercase;letter-spacing:.02em}
 .plain p{margin-top:14px;max-width:32em;color:var(--muted)}
 .plain a{color:var(--text)}
-.close{scroll-snap-align:start;padding:clamp(56px,8vw,110px) var(--pad) clamp(72px,10vw,130px)}
-.yours{font:700 clamp(74px,17.2vw,262px)/.82 var(--head);letter-spacing:-.01em;text-transform:uppercase;color:var(--verdict)}
-.go{display:flex;align-items:center;flex-wrap:wrap;gap:14px 22px;margin-top:clamp(20px,3vw,34px)}
-.go p{color:var(--muted)}
+/* The close: "Your turn" and the one button on the same line, the button at the right end standing on the word's
+   baseline, the way "Your turn" ends the first screen's band. The line stays a step below the verdict, which remains
+   the largest thing on the page. The baseline of Barlow at line-height .82 is the bottom of the line box. */
+.close{scroll-snap-align:start;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:14px clamp(28px,4vw,64px);
+  padding:clamp(56px,8vw,110px) var(--pad) clamp(72px,10vw,130px)}
+.yours{font:700 clamp(74px,13vw,212px)/.82 var(--head);letter-spacing:-.01em;text-transform:uppercase;color:var(--verdict)}
+.go{display:contents}
+.go .turn{grid-column:2;font-size:clamp(24px,2.2vw,36px);padding:.72em 1.1em;border-radius:14px}
+.go p{grid-column:2;text-align:right;color:var(--muted)}
 footer{scroll-snap-align:end;border-top:1px solid var(--line)}
 footer nav{padding:18px var(--pad);display:flex;flex-wrap:wrap;gap:6px 22px;font-size:14px;color:var(--muted)}
 
@@ -161,9 +167,13 @@ footer nav{padding:18px var(--pad);display:flex;flex-wrap:wrap;gap:6px 22px;font
   .ranks li:not(.fine){font-size:clamp(19px,5.4vw,30px);padding:9px 0} .ranks b{font-size:clamp(26px,7vw,40px)} .ranks .hot b{font-size:clamp(44px,13vw,84px)}
   .tiles{--t:min(15.5vw,88px);gap:8px}
   .yours{font-size:clamp(74px,27vw,200px)}
+  .close{grid-template-columns:minmax(0,1fr)}
+  .go .turn,.go p{grid-column:1;justify-self:start;text-align:left}
+  .go .turn{margin-top:clamp(8px,2vw,16px)}
 }
 @media (max-width:480px){
-  .top{gap:8px}.logo{font-size:24px}.btn{padding:10px 11px;font-size:15px}
+  .top{gap:8px}.logo{font-size:24px}.top .btn{padding:10px 11px;font-size:15px}   /* the top bar only: the big buttons keep their size */
+  .go .turn{justify-self:stretch}
   .scale{margin-left:calc(var(--pad) + 8px);margin-right:calc(var(--pad) + 8px)}
   .duel{grid-template-columns:1fr;gap:14px 0}.duel .vs{justify-self:start}
 }
