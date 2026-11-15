@@ -11,7 +11,8 @@ exports.start = async function (project, W, H, TAG) {
   killEdge(); await wait(500);
   const data = path.join(__dirname, '..', '.tmp', 'xdata-' + TAG); fs.rmSync(data, { recursive: true, force: true }); fs.mkdirSync(data, { recursive: true });
   const prof = path.join(__dirname, '..', '.tmp', 'xedge-' + TAG); try { fs.rmSync(prof, { recursive: true, force: true }); } catch (e) {}
-  const srv = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data, BP_SIGNUPS_PER_HOUR: '1000', BP_FRIENDS: process.env.BP_FRIENDS == null ? 'everyone' : process.env.BP_FRIENDS }, stdio: 'ignore' });
+  const boot = () => spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data, BP_SIGNUPS_PER_HOUR: '1000', BP_FRIENDS: process.env.BP_FRIENDS == null ? 'everyone' : process.env.BP_FRIENDS }, stdio: 'ignore' });
+  let srv = boot();
   spawn('C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', ['--headless=new', '--remote-debugging-port=' + DBG, '--user-data-dir=' + prof, `--window-size=${W},${H}`, '--no-first-run', '--hide-scrollbars', '--autoplay-policy=no-user-gesture-required', 'about:blank'], { stdio: 'ignore' });
   let tabs;
   for (let i = 0; i < 40; i++) { try { tabs = await (await fetch(`http://127.0.0.1:${DBG}/json`)).json(); if (tabs.find(t => t.type === 'page')) break; } catch (e) {} await wait(250); }
@@ -44,5 +45,11 @@ exports.start = async function (project, W, H, TAG) {
     await J('POST','/api/signup',{username:'gecko',password:'kiwi-lamp-4421'});
     await J('PUT','/api/docs/x_stats',{ml:{days:{[k]:{score:19}},best:19,played:1},gl:{days:{[k]:{total:412}},best:412,played:1},cl:{days:{},solved:0,played:0}});
     localStorage.setItem('bp_bot_tour_gecko','1'); return 'ok'; })()`);
+  // More/Less results come from the server, not the browser: put in place as an operator would (tests/seed.js), then
+  // restart the server. The page stays logged in (the login is kept in the database).
+  const d = new Date(), k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const ml = score => ({ ml: { days: { [k]: { score } }, best: score, played: 1 } });
+  require('../seed').importStats(data, { lini: ml(21), fickric: ml(18), gecko: ml(19) });
+  await wait(450); srv.kill(); await wait(400); srv = boot(); await wait(900);
   return { cdp, ev, shot, reload, done, errors, wait };
 };

@@ -1,10 +1,12 @@
 const { spawn } = require('child_process');
 const fs = require('fs'), path = require('path');
+const { importStats } = require('./seed');
 const project = process.argv[2] || require('path').join(__dirname, '..'), readDb = require('./db.js').readDb, patchDb = require('./db.js').patchDb, PORT = 3983, B = 'http://127.0.0.1:' + PORT;
 const data = path.join(__dirname, '.tmp', 'sdata'); fs.rmSync(data, { recursive: true, force: true }); fs.mkdirSync(data, { recursive: true });
 const wait = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
-  const srv = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data }, stdio: 'ignore' }); await wait(900);
+  const boot = () => spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data }, stdio: 'ignore' });
+  let srv = boot(); await wait(900);
   const jar = {};
   const call = async (who, m, u, b) => { const r = await fetch(B + u, { method: m, headers: { 'Content-Type': 'application/json', cookie: jar[who] || '' }, body: b ? JSON.stringify(b) : undefined }); const sc = r.headers.get('set-cookie'); if (sc) jar[who] = sc.split(';')[0]; return { s: r.status, j: await r.json().catch(() => ({})) }; };
   await call('anna', 'POST', '/api/signup', { username: 'anna', password: 'kiwi-lamp-4421' });
@@ -18,6 +20,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     x_daily: { days: { [D]: { score: 7, avg: 0.5, t: 1, h: [{ q: 'SECRETSV' }] } } },
   };
   for (const id of Object.keys(full)) await call('anna', 'PUT', '/api/docs/' + id, full[id]);
+  importStats(data, { anna: { ml: full.x_stats.ml } });                      // More/Less results come from the server, not the browser
+  await wait(450); srv.kill(); await wait(400); srv = boot(); await wait(900);   // the wait lets the server write to disk first
   const out = [];
   const day = async who => (await call(who, 'GET', '/api/day?date=' + D)).j;
   let j = await day('ben'), a = j.players.find(p => p.name === 'anna');

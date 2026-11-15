@@ -146,6 +146,30 @@ function signupCount(ip, made) { const c = SIGNUPS.get(ip) || { made: 0, tries: 
 setInterval(() => { const now = Date.now(); for (const [k, c] of SIGNUPS) if (now - c.t > HOUR) SIGNUPS.delete(k); }, 10 * 60 * 1000).unref();
 const validDocId = id => typeof id === 'string' && /^[A-Za-z0-9_\-.:~@+]{1,100}$/.test(id);
 
+// ---------- results the server decides ----------
+// The games judged on the server write their results into the same account documents the browser games use, so every
+// reader of results keeps working: x_stats.<game> holds the results, x_late.days[day].<game> marks an archive game.
+// Those parts belong to the server. Whatever the browser sends for them is replaced by what the server has, and
+// deleting the document keeps them.
+const SERVER_GAMES = ['ml'];
+function keepServerParts(id, old, body) {
+  if (id === 'x_stats') {
+    const out = Object.assign({}, body);
+    for (const g of SERVER_GAMES) { if (old && old[g]) out[g] = old[g]; else delete out[g]; }
+    return out;
+  }
+  if (id === 'x_late') {
+    const out = Object.assign({}, body), was = (old && old.days) || {};
+    out.days = Object.assign({}, out.days && typeof out.days === 'object' ? out.days : {});
+    for (const d of Object.keys(out.days)) { const day = out.days[d] = Object.assign({}, out.days[d]); for (const g of SERVER_GAMES) delete day[g]; }
+    for (const [d, marks] of Object.entries(was)) for (const g of SERVER_GAMES) if (marks && marks[g]) out.days[d] = Object.assign({}, out.days[d], { [g]: marks[g] });
+    for (const d of Object.keys(out.days)) if (!Object.keys(out.days[d]).length) delete out.days[d];
+    if (!Object.keys(out.days).length && !(old && old.days)) delete out.days;
+    return out;
+  }
+  return body;
+}
+
 // ---------- today's daily games in progress (account doc "x_run": { day, games: { ml: { n, s }, ... } }) ----------
 // A daily game may be played once, so a game that was started can only move forward. An upload for an earlier day, or
 // with fewer steps (n) for the same day, does not replace what is stored; the browser gets the stored state back and
@@ -277,6 +301,12 @@ const geo = require('./geo-server.js')({ dir: path.join(ROOT, 'geo'), send, read
   records: Object.assign(u => (db.geo[u] = db.geo[u] || {}), { save }),
   mayArchive: u => hasPlus(u), isAdmin });   // past days are a Plus feature
 
+// ---------- More/Less (dealt and judged on the server; daily calls in db.ml, results in the account's x_stats.ml) ----------
+if (!db.ml) db.ml = {};
+const moreless = require('./moreless-server.js')({ cats: require('./content/moreless.js'), publicDir: PUBLIC, send, readBody, save,
+  records: u => (db.ml[u] = db.ml[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
+  mayArchive: u => hasPlus(u) });                   // past days are a Plus feature
+
 // ---------- Drinks (one-phone drinking games, dealt and judged on the server) ----------
 if (!db.drinks) db.drinks = {};                     // per account: counters and earned badges of the drinking games
 const drinks = require('./drinks-server.js')({ send, readBody, party, geo, records: Object.assign(u => (db.drinks[u] = db.drinks[u] || {}), { save }) });
@@ -337,6 +367,7 @@ const server = http.createServer(async (req, res) => {
 
     if (await party.handle(req, res, url, user)) return;
     if (await geo.handle(req, res, url, query, user)) return;
+    if (await moreless.handle(req, res, url, query, user)) return;
     if (await drinks.handle(req, res, url, query, user)) return;
     if (await plus.handle(req, res, url, query, user)) return;
     if (await account.handle(req, res, url, query, user)) return;
@@ -396,11 +427,13 @@ const server = http.createServer(async (req, res) => {
         const body = await readBody(req);
         if (!body || typeof body !== 'object' || Array.isArray(body)) return send(res, 400, { error: 'body must be an object' });
         if (id === 'x_run') { const run = mergeRun(db.docs[user][id], body); db.docs[user][id] = run; save(); return send(res, 200, { ok: true, data: run }); }
-        db.docs[user][id] = body; save(); return send(res, 200, { ok: true });
+        db.docs[user][id] = keepServerParts(id, db.docs[user][id], body); save(); return send(res, 200, { ok: true });
       }
       if (req.method === 'DELETE') {
         if (id === 'x_run') return send(res, 403, { error: 'A daily game in progress cannot be discarded.' });
-        delete db.docs[user][id]; save(); return send(res, 200, { ok: true });
+        const kept = keepServerParts(id, db.docs[user][id], {});
+        if (Object.keys(kept).length) db.docs[user][id] = kept; else delete db.docs[user][id];
+        save(); return send(res, 200, { ok: true });
       }
     }
     send(res, 404, { error: 'not found' });

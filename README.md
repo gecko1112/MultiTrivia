@@ -106,6 +106,8 @@ Who has Plus is decided on the server (`plus-server.js`) and stored with the acc
 | `server.js` | The server (accounts, saving, leaderboard, serves the pages) |
 | `account-server.js` | Profile picture, password change, data download, delete account |
 | `plus-server.js` | Ballpark Plus: who has it, checkout, payment notices |
+| `moreless-server.js` | More/Less: deals the pairs, judges every call and stores the result. The browser never gets a number before its call |
+| `content/` | Game content only the server reads, never sent to the browser (the More/Less cards and their numbers) |
 | `data/avatars/` | Profile pictures. Back this folder up together with `data/ballpark.sqlite` |
 | `public/` | The game pages. `public/de/` holds the German versions of the four legal pages; `public/run.js` keeps today's daily games in progress on the server, so a started daily can only be continued, never dealt again |
 | `store.js` | Reads and writes the database |

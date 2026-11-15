@@ -2,6 +2,7 @@
 // (Does not load ./db.js on purpose: that would switch the server to "everybody sees everybody".)
 const { spawn } = require('child_process');
 const fs = require('fs'), path = require('path');
+const { importStats } = require('./seed');
 const project = process.argv[2] || path.join(__dirname, '..'), PORT = 3993, B = 'http://127.0.0.1:' + PORT;
 const data = path.join(__dirname, '.tmp', 'frdata'); fs.rmSync(data, { recursive: true, force: true }); fs.mkdirSync(data, { recursive: true });
 const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -22,7 +23,8 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR
   ok('so they still see each other', (await names('gecko', D)) === 'gecko,lini,nima');
 
   for (const [n, p] of [['anna', 'kiwi-lamp-4421'], ['Ben', 'kiwi-lamp-4422'], ['cleo', 'kiwi-lamp-4423']]) await call(n.toLowerCase(), 'POST', '/api/signup', { username: n, password: p });
-  await call('ben', 'PUT', '/api/docs/x_stats', { ml: { days: { [D]: { score: 20 } } } });
+  importStats(data, { ben: { ml: { days: { [D]: { score: 20 } } } } });      // a More/Less result comes from the server, not the browser
+  await wait(450); srv.kill(); await wait(400); srv = await boot({});
   await call('ben', 'PUT', '/api/account/avatar', { image: 'data:image/png;base64,' + PNG.toString('base64') });
 
   // ---- a new account sees nobody, and nobody sees it
@@ -73,8 +75,8 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR
   ok('and they stop seeing each other', (await names('anna', D)) === 'anna,cleo' && (await names('ben', D)) === 'ben' && (await call('anna', 'GET', '/api/avatar/ben')).s === 404);
 
   // ---- head-to-head counts friends only
-  await call('anna', 'PUT', '/api/docs/x_stats', { ml: { days: { [D]: { score: 15 } } } });
-  await call('cleo', 'PUT', '/api/docs/x_stats', { ml: { days: { [D]: { score: 11 } } } });
+  importStats(data, { anna: { ml: { days: { [D]: { score: 15 } } } }, cleo: { ml: { days: { [D]: { score: 11 } } } } });
+  await wait(450); srv.kill(); await wait(400); srv = await boot({});
   fs.writeFileSync(path.join(data, 'admins.txt'), 'anna');
   await call('anna', 'POST', '/api/admin/plus', { user: 'anna', on: true });
   ok('head-to-head lists friends only', (await call('anna', 'GET', '/api/h2h')).j.players.map(p => p.name).join() === 'cleo');

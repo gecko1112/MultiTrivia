@@ -1,6 +1,7 @@
 // Streak saver rules (day.js, run here without a browser) and head-to-head on the server.
 const { spawn } = require('child_process');
 const fs = require('fs'), path = require('path'), vm = require('vm');
+const { importStats } = require('./seed');
 const project = process.argv[2] || require('path').join(__dirname, '..'), readDb = require('./db.js').readDb, patchDb = require('./db.js').patchDb, PORT = 3985, B = 'http://127.0.0.1:' + PORT;
 const data = path.join(__dirname, '.tmp', 'pdata'); fs.rmSync(data, { recursive: true, force: true }); fs.mkdirSync(data, { recursive: true }); fs.writeFileSync(path.join(data, 'admins.txt'), 'anna');
 const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -31,7 +32,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   out.push(['nothing played', r.now === 0 && r.best === 0 && r.days === 0]);
 
   // ---- head-to-head
-  const srv = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data }, stdio: 'ignore' }); await wait(900);
+  const boot = () => spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data }, stdio: 'ignore' });
+  let srv = boot(); await wait(900);
   const jar = {};
   const call = async (who, m, u, b) => { const r = await fetch(B + u, { method: m, headers: { 'Content-Type': 'application/json', cookie: jar[who] || '' }, body: b ? JSON.stringify(b) : undefined }); const sc = r.headers.get('set-cookie'); if (sc) jar[who] = sc.split(';')[0]; return { s: r.status, j: await r.json().catch(() => ({})) }; };
   for (const [n, p] of [['anna', 'kiwi-lamp-4421'], ['ben', 'kiwi-lamp-4422'], ['cleo', 'kiwi-lamp-4423']]) await call(n, 'POST', '/api/signup', { username: n, password: p });
@@ -44,6 +46,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await put('ben', 'x_late', { days: { '2026-11-11': { wd: 1 } } });
   await put('anna', 'x_daily', { days: { '2026-11-10': { score: 9, h: [] }, '2026-11-11': { score: null, started: 1 } } });
   await put('ben', 'x_daily', { days: { '2026-11-10': { score: 9, h: [] }, '2026-11-11': { score: 4, h: [] } } });
+  // More/Less results come from the server, not the browser: put in place as an operator would (tests/seed.js)
+  importStats(data, { anna: { ml: { days: { '2026-11-10': { score: 20 }, '2026-11-11': { score: 15 }, '2026-11-12': { score: 18 } } } },
+    ben: { ml: { days: { '2026-11-10': { score: 18 }, '2026-11-11': { score: 15 }, '2026-11-12': { score: 22 } } } } });
+  await wait(450); srv.kill(); await wait(400); srv = boot(); await wait(900);   // the wait lets the server write to disk first
   const a = (await call('anna', 'GET', '/api/h2h')).j.players, b = (await call('ben', 'GET', '/api/h2h')).j.players;
   const vb = a.find(p => p.name === 'ben');
   out.push(['only players with a shared game are listed', a.length === 1 && !!vb]);
