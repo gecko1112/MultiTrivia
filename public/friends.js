@@ -38,7 +38,7 @@ function draw(){
         '<div class="fr-code">Your friend code <b class="mono">' + pretty(state.code) + '</b><button type="button" class="ghost sm" id="frCopy">Copy</button></div></div>' + msg +
       row('Waiting for an answer', state.outgoing.map(f => '<span class="fr-chip">' + E(f.name) + '<button type="button" class="ghost sm" data-fr="cancel" data-u="' + E(f.id) + '">Take back</button></span>')) +
       (state.friends.length
-        ? row('Friends', state.friends.map(f => '<span class="fr-chip">' + av(f) + E(f.name) + '<button type="button" class="fr-x" data-fr="remove" data-u="' + E(f.id) + '" data-n="' + E(f.name) + '" title="Remove" aria-label="Remove ' + E(f.name) + '">×</button></span>'))
+        ? row('Friends', state.friends.map(f => '<span class="fr-chip">' + av(f) + E(f.name) + '<button type="button" class="fr-x" data-fr="remove" data-u="' + E(f.id) + '" data-n="' + E(f.name) + '" title="Remove" aria-label="Remove ' + E(f.name) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></span>'))
         : '<p class="muted fr-none">No friends yet. Results, leaderboards and pictures are shared between friends only: give somebody your code, or add them by username.</p>'));
   box.innerHTML = html ? '<div class="fr">' + html + '</div>' : '';
 }

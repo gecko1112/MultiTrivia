@@ -197,7 +197,7 @@ function mlEnd(rec,daily){
   mlLastRec=rec; mlLastDaily=daily; show('ml','End');
   $('mlEndLbl').textContent=daily?"Today's score":'Practice score';
   $('mlFinal').textContent=rec.score;
-  $('mlGrid').innerHTML=rec.grid.map((row,i)=>`<div>${row.map(x=>x?'🟩':'🟥').join('')}<span>${esc(rec.cats[i])}</span></div>`).join('');
+  $('mlGrid').innerHTML=(rec.grid||[]).map((row,i)=>`<div>${row.map(x=>x?'🟩':'🟥').join('')}<span>${esc((rec.cats||[])[i]||'')}</span></div>`).join('');
   $('mlHist').innerHTML=(rec.log||[]).map(l=>`<div class="hrow"><div><div class="hq">${esc(l.b)} vs ${esc(l.a)}</div><div class="hsub mono">${esc(l.bv)} vs ${esc(l.av)}, you said ${l.ch}</div></div><div class="hd mono" style="color:${l.ok?'var(--good)':'var(--bad)'}">${l.ok?'✓':'✗'}</div></div>`).join('');
 }
 // Leaving a practice game throws it away, after asking. Leaving today's daily game only puts it aside: it stays where
@@ -296,7 +296,7 @@ let glLast=null,glLastDaily=false;
 function glEnd(rec,daily){
   glLast=rec; glLastDaily=daily; show('gl','End');
   $('glEndLbl').textContent=daily?"Today's score":'Practice score'; $('glFinal').textContent=rec.total;
-  $('glHist').innerHTML=rec.res.map(r=>`<div class="hrow"><div><div class="hq">${esc(r.cat)}: ${esc(r.q)}</div><div class="hsub mono">You said ${esc(fmt(r.g))}, answer ${esc(fmt(r.a))} ${esc(r.u)}</div></div><div class="hd mono" style="color:${r.pts>=70?'var(--good)':r.pts>=30?'var(--warn)':'var(--bad)'}">${r.pts}</div></div>`).join('');
+  $('glHist').innerHTML=(rec.res||[]).map(r=>`<div class="hrow"><div><div class="hq">${esc(r.cat)}: ${esc(r.q)}</div><div class="hsub mono">You said ${esc(fmt(r.g))}, answer ${esc(fmt(r.a))} ${esc(r.u)}</div></div><div class="hd mono" style="color:${r.pts>=70?'var(--good)':r.pts>=30?'var(--warn)':'var(--bad)'}">${r.pts}</div></div>`).join('');
 }
 $('glDaily').addEventListener('click',()=>glStart(true));
 $('glPractice').addEventListener('click',()=>glStart(false));

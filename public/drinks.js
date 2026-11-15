@@ -60,7 +60,7 @@ function setup(game){
   drawNames(); $('dkName').focus();
 }
 function drawNames(){
-  $('dkNames').innerHTML = names.map((n, i) => '<span class="dk-name">' + E(n) + '<button type="button" data-drop="' + i + '" aria-label="Remove ' + E(n) + '">×</button></span>').join('');
+  $('dkNames').innerHTML = names.map((n, i) => '<span class="dk-name">' + E(n) + '<button type="button" data-drop="' + i + '" aria-label="Remove ' + E(n) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></span>').join('');
   keep('bp_drinks_names', JSON.stringify(names));
 }
 

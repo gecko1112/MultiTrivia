@@ -53,6 +53,7 @@ function rankValue(k, d){
 
 function render(){
   if (!layout) return;
+  root.setAttribute('data-view', curTab());                     // lets the page style itself per view (phones: no footer on games)
   const g = GAMES.find(x => x[1] === curTab());
   paintSide();
   if (!g && $('sdFriends')) $('sdFriends').innerHTML = '';     // "Friends today" belongs to a game
@@ -159,6 +160,8 @@ render();
 if (window.claude && window.claude.use) window.claude.use('user').then(() => { loggedIn = true; render(); load(); }).catch(() => {});
 
 // ---------------------------------------------------------------- pop-up window (shared)
+// A drawn cross (the side panel uses the same one): a typed "×" sits off centre, its place depends on the font.
+const XICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>';
 let modal = null;
 function closeModal(){
   if (!modal) return;
@@ -171,7 +174,7 @@ window.bpModal = {
   open(o){
     closeModal();
     const back = document.createElement('div'); back.className = 'bpm-back';
-    back.innerHTML = '<div class="bpm' + (o.wide ? ' wide' : '') + '" role="dialog" aria-modal="true"><div class="bpm-hd"><h2>' + o.title + '</h2><button type="button" class="bpm-x" aria-label="Close">×</button></div><div class="bpm-body">' + o.html + '</div></div>';
+    back.innerHTML = '<div class="bpm' + (o.wide ? ' wide' : '') + '" role="dialog" aria-modal="true"><div class="bpm-hd"><h2>' + o.title + '</h2><button type="button" class="bpm-x" aria-label="Close">' + XICON + '</button></div><div class="bpm-body">' + o.html + '</div></div>';
     const onKey = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeModal(); } };
     modal = { back, onKey, from: document.activeElement };
     back.addEventListener('mousedown', e => { if (e.target === back) closeModal(); });
@@ -231,7 +234,7 @@ window.bpToast = function(heading, title, text, onClick, celebrate){
   if (!wrap) { wrap = document.createElement('div'); wrap.className = 'bpt-wrap'; wrap.setAttribute('aria-live', 'polite'); document.body.appendChild(wrap); }
   while (wrap.children.length >= 3) wrap.firstChild.remove();
   const t = document.createElement('button'); t.type = 'button'; t.className = 'bpt' + (celebrate ? ' cele' : '');
-  t.innerHTML = '<span class="th">' + E(heading) + '</span><span class="tb"><b>' + E(title) + '</b>' + E(text || '') + '</span><span class="tx" title="Close" aria-label="Close">×</span><span class="tm"></span>';
+  t.innerHTML = '<span class="th">' + E(heading) + '</span><span class="tb"><b>' + E(title) + '</b>' + E(text || '') + '</span><span class="tx" title="Close" aria-label="Close">' + XICON + '</span><span class="tm"></span>';
   let left = TOAST_MS, since = Date.now(), timer = null;
   const gone = () => { t.classList.add('out'); setTimeout(() => t.remove(), 320); };
   const run = () => { since = Date.now(); timer = setTimeout(gone, left); };
