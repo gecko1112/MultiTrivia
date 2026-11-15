@@ -15,7 +15,10 @@
 | `paddle-api.js` | The Paddle connection, with simulated Paddle messages |
 | `account-api.js` | Profile picture, password change, delete account |
 | `security-api.js` | Sign-up limit, logins ending after idle time, the move from db.json to SQLite |
+| `run-api.js` | Today's daily games in progress (`x_run`): only ever move forward, cannot be deleted |
 
 `tests/browser/` holds click-through runs in a headless Microsoft Edge (Windows). They are started one at a time,
 for example `node tests/browser/v19.js` (add `390 844` for phone size), print what they see and save screenshots to
-`tests/.tmp/shots/`. They are checks to read, not pass/fail tests.
+`tests/.tmp/shots/`. They are checks to read, not pass/fail tests. Recent ones: `v24` German legal pages and the language switch,
+`v25` the Ballpark name leading to the landing page, `v26` the landing page turning one screen at a time,
+`v27` leaving, reloading and emptying the browser's storage during each of the five daily games.

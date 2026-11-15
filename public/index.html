@@ -1078,6 +1078,7 @@
 
 <script src="site-info.js"></script>
 <script src="day.js"></script>
+<script src="run.js"></script>
 <script src="away.js"></script>
 <script src="auth.js"></script>
 <script src="games-data.js"></script>
@@ -1643,14 +1644,21 @@ function svSaveRun(){
   try{
     if(!deck||!cur||!$('game').classList.contains('on')) return;
     const left=(!answered&&timeLimit)?Math.max(0,timeLimit*1000-(performance.now()-tStart)):null;
-    localStorage.setItem(window.bpRunKey('bp_sv_run'),JSON.stringify({mode:runMode,day:svToday(),t:Date.now(),life,score,history,timeLimit,pack:packOn()?svPack:'',deck:deck.map(q=>QALL.indexOf(q)),cur:QALL.indexOf(cur),answered:!!answered,left}));
+    const state={mode:runMode,day:svToday(),t:Date.now(),life,score,history,timeLimit,pack:packOn()?svPack:'',deck:deck.map(q=>QALL.indexOf(q)),cur:QALL.indexOf(cur),answered:!!answered,left};
+    localStorage.setItem(window.bpRunKey('bp_sv_run'),JSON.stringify(state));
+    if(runMode==='daily'&&window.bpRun) bpRun.set('sv',svSteps(state),state);          // today's run is also kept on the server (run.js)
   }catch(e){}
 }
 function svClearRun(){ try{localStorage.removeItem(window.bpRunKey('bp_sv_run'));}catch(e){} }
+// how far a saved run is: two steps per question (shown, answered)
+function svSteps(s){ const k=Array.isArray(s.history)?s.history.length:0; return 2*k+(s.answered?0:1)+1; }
 function svResume(){
   let s=null; try{s=JSON.parse(localStorage.getItem(window.bpRunKey('bp_sv_run'))||'null');}catch(e){}
+  // today's daily run continues from the furthest point saved anywhere: this browser's copy or the server's
+  const far=window.bpRun&&bpRun.get('sv');
+  if(far&&far.mode==='daily'&&far.day===svToday()&&!(s&&s.mode==='daily'&&s.day===svToday()&&svSteps(s)>=svSteps(far))) s=far;
   if(!s) return;
-  const stale=Date.now()-(s.t||0)>12*36e5;                       // a practice run left overnight is not worth reviving
+  const stale=s.mode!=='daily'&&Date.now()-(s.t||0)>12*36e5;     // a practice run left overnight is not worth reviving
   if(!Array.isArray(s.deck)||!QALL[s.cur]||stale||(s.mode==='daily'&&s.day!==svToday())) return svClearRun();
   if($('game').classList.contains('on')) return;
   runMode=s.mode==='daily'?'daily':'practice'; life=s.life; score=s.score||0; history=Array.isArray(s.history)?s.history:[]; timeLimit=s.timeLimit||0;
@@ -1667,8 +1675,9 @@ window.addEventListener('pagehide',()=>{ if(svVisible()) svSaveRun(); });
 window.addEventListener('hashchange',()=>{ if(svVisible()) svSaveRun(); });   // runs before the tab switch pauses the clock
 if(window.claude&&claude.use) claude.use('user').then(()=>{
   const onSurvival=()=>{ const h=(location.hash||'').replace('#',''); return !h||h==='survival'; };
-  if(onSurvival()) svResume();
-  else window.addEventListener('hashchange',function back(){ if(onSurvival()){ window.removeEventListener('hashchange',back); setTimeout(svResume,0); } });
+  const resume=()=>{ if(window.bpRun) bpRun.ready().then(svResume,svResume); else svResume(); };   // the server's copy first (run.js)
+  if(onSurvival()) resume();
+  else window.addEventListener('hashchange',function back(){ if(onSurvival()){ window.removeEventListener('hashchange',back); setTimeout(resume,0); } });
 }).catch(()=>{});
 document.addEventListener('keydown',e=>{ if(e.key==='Enter' && answered && $('g-survival').classList.contains('on') && $('game').classList.contains('on') && document.activeElement!==$('next')){ e.preventDefault(); advance(); }});
 
@@ -1781,7 +1790,7 @@ function gameOver(){
     else if(placed>-1 && placed<10){ $('finalSub').textContent+=`, #${placed+1} in your best runs`; }
   }
   showBest();
-  if(runMode==='daily'){ svDaily.days[svToday()]={score,avg:avgErrOf(history),t:Date.now(),h:history}; svDailySave(); svDailyStat(); $('finalSub').textContent+=' (daily run)'; $('again').textContent='Practice run'; }
+  if(runMode==='daily'){ svDaily.days[svToday()]={score,avg:avgErrOf(history),t:Date.now(),h:history}; svDailySave(); svDailyStat(); if(window.bpRun) bpRun.done('sv'); $('finalSub').textContent+=' (daily run)'; $('again').textContent='Practice run'; }
   else $('again').textContent='Play again';
   $('hist').innerHTML = histHTML(history);
   $('again').focus();

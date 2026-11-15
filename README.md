@@ -107,7 +107,7 @@ Who has Plus is decided on the server (`plus-server.js`) and stored with the acc
 | `account-server.js` | Profile picture, password change, data download, delete account |
 | `plus-server.js` | Ballpark Plus: who has it, checkout, payment notices |
 | `data/avatars/` | Profile pictures. Back this folder up together with `data/ballpark.sqlite` |
-| `public/` | The game pages |
+| `public/` | The game pages. `public/de/` holds the German versions of the four legal pages; `public/run.js` keeps today's daily games in progress on the server, so a started daily can only be continued, never dealt again |
 | `store.js` | Reads and writes the database |
 | `data/ballpark.sqlite` | Created on first start: accounts and all saved data |
 | `tests/` | Automated checks. `node tests/run.js` runs all server tests against throwaway data |
