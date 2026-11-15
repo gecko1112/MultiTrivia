@@ -46,12 +46,19 @@ function show(i, animate){
   frame = requestAnimationFrame(function(t){ setTimeout(function(){ frame = requestAnimationFrame(step); }, 350); });
 }
 
-// Somebody who is already logged in on this browser gets "Play" instead of "Log in" and "Create account".
+// Somebody who is already logged in on this browser gets "Play" instead of "Log in" and "Create account", and only
+// one Play per screen: the band's button on the first screen. The top bar's Play shows only while the band lies below
+// the first screen (phones), so that screen still has a way in. The close says what Play leads to.
 var known = false; try { known = !!localStorage.getItem('bp_owner'); } catch (e) {}
 if (known) {
-  document.querySelector('.top nav').innerHTML = '<a class="btn" href="/">Play</a>';
+  var nav = document.querySelector('.top nav'), band = document.querySelector('.rest .turn');
+  nav.innerHTML = '<a class="btn" href="/">Play</a>';
+  band.textContent = 'Play';
   var go = document.querySelector('.close .go');
-  go.querySelector('a').textContent = 'Play'; go.querySelector('p').remove();
+  go.querySelector('a').textContent = "Play today's five"; go.querySelector('p').remove();
+  var one = function(){ nav.hidden = band.getBoundingClientRect().bottom + window.scrollY <= window.innerHeight; };
+  one(); window.addEventListener('resize', one);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(one);
 }
 
 // Each game's field arrives with the scroll. Once a good part of it is in the window its two halves sweep in from the
