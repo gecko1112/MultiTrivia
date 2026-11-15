@@ -27,7 +27,8 @@ const W = Number(process.argv[3]) || 1440, H = Number(process.argv[4]) || 900, T
     await ev(`document.getElementById('acKeep').click()`); await wait(100); console.log('keep -> box hidden', await ev(`document.getElementById('acDelBox').hidden`));
     await ev(`window.bpModal.close(); location.hash='friends'`); await wait(200); await reload('#friends'); await ev(`document.querySelectorAll('.bpt').forEach(x=>x.remove())`);
     console.log('friends table picture:', await ev(`(()=>{const i=document.querySelector('#dayBody tr.meRow td img.av');return i?i.naturalWidth+'px':'none'})()`)); await shot('04-friends');
-    await ev(`document.getElementById('lvlChip').click()`); await wait(600); console.log('profile has account button:', await ev(`!!document.querySelector('.bpm-body [data-account]')`));
+    await ev(`document.getElementById('lvlChip').click()`); await wait(500); await ev(`document.querySelector('#side [data-profile]').click()`); await wait(600);   // the chip opens the side panel, its link opens the profile
+    console.log('profile has account button:', await ev(`!!document.querySelector('.bpm-body [data-account]')`));
     await ev(`document.querySelector('.bpm-body [data-account]').click()`); await wait(900);
     await ev(`document.getElementById('acDel').click(); document.getElementById('acDelPw').value='nope-nope-nope'; document.getElementById('acDelForm').requestSubmit()`); await wait(600);
     console.log('delete, wrong pw:', await txt('acDelMsg'));

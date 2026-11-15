@@ -182,7 +182,7 @@ function render(){
   if (!view) return;
   const pct = Math.round(100 * view.L.into / view.L.need);
   const chip = $('lvlChip');
-  if (chip) { chip.classList.add('on'); chip.innerHTML = 'LV ' + view.L.lv + '<i><u style="width:' + pct + '%"></u></i>'; chip.setAttribute('aria-label', 'Level ' + view.L.lv + ', ' + view.title + '. Open your profile and achievements'); chip.title = 'Your level and achievements'; }
+  if (chip) { chip.classList.add('on'); chip.innerHTML = 'LV ' + view.L.lv + '<i><u style="width:' + pct + '%"></u></i>'; chip.setAttribute('aria-label', 'Level ' + view.L.lv + ', ' + view.title + '. Show your level and friends'); chip.title = 'Your level and friends'; }
   const box = $('sdLevel');
   if (box) box.innerHTML = '<div class="panel"><div class="phd"><h2>Level ' + view.L.lv + '</h2><span>' + E(view.title) + '</span></div>' +
     '<div class="pbody"><div class="xpbar"><i style="width:' + pct + '%"></i></div><div class="xpnote">' + (view.L.need - view.L.into) + ' XP to level ' + (view.L.lv + 1) + '</div></div>' +
@@ -218,7 +218,8 @@ function setFlag(id){
 }
 
 document.addEventListener('click', e => { const a = e.target.closest && e.target.closest('[data-profile]'); if (a) { e.preventDefault(); openProfile(); } });
-const chipEl = $('lvlChip'); if (chipEl) chipEl.addEventListener('click', openProfile);
+// the chip opens the side panel (ui.js); the achievements window opens from the link inside it
+const chipEl = $('lvlChip'); if (chipEl) chipEl.addEventListener('click', () => { if (window.bpSide) window.bpSide.toggle(); else openProfile(); });
 window.addEventListener('bp-saved', soon);
 window.addEventListener('bp-bot', e => setFlag(e.detail));           // 'tour', 'poke', 'annoy' or 'flick', sent by bot.js
 window.bpLevel = { open: openProfile, refresh };

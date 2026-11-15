@@ -234,17 +234,7 @@ function renderArchive(perDay){
   lastPerDay = perDay || lastPerDay;
   const box = $('sdArchive'); if (!box) return;
   if (!lastPerDay) { box.innerHTML = ''; return; }           // nothing loaded yet (not logged in)
-  const member = has();
-  let rows = '';
-  for (let i = 1; i <= 4; i++) {
-    const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - i);
-    const n = Math.min(5, lastPerDay[dayKey(d)] || 0), left = 5 - n;
-    const label = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-    rows += '<div class="prow"><span>' + label + '<small>' + n + ' of 5 played</small></span>' +
-      (left ? '<button type="button" class="lock" data-plus="archive" data-day="' + dayKey(d) + '">Play</button>' : '<span class="muted">Done</span>') + '</div>';
-  }
-  rows += '<div class="prow"><a href="#archive">Calendar and streaks</a></div>';
-  box.innerHTML = '<div class="panel"><div class="phd"><h2>Archive</h2>' + (member ? '' : '<span class="ptag">Plus</span>') + '</div>' + rows + '</div>';
+  box.innerHTML = '<div class="panel"><div class="prow" style="border-top:0"><span>Archive</span><a href="#archive">Calendar and streaks</a></div></div>';
 }
 
 document.addEventListener('click', e => {
