@@ -62,7 +62,8 @@ window.onCloudReady=async function(col){
   try{
     const d=await col.doc('x_stats').get(), srv=d.exists?d.data():{};
     if(d.exists) stats=merge(stats,srv);
-    stats.ml=merge(blank(),{ml:srv.ml}).ml;   // More/Less results come from the server only (moreless-server.js)
+    stats.ml=merge(blank(),{ml:srv.ml}).ml;   // More/Less and Guessless results come from the server only
+    stats.gl=merge(blank(),{gl:srv.gl}).gl;
   }catch(e){}
   saveStats(); refreshIntros();
 };
@@ -177,8 +178,8 @@ $('mlQuit').addEventListener('click',()=>{
   armedConfirm($('mlQuit'),'← Menu',()=>{ ml=null; if(mlHome) mlHome.practice=false; mlPost('quit',{daily:false}).catch(()=>{}); show('ml','Intro'); mlStatLine(); });
 });
 $('glQuit').addEventListener('click',()=>{
-  if(gl&&gl.daily){ gl=null; show('gl','Intro'); glStatLine(); return; }
-  armedConfirm($('glQuit'),'← Menu',()=>{ gl=null; glClear(); show('gl','Intro'); glStatLine(); });
+  if(gl&&gl.daily){ gl=null; glAfter=null; show('gl','Intro'); glHome=Object.assign({},glHome,{going:true}); glStatLine(); return; }
+  armedConfirm($('glQuit'),'← Menu',()=>{ gl=null; glAfter=null; if(glHome) glHome.practice=false; glPost('quit',{daily:false}).catch(()=>{}); show('gl','Intro'); glStatLine(); });
 });
 $('mlDaily').addEventListener('click',()=>mlStart(true));
 $('mlPractice').addEventListener('click',()=>mlStart(false));
@@ -187,80 +188,83 @@ $('mlBack').addEventListener('click',()=>{show('ml','Intro');mlStatLine();});
 $('mlCopy').addEventListener('click',()=>{const r=mlLastRec;copyText($('mlCopy'),`Ballpark More/Less ${mlLastDaily?todayKey():'(practice)'}: ${r.score}/25\n`+r.grid.map(row=>row.map(x=>x?'🟩':'🟥').join('')).join('\n'),'Copy result');});
 
 // ===================== GUESSLESS =====================
-let gl=null;
+// Dealt and scored on the server (guessless-server.js). The browser shows a question and its unit, reads the number the
+// player typed, sends it, and gets back the points, the answer and its note, and the next question. Today's game
+// lives on the server too: it continues from any browser and is never dealt again.
+let gl=null;          // the game on screen, as the server last described it
+let glHome=null;      // the menu's state from the server: { date, done, going, practice }
+let glAfter=null;     // the server's reply to the last estimate, waiting behind "Next"
+let glBusy=false;
+async function glPost(act,body){
+  const r=await fetch('/api/gl/'+act,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error||'Something went wrong. Try again.'); return j;
+}
+async function glLoadHome(){ try{ const r=await fetch('/api/gl/home'+(window.bpDay?'?day='+window.bpDay:''),{credentials:'same-origin'}); if(r.ok) glHome=await r.json(); }catch(e){} }
 function glStatLine(){
-  const t=stats.gl.days[todayKey()];
+  const day=(glHome&&glHome.date)||todayKey(), t=stats.gl.days[day];
   $('glStat').innerHTML=statCells([['Today',t?t.total+' / 500':'–'],['Best',stats.gl.best?stats.gl.best+' / 500':'–'],['Average',dayAvg(stats.gl.days,'total',0)],['Played',stats.gl.played||0]]);
-  const going=!t&&glSaved(); $('glDaily').textContent=t?"See today's result":going&&going.gl.daily?"Continue today's 5":"Play today's 5";
+  const done=!!t||!!(glHome&&glHome.done), going=!done&&!!(glHome&&glHome.going);
+  $('glDaily').textContent=done?"See today's result":going?"Continue today's 5":"Play today's 5";
 }
-// how far a saved game is: two steps per question (shown, answered)
-const glSteps=g=>2*((g.res||[]).length)+(g.answered?0:1)+1;
-function glSave(){
-  const s={day:todayKey(),t:Date.now(),gl};
-  try{ localStorage.setItem(window.bpRunKey('bp_gl_run'),JSON.stringify(s)); }catch(e){}
-  if(gl.daily&&window.bpRun) bpRun.set('gl',glSteps(gl),JSON.parse(JSON.stringify(s)));   // today's game is also kept on the server (run.js)
+function glTakeStats(s){
+  stats.gl.best=s.best; stats.gl.played=s.played; if(s.day&&s.rec) stats.gl.days[s.day]=s.rec;
+  try{localStorage.setItem('bp_stats',JSON.stringify(stats));}catch(e){}
 }
-function glClear(){ try{localStorage.removeItem(window.bpRunKey('bp_gl_run'));}catch(e){} }
-// the saved game to go on with: this browser's copy, or for today's daily the server's when that is further along
-function glSaved(){
-  let s=null; try{s=JSON.parse(localStorage.getItem(window.bpRunKey('bp_gl_run'))||'null');}catch(e){}
-  if(s&&(!s.gl||!Array.isArray(s.gl.qs)||(s.gl.daily&&s.day!==todayKey()))) s=null;
-  const far=window.bpRun&&bpRun.get('gl');
-  if(far&&far.gl&&Array.isArray(far.gl.qs)&&far.day===todayKey()&&!(s&&s.gl.daily&&glSteps(s.gl)>=glSteps(far.gl))) s=far;
-  return s;
+function glShow(v){
+  glAfter=null;
+  if(v.done){ gl=null; glEnd(v.rec,v.daily); return; }
+  gl=v; show('gl','Play'); glQ();
 }
-function glContinue(s){
-  gl=JSON.parse(JSON.stringify(s.gl)); show('gl','Play');
-  if(gl.answered){ if(gl.i<4){ gl.i++; glQ(); } else glFinish(); } else glQ();   // left while looking at an answer: go on
-}
-function glResume(){
-  const s=glSaved();
-  if(!s||gl) return;
-  if((s.gl.daily&&stats.gl.days[todayKey()])||(!s.gl.daily&&Date.now()-(s.t||0)>12*36e5)){ glClear(); return; }
-  glContinue(s);
+async function glResume(){                        // a game that was going when the page was left comes back
+  await glLoadHome();
+  if(!gl&&glHome&&(glHome.going||glHome.practice)){
+    try{ glShow(await glPost('start',glHome.going?{daily:true,day:window.bpDay||undefined}:{daily:false,resume:true})); }catch(e){}
+  }
+  if($('glIntro').style.display!=='none') glStatLine();
 }
 function glShowIntro(){ if(gl&&$('glPlay').style.display!=='none') return; show('gl','Intro'); glStatLine(); }
-function glStart(daily){
-  const k=todayKey();
-  if(daily && stats.gl.days[k]){ glEnd(stats.gl.days[k],true); return; }
-  const going=daily&&glSaved(); if(going&&going.gl.daily){ glContinue(going); return; }   // today's game was started before
-  const r=rngFrom(daily?'gl-'+k:'glp-'+Date.now()+Math.random());
-  gl={daily,qs:GL_CATS.map(c=>({cat:c.name,...pick(c.qs,r)})),i:0,res:[],answered:false};
-  show('gl','Play'); glQ();
+async function glStart(daily){
+  if(glBusy) return; glBusy=true;
+  try{ glShow(await glPost('start',{daily,day:daily?window.bpDay||undefined:undefined})); }
+  catch(e){ $('glDaily').textContent=e.message; setTimeout(glStatLine,2500); }
+  finally{ glBusy=false; }
 }
 function glQ(){
-  const q=gl.qs[gl.i]; gl.answered=false;
+  const q=gl.q;
   $('glCat').textContent=`Question ${gl.i+1} of 5: ${q.cat}${gl.daily?'':' (practice)'}`;
-  $('glTotal').textContent=gl.res.reduce((s,x)=>s+x.pts,0)+' pts';
+  $('glTotal').textContent=gl.total+' pts';
   $('glQ').textContent=q.q; $('glUnit').textContent=q.u; $('glInpUnit').textContent=q.u;
   $('glInp').value=''; $('glInp').disabled=false; $('glSub').disabled=false; $('glParsed').textContent='';
   $('glRev').classList.remove('show'); $('glInp').focus();
-  glSave();
 }
-$('glInp').addEventListener('input',()=>{const v=parseNum($('glInp').value);$('glParsed').textContent=$('glInp').value.trim()===''?'':(isFinite(v)&&v>0?'= '+fmt(v)+' '+gl.qs[gl.i].u:'enter a positive number (e.g. 2.5k, 3e6, 40 million)');});
-$('glForm').addEventListener('submit',e=>{
-  e.preventDefault(); if(gl.answered){glNext();return;}
-  const g=parseNum($('glInp').value); if(!(isFinite(g)&&g>0)) return;
-  const q=gl.qs[gl.i]; gl.answered=true;
-  const err=Math.abs(Math.log10(g/q.a)); const pts=Math.round(100*Math.max(0,1-err));
-  gl.res.push({q:q.q,u:q.u,a:q.a,g,pts,cat:q.cat}); glSave();
-  $('glInp').disabled=true; $('glSub').disabled=true;
-  $('glPts').textContent=`+${pts} pts`; $('glPts').style.color=pts>=70?'var(--good)':pts>=30?'var(--warn)':'var(--bad)';
-  drawScale(g,q.a,$('glScale'));
-  $('glAns').textContent=fmt(q.a)+' '+q.u; $('glYg').textContent=fmt(g)+' '+q.u; $('glRatio').textContent=ratioText(g,q.a); $('glRatio').style.color=pts>=70?'var(--good)':pts>=30?'var(--warn)':'var(--bad)';
-  $('glFact').textContent=q.n; $('glNext').textContent=gl.i<4?'Next →':'See score →';
-  $('glTotal').textContent=gl.res.reduce((s,x)=>s+x.pts,0)+' pts';
+$('glInp').addEventListener('input',()=>{ if(!gl||!gl.q) return; const v=parseNum($('glInp').value);$('glParsed').textContent=$('glInp').value.trim()===''?'':(isFinite(v)&&v>0?'= '+fmt(v)+' '+gl.q.u:'enter a positive number (e.g. 2.5k, 3e6, 40 million)');});
+$('glForm').addEventListener('submit',async e=>{
+  e.preventDefault(); if(!gl) return; if(glAfter){glNext();return;}
+  const g=parseNum($('glInp').value); if(!(isFinite(g)&&g>0)||gl.busy) return;
+  const was=gl; was.busy=true; $('glInp').disabled=true; $('glSub').disabled=true;
+  let v;
+  try{ v=await glPost('answer',{daily:was.daily,day:was.daily?window.bpDay||undefined:undefined,i:was.i,g}); }
+  catch(err){ was.busy=false; $('glInp').disabled=false; $('glSub').disabled=false; $('glParsed').textContent=err.message; return; }
+  if(gl!==was) return;                            // the player left meanwhile
+  if(v.stats) glTakeStats(v.stats);
+  glAfter=v; const r=v.last, pts=r.pts, col=pts>=70?'var(--good)':pts>=30?'var(--warn)':'var(--bad)';
+  $('glPts').textContent=`+${pts} pts`; $('glPts').style.color=col;
+  drawScale(r.g,r.a,$('glScale'));
+  $('glAns').textContent=fmt(r.a)+' '+r.u; $('glYg').textContent=fmt(r.g)+' '+r.u; $('glRatio').textContent=ratioText(r.g,r.a); $('glRatio').style.color=col;
+  $('glFact').textContent=r.note||''; $('glNext').textContent=v.done?'See score →':'Next →';
+  $('glTotal').textContent=v.total+' pts';
   $('glRev').classList.add('show'); setTimeout(()=>$('glNext').focus(),30);
 });
-function glNext(){ if(gl.i<4){gl.i++;glQ();} else glFinish(); }
-$('glNext').addEventListener('click',glNext);
-function glFinish(){
-  const total=gl.res.reduce((s,x)=>s+x.pts,0);
-  const rec={total,res:gl.res};
-  stats.gl.played++; stats.gl.best=Math.max(stats.gl.best,total);
-  if(gl.daily){ stats.gl.days[todayKey()]=rec; if(window.bpRun) bpRun.done('gl'); }
-  saveStats(); glEnd(rec,gl.daily); gl=null; glClear();
+function glNext(){
+  const v=glAfter; if(!v) return; glAfter=null;
+  if(v.done){                                     // the server has stored the result: show it, and tell the rest of the page
+    gl=null; glEnd(v.rec,v.daily);
+    if(v.daily) glHome=Object.assign({},glHome,{done:true,going:false}); else if(glHome) glHome.practice=false;
+    window.dispatchEvent(new Event('bp-saved')); return;
+  }
+  gl=v; glQ();
 }
+$('glNext').addEventListener('click',glNext);
 let glLast=null,glLastDaily=false;
 function glEnd(rec,daily){
   glLast=rec; glLastDaily=daily; show('gl','End');

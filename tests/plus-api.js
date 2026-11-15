@@ -47,8 +47,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await put('anna', 'x_daily', { days: { '2026-11-10': { score: 9, h: [] }, '2026-11-11': { score: null, started: 1 } } });
   await put('ben', 'x_daily', { days: { '2026-11-10': { score: 9, h: [] }, '2026-11-11': { score: 4, h: [] } } });
   // More/Less results come from the server, not the browser: put in place as an operator would (tests/seed.js)
-  importStats(data, { anna: { ml: { days: { '2026-11-10': { score: 20 }, '2026-11-11': { score: 15 }, '2026-11-12': { score: 18 } } } },
-    ben: { ml: { days: { '2026-11-10': { score: 18 }, '2026-11-11': { score: 15 }, '2026-11-12': { score: 22 } } } } });
+  importStats(data, { anna: { ml: { days: { '2026-11-10': { score: 20 }, '2026-11-11': { score: 15 }, '2026-11-12': { score: 18 } } }, gl: { days: { '2026-11-10': { total: 300 } } } },
+    ben: { ml: { days: { '2026-11-10': { score: 18 }, '2026-11-11': { score: 15 }, '2026-11-12': { score: 22 } } }, gl: { days: { '2026-11-09': { total: 400 } } } } });
   await wait(450); srv.kill(); await wait(400); srv = boot(); await wait(900);   // the wait lets the server write to disk first
   const a = (await call('anna', 'GET', '/api/h2h')).j.players, b = (await call('ben', 'GET', '/api/h2h')).j.players;
   const vb = a.find(p => p.name === 'ben');

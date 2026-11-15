@@ -48,8 +48,8 @@ exports.start = async function (project, W, H, TAG) {
   // More/Less results come from the server, not the browser: put in place as an operator would (tests/seed.js), then
   // restart the server. The page stays logged in (the login is kept in the database).
   const d = new Date(), k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-  const ml = score => ({ ml: { days: { [k]: { score } }, best: score, played: 1 } });
-  require('../seed').importStats(data, { lini: ml(21), fickric: ml(18), gecko: ml(19) });
+  const res = (ml, gl) => Object.assign(ml == null ? {} : { ml: { days: { [k]: { score: ml } }, best: ml, played: 1 } }, { gl: { days: { [k]: { total: gl } }, best: gl, played: 1 } });
+  require('../seed').importStats(data, { lini: res(21, 388), fickric: res(18, 430), maximdog: res(null, 365), gecko: res(19, 412) });
   await wait(450); srv.kill(); await wait(400); srv = boot(); await wait(900);
   return { cdp, ev, shot, reload, done, errors, wait };
 };
