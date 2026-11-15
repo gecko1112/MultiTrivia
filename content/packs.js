@@ -1,5 +1,6 @@
+// Survival question packs (a Plus feature, practice only). SERVER ONLY, like content/survival.js.
 // Extra question packs for Survival practice runs (Plus). Made by tools/build-packs.js: change that, not this file.
-window.BP_PACKS = {"countries":{"name":"Countries by size","q":[{"q":"How large is Afghanistan?","a":636000,"u":"square kilometres","n":"About 636,000 km². Measured from Natural Earth map data."},
+module.exports = {"countries":{"name":"Countries by size","q":[{"q":"How large is Afghanistan?","a":636000,"u":"square kilometres","n":"About 636,000 km². Measured from Natural Earth map data."},
 {"q":"How large is Albania?","a":28400,"u":"square kilometres","n":"About 28,400 km². Measured from Natural Earth map data."},
 {"q":"How large is Algeria?","a":2310000,"u":"square kilometres","n":"About 2,310,000 km². Measured from Natural Earth map data."},
 {"q":"How large is Angola?","a":1260000,"u":"square kilometres","n":"About 1,260,000 km². Measured from Natural Earth map data."},

@@ -1120,350 +1120,11 @@
 
 <script src="site-info.js"></script>
 <script src="day.js"></script>
-<script src="run.js"></script>
 <script src="away.js"></script>
 <script src="auth.js"></script>
-<script src="packs-data.js"></script>
 <script>
 // ---------- Question bank ----------
 // a = answer, u = unit, n = note. Only positive quantities (log scoring).
-const Q = [
- {q:"How tall is the Eiffel Tower, including its antennas?",a:330,u:"metres",n:"About 330 m since a new antenna was added in 2022."},
- {q:"How tall is Mount Everest above sea level?",a:8849,u:"metres",n:"8,848.86 m, per the 2020 China–Nepal survey."},
- {q:"How fast does light travel in a vacuum?",a:299792,u:"kilometres per second",n:"Exactly 299,792.458 km/s, by definition."},
- {q:"What is the average distance from the Earth to the Moon?",a:384400,u:"kilometres",n:"Mean distance. It varies from about 363,000 to 406,000 km."},
- {q:"What is the average distance from the Earth to the Sun?",a:149600000,u:"kilometres",n:"1 astronomical unit = 149,597,871 km."},
- {q:"How many bones does a typical adult human have?",a:206,u:"bones",n:"Newborns have roughly 270; many fuse during growth."},
- {q:"How many keys are on a standard modern piano?",a:88,u:"keys",n:"52 white and 36 black."},
- {q:"How many member states does the United Nations have?",a:193,u:"countries",n:"South Sudan, in 2011, was the most recent to join."},
- {q:"What is the Earth's mean diameter?",a:12742,u:"kilometres",n:"Mean value. It is slightly wider at the equator."},
- {q:"How many people live on Earth?",a:8.1e9,u:"people",n:"Roughly 8.1–8.2 billion as of the mid-2020s (UN estimates)."},
- {q:"How deep is the Challenger Deep, the deepest point of the Mariana Trench?",a:10935,u:"metres",n:"Measurements range from about 10,900 to 11,000 m."},
- {q:"How long can a blue whale grow?",a:30,u:"metres",n:"Recorded maximum is about 30 m; most adults are 24–27 m."},
- {q:"How tall is the Burj Khalifa?",a:828,u:"metres",n:"The world's tallest building since 2010."},
- {q:"How long is one year on Mars?",a:687,u:"Earth days",n:"One orbit of the Sun takes about 687 Earth days."},
- {q:"How many teeth does a full set of adult human teeth have?",a:32,u:"teeth",n:"That count includes the four wisdom teeth."},
- {q:"How fast does sound travel in dry air at 20 °C?",a:343,u:"metres per second",n:"Speed of sound increases with temperature."},
- {q:"How tall is the Statue of Liberty from ground level to the tip of the torch?",a:93,u:"metres",n:"About 46 m of that is the statue; the rest is the pedestal and foundation."},
- {q:"What is the total area of Russia?",a:17098246,u:"square kilometres",n:"Largest country on Earth by area."},
- {q:"How long is the Nile?",a:6650,u:"kilometres",n:"Commonly cited figure; river lengths depend on how the source is defined."},
- {q:"How many squares are on a chessboard?",a:64,u:"squares",n:"An 8 × 8 grid."},
- {q:"How many base pairs are in one copy of the human genome?",a:3.1e9,u:"base pairs",n:"About 3.1 billion (haploid). Each cell has two copies."},
- {q:"How old is the universe?",a:13.8e9,u:"years",n:"About 13.8 billion years, based on cosmic microwave background data."},
- {q:"How old is the Earth?",a:4.54e9,u:"years",n:"About 4.54 billion years, from radiometric dating."},
- {q:"How many chemical elements are on the periodic table (confirmed)?",a:118,u:"elements",n:"Oganesson (118) is the heaviest confirmed element."},
- {q:"How many seconds are in one day?",a:86400,u:"seconds",n:"24 × 60 × 60."},
- {q:"How many hours are in a 365-day year?",a:8760,u:"hours",n:"365 × 24."},
- {q:"How long is a marathon?",a:42195,u:"metres",n:"42.195 km, standardised in 1921."},
- {q:"How deep is Lake Baikal at its deepest point?",a:1642,u:"metres",n:"The deepest lake in the world."},
- {q:"What is the diameter of the Sun?",a:1391000,u:"kilometres",n:"About 109 times Earth's diameter."},
- {q:"What is the diameter of the Moon?",a:3474,u:"kilometres",n:"About 27% of Earth's diameter."},
- {q:"How tall is Mount Kilimanjaro?",a:5895,u:"metres",n:"The highest mountain in Africa."},
- {q:"How far away is Proxima Centauri, the closest star to the Sun?",a:4.24,u:"light-years",n:"About 40 trillion km."},
- {q:"How long is the main span of San Francisco's Golden Gate Bridge?",a:1280,u:"metres",n:"The main span between its towers is 1,280 m."},
- {q:"How tall was the Great Pyramid of Giza when it was built?",a:146.6,u:"metres",n:"About 138.5 m today, after erosion and the loss of its capstone."},
- {q:"How much water does an Olympic swimming pool hold (50 × 25 × 2 m)?",a:2500000,u:"litres",n:"That is the minimum size; many pools are deeper."},
- {q:"How many neurons are in an adult human brain?",a:86e9,u:"neurons",n:"About 86 billion (Azevedo et al., 2009)."},
- {q:"How many cells are in an adult human body?",a:3.7e13,u:"cells",n:"An estimate: about 37 trillion (Bianconi et al., 2013). Later estimates are similar."},
- {q:"How long does sunlight take to reach Earth?",a:499,u:"seconds",n:"About 8 minutes 19 seconds."},
- {q:"How fast does the International Space Station orbit?",a:28000,u:"km per hour",n:"About 7.66 km/s; it orbits Earth roughly every 92 minutes."},
- {q:"What is the area of the Pacific Ocean?",a:165e6,u:"square kilometres",n:"Approximate figure; it covers about a third of Earth's surface."},
- {q:"What is the diameter of Mars?",a:6779,u:"kilometres",n:"About 53% of Earth's diameter."},
- {q:"How long is Earth's circumference at the equator?",a:40075,u:"kilometres",n:"The circumference through the poles is about 40,008 km."},
- {q:"How many ways can a standard 3×3 Rubik's Cube be scrambled?",a:4.3252e19,u:"positions",n:"Exactly 43,252,003,274,489,856,000 reachable positions."},
- {q:"In how many orders can a 52-card deck be shuffled (52!)?",a:8.0658e67,u:"orderings",n:"52! ≈ 8.07 × 10⁶⁷."},
- {q:"How tall is Angel Falls in Venezuela, the world's highest waterfall?",a:979,u:"metres",n:"Its longest single drop is about 807 m."},
- {q:"What is the area of Australia?",a:7688287,u:"square kilometres",n:"Mainland plus Tasmania and islands."},
- {q:"What is the great-circle distance from London to New York City?",a:5570,u:"kilometres",n:"Approximate value; flight routes are usually somewhat longer."},
- {q:"What is the Sun's surface temperature?",a:5772,u:"kelvin",n:"Effective temperature of the photosphere."},
- {q:"How far away is the Andromeda Galaxy?",a:2.5e6,u:"light-years",n:"About 2.5 million ly. Estimates range from about 2.4 to 2.6 million."},
- {q:"How many Earths would fit inside the Sun by volume?",a:1.3e6,u:"Earths",n:"About 1.3 million."},
- {q:"How much does the Eiffel Tower's metal structure weigh?",a:7300,u:"tonnes",n:"About 10,100 t in total, including non-metal parts."},
- {q:"What is the wingspan of a Boeing 747-400?",a:64.4,u:"metres",n:"The later 747-8 has a 68.4 m wingspan."},
- {q:"What was Concorde's typical cruising speed?",a:2180,u:"km per hour",n:"About Mach 2.04 at cruising altitude."},
- {q:"How long does light from the Moon take to reach Earth?",a:1.28,u:"seconds",n:"At the average Earth–Moon distance."},
- {q:"How long would the DNA in one human cell be if stretched out?",a:2,u:"metres",n:"Rough figure, for all 46 chromosomes laid end to end."},
- {q:"What is the mass of the Earth?",a:5.97e24,u:"kilograms",n:"5.972 × 10²⁴ kg."},
- {q:"How many atoms are in 12 grams of carbon-12 (Avogadro's number)?",a:6.022e23,u:"atoms",n:"6.022 × 10²³, exact by definition since 2019."},
- {q:"What is the density of gold?",a:19.3,u:"grams per cubic centimetre",n:"About 19.3 times the density of water."},
- {q:"How many UN member states are in Africa?",a:54,u:"countries",n:"Counting UN members only."},
- {q:"How many stickers are on a standard 3×3 Rubik's Cube?",a:54,u:"stickers",n:"6 faces × 9."},
- {q:"How many minutes are in one week?",a:10080,u:"minutes",n:"7 × 24 × 60."},
- {q:"How tall is the Leaning Tower of Pisa?",a:56,u:"metres",n:"About 56–57 m, depending on which side you measure."},
- {q:"How fast does Earth travel in its orbit around the Sun?",a:107000,u:"km per hour",n:"About 29.8 km/s on average."},
- {q:"How fast does the equator move as Earth rotates?",a:1670,u:"km per hour",n:"40,075 km in about 24 hours."},
- {q:"How many litres of air does a resting adult breathe per minute?",a:6,u:"litres",n:"Rough figure: about 12 breaths of 0.5 L each. It varies a lot."},
- {q:"How many piano strings does a typical modern grand piano have?",a:230,u:"strings",n:"Approximate value; it varies by model, usually about 220–240."},
- {q:"What is the diameter of Jupiter?",a:139820,u:"kilometres",n:"Equatorial diameter, about 11 times Earth's."},
- {q:"How long is the Panama Canal?",a:82,u:"kilometres",n:"About 82 km from the Atlantic to the Pacific."},
- {q:"What is the mass of one litre of water?",a:1000,u:"grams",n:"At about 4 °C. This is the original definition of the kilogram."},
- {q:"How many grains of rice are in a 1 kg bag (long-grain white)?",a:50000,u:"grains",n:"Rough estimate: one grain weighs about 0.02 g. It varies by variety."},
- {q:"How much does a 1-euro coin weigh?",a:7.5,u:"grams",n:"Official specification: 7.50 g."},
- {q:"How thick is a standard sheet of 80 gsm office paper?",a:0.1,u:"millimetres",n:"About 0.1 mm (100 µm)."},
- {q:"What is the diameter of a human hair?",a:0.07,u:"millimetres",n:"Typically 0.02–0.18 mm; about 70 µm is a common midpoint."},
- {q:"What is the diameter of a red blood cell?",a:0.0075,u:"millimetres",n:"About 7–8 µm."},
- {q:"How tall is the Empire State Building, including the spire?",a:443,u:"metres",n:"The roof is at about 381 m."},
- {q:"How many countries border Germany?",a:9,u:"countries",n:"More land neighbours than any other country in Europe."},
- {q:"What is the mean distance between the Sun and Neptune?",a:4.5e9,u:"kilometres",n:"About 30 AU."},
- // ---- space ----
- {q:"What is the diameter of Saturn?",a:116460,u:"kilometres",n:"Equatorial diameter, not counting the rings."},
- {q:"What is the diameter of Pluto?",a:2377,u:"kilometres",n:"Smaller than Earth's Moon (3,474 km)."},
- {q:"How long is one day (rotation) on Jupiter?",a:9.9,u:"hours",n:"The fastest-spinning planet in the Solar System."},
- {q:"How long does Venus take to rotate once on its axis?",a:243,u:"Earth days",n:"A Venus rotation is longer than its year (225 days)."},
- {q:"How long is one year on Mercury?",a:88,u:"Earth days",n:"The shortest orbit of any planet."},
- {q:"How long does Neptune take to orbit the Sun?",a:165,u:"Earth years",n:"It completed its first orbit since its discovery in 2011."},
- {q:"How often does Halley's Comet return?",a:76,u:"years",n:"Roughly 75–79 years. Its next visit is in 2061."},
- {q:"What is Earth's escape velocity?",a:11.2,u:"kilometres per second",n:"The speed needed to escape Earth's gravity from the surface, ignoring air resistance."},
- {q:"What is the gravitational acceleration on the Moon's surface?",a:1.62,u:"metres per second²",n:"About 1/6 of Earth's 9.81 m/s²."},
- {q:"What is the temperature at the Sun's core?",a:15e6,u:"kelvin",n:"About 15 million K, from solar models."},
- {q:"What is the mass of the Sun?",a:1.989e30,u:"kilograms",n:"About 333,000 Earth masses."},
- {q:"How many stars are in the Milky Way?",a:2e11,u:"stars",n:"Very uncertain: estimates range from about 100 to 400 billion."},
- {q:"What is the diameter of the observable universe?",a:93e9,u:"light-years",n:"About 93 billion ly. It is larger than 13.8 billion × 2 because space has expanded."},
- {q:"At what altitude does the International Space Station orbit?",a:400,u:"kilometres",n:"It varies, usually around 400–420 km."},
- {q:"At what altitude do GPS satellites orbit?",a:20200,u:"kilometres",n:"Medium Earth orbit; each satellite circles Earth twice a day."},
- {q:"At what altitude is geostationary orbit above the equator?",a:35786,u:"kilometres",n:"At this height, one orbit takes exactly one sidereal day."},
- {q:"How far apart are Earth and Mars on average?",a:225e6,u:"kilometres",n:"Average figure; the distance swings from about 55 to 400 million km."},
- {q:"At what height does the Kármán line (a common edge-of-space definition) sit?",a:100,u:"kilometres",n:"This is a convention; the US military and NASA use 50 miles (about 80 km)."},
- // ---- human body ----
- {q:"How much blood does an average adult have?",a:5,u:"litres",n:"Roughly 4.5–5.5 L, depending on body size."},
- {q:"How long is the human small intestine?",a:6,u:"metres",n:"Commonly cited figure; living measurements are often shorter (about 3–5 m)."},
- {q:"What is the surface area of an adult's skin?",a:1.8,u:"square metres",n:"Typical value is about 1.5–2 m²."},
- {q:"How much does an adult human brain weigh?",a:1.4,u:"kilograms",n:"Average is about 1.3–1.4 kg."},
- {q:"How many times does a human heart beat in an 80-year lifetime?",a:3e9,u:"beats",n:"Rough estimate: about 70 beats per minute over 80 years ≈ 2.9 billion."},
- {q:"What is the top speed of nerve signals in fast myelinated fibres?",a:120,u:"metres per second",n:"Unmyelinated fibres can be as slow as about 0.5–2 m/s."},
- {q:"How long does a typical full-term human pregnancy last, counted from the last period?",a:280,u:"days",n:"40 weeks."},
- {q:"How many hairs are on an average human scalp?",a:100000,u:"hairs",n:"Rough estimate: typically 90,000–150,000, depending on hair colour."},
- // ---- nature ----
- {q:"How tall is Hyperion, the tallest known living tree?",a:116,u:"metres",n:"A coast redwood in California; its height grows slightly over time."},
- {q:"How much does a bee hummingbird, the smallest bird, weigh?",a:2,u:"grams",n:"About 1.6–2 g."},
- {q:"How long is an African elephant's pregnancy?",a:22,u:"months",n:"The longest pregnancy of any mammal."},
- {q:"How tall can a giraffe grow?",a:5.5,u:"metres",n:"Large males reach up to about 5.5–5.9 m."},
- {q:"How many bird species are there?",a:11000,u:"species",n:"Approximate; the count depends on the taxonomy used."},
- {q:"How fast is the Atlantic Ocean widening?",a:2.5,u:"centimetres per year",n:"Roughly the speed your fingernails grow."},
- {q:"How hot can a lightning bolt get?",a:30000,u:"kelvin",n:"Peak temperature is about 30,000 K, roughly five times the Sun's surface."},
- {q:"How many islands make up Indonesia?",a:17000,u:"islands",n:"Approximate; official counts range from about 17,000 to 17,500."},
- // ---- Earth & geography ----
- {q:"How tall is Mont Blanc?",a:4806,u:"metres",n:"It varies by a metre or two with the ice cap."},
- {q:"How tall is the Zugspitze, Germany's highest mountain?",a:2962,u:"metres",n:"On the border between Germany and Austria."},
- {q:"What is the area of Germany?",a:357600,u:"square kilometres",n:"About 357,600 km²."},
- {q:"How many people live in Germany?",a:83.5e6,u:"people",n:"About 83–84 million (Destatis, mid-2020s)."},
- {q:"How long is the Rhine?",a:1230,u:"kilometres",n:"Long cited as 1,320 km, a historical typo corrected to about 1,230 km."},
- {q:"How long is the Danube?",a:2850,u:"kilometres",n:"It flows through 10 countries, more than any other river."},
- {q:"What is the area of the Sahara Desert?",a:9.2e6,u:"square kilometres",n:"Approximate; it is roughly the size of the USA."},
- {q:"What is the area of Antarctica?",a:14.2e6,u:"square kilometres",n:"Approximate; its ice sheet grows in winter."},
- {q:"What is the area of Greenland?",a:2166086,u:"square kilometres",n:"The world's largest island that is not a continent."},
- {q:"What is the total surface area of the Earth?",a:510e6,u:"square kilometres",n:"About 71% is water."},
- {q:"How much water is in all of Earth's oceans?",a:1.335e9,u:"cubic kilometres",n:"Approximate value (NOAA)."},
- {q:"What is the area of Lake Superior?",a:82100,u:"square kilometres",n:"The largest freshwater lake by surface area."},
- {q:"What is the area of the Caspian Sea?",a:371000,u:"square kilometres",n:"The largest inland body of water. It varies with water level."},
- {q:"How deep is the Kola Superdeep Borehole, the deepest hole ever drilled?",a:12262,u:"metres",n:"Drilled in Russia; it reached its maximum depth in 1989."},
- {q:"How thick is typical oceanic crust?",a:7,u:"kilometres",n:"Continental crust is much thicker, about 30–50 km."},
- {q:"How deep is the boundary between Earth's mantle and its core?",a:2890,u:"kilometres",n:"The Gutenberg discontinuity."},
- {q:"What is standard atmospheric pressure at sea level?",a:101325,u:"pascals",n:"1 atm, exactly, by definition."},
- {q:"At what altitude do airliners typically cruise?",a:11000,u:"metres",n:"Roughly 35,000–38,000 ft (10.7–11.6 km)."},
- // ---- engineering ----
- {q:"How long is the Channel Tunnel between England and France?",a:50.5,u:"kilometres",n:"About 38 km of it is under the sea."},
- {q:"How long is the Gotthard Base Tunnel in Switzerland?",a:57.1,u:"kilometres",n:"The world's longest railway tunnel, opened in 2016."},
- {q:"How long was the Titanic?",a:269,u:"metres",n:"About 882 ft."},
- {q:"How tall was the Saturn V rocket?",a:110.6,u:"metres",n:"Taller than the Statue of Liberty including its pedestal."},
- {q:"What was the Saturn V rocket's mass at liftoff, fully fuelled?",a:2950,u:"tonnes",n:"About 2,900–3,000 t, depending on the mission."},
- {q:"What is the maximum takeoff weight of an Airbus A380?",a:575,u:"tonnes",n:"The largest passenger airliner ever built."},
- {q:"What is the rail speed record set by a French TGV in 2007?",a:574.8,u:"km per hour",n:"Set with a specially modified train; regular service runs at about 320 km/h."},
- {q:"How much does a Nimitz-class aircraft carrier displace fully loaded?",a:100000,u:"tonnes",n:"Approximate; it varies slightly between ships."},
- {q:"How many transistors are on Apple's M1 chip (2020)?",a:16e9,u:"transistors",n:"Apple's stated figure is 16 billion."},
- // ---- everyday ----
- {q:"How long is a standard credit card?",a:85.6,u:"millimetres",n:"ISO/IEC 7810 ID-1 format: 85.60 × 53.98 mm."},
- {q:"How thick is a standard credit card?",a:0.76,u:"millimetres",n:"ISO/IEC 7810 specifies 0.76 mm."},
- {q:"How much does an alkaline AA battery weigh?",a:23,u:"grams",n:"Typically about 23 g."},
- {q:"How much does a standard European soda can hold?",a:330,u:"millilitres",n:"US cans are typically 355 ml (12 fl oz)."},
- {q:"What is the area of one A4 sheet of paper?",a:623.7,u:"square centimetres",n:"210 × 297 mm. Sixteen A4 sheets make one A0, which is 1 m²."},
- {q:"How much does one 80 gsm A4 sheet weigh?",a:5,u:"grams",n:"0.06237 m² × 80 g/m² ≈ 4.99 g."},
- {q:"How much energy is in one gram of dietary fat?",a:9,u:"kilocalories",n:"Carbohydrates and protein have about 4 kcal per gram."},
- {q:"How much energy is in one litre of petrol?",a:8.9,u:"kilowatt-hours",n:"Approximate; about 32 MJ per litre."},
- {q:"What frequency is concert pitch A (A4)?",a:440,u:"hertz",n:"International standard tuning pitch."},
- {q:"What is the upper limit of human hearing for a young adult?",a:20000,u:"hertz",n:"It drops with age, often to about 15,000 Hz or lower."},
- {q:"What frequency is the lowest note on a standard piano?",a:27.5,u:"hertz",n:"A0, four octaves below A440."},
- {q:"How many sheets of paper are in a standard ream?",a:500,u:"sheets",n:"The modern standard."},
- {q:"How many letters are in the Hawaiian alphabet?",a:13,u:"letters",n:"5 vowels and 8 consonants, including the ʻokina."},
- // ---- physics & chemistry ----
- {q:"What is the mass of an electron?",a:9.109e-31,u:"kilograms",n:"9.109 × 10⁻³¹ kg."},
- {q:"How many times heavier is a proton than an electron?",a:1836,u:"times",n:"The ratio is about 1836.15."},
- {q:"What is the wavelength of green light?",a:530,u:"nanometres",n:"Green covers roughly 500–565 nm."},
- {q:"What is the diameter of a hydrogen atom?",a:0.1,u:"nanometres",n:"Approximate value; about twice the Bohr radius (0.053 nm)."},
- {q:"How fast does light travel in an optical fibre?",a:200000,u:"kilometres per second",n:"About 2/3 the speed of light in a vacuum (refractive index about 1.47)."},
- {q:"What is the half-life of carbon-14?",a:5730,u:"years",n:"The basis of radiocarbon dating."},
- {q:"What is the half-life of uranium-238?",a:4.47e9,u:"years",n:"About the same as the age of the Earth."},
- {q:"At what temperature does liquid nitrogen boil?",a:77,u:"kelvin",n:"−196 °C."},
- {q:"At what temperature does iron melt?",a:1538,u:"°C",n:"Pure iron; steels melt at somewhat different temperatures."},
- {q:"At what temperature does tungsten melt?",a:3422,u:"°C",n:"The highest melting point of any metal."},
- {q:"What is the gravitational acceleration at Earth's surface?",a:9.81,u:"metres per second²",n:"The standard value is 9.80665 m/s²."},
- {q:"What was Usain Bolt's average speed in his 9.58 s 100 m world record?",a:10.44,u:"metres per second",n:"100 ÷ 9.58. His peak speed was about 12.4 m/s."},
- // ---- computing ----
- {q:"How many possible IPv4 addresses are there?",a:4294967296,u:"addresses",n:"2³²."},
- {q:"How many possible IPv6 addresses are there?",a:3.4e38,u:"addresses",n:"2¹²⁸ ≈ 3.4 × 10³⁸."},
- {q:"How many bytes are in one gibibyte (GiB)?",a:1073741824,u:"bytes",n:"2³⁰. A gigabyte (GB) is 10⁹ bytes."},
- {q:"How many characters could the original tweets have?",a:140,u:"characters",n:"Raised to 280 in 2017."},
- // ---- batch 3: space ----
- {q:"What is the diameter of Venus?",a:12104,u:"kilometres",n:"Almost the same size as Earth."},
- {q:"What is the diameter of Mercury?",a:4879,u:"kilometres",n:"The smallest planet."},
- {q:"What is the diameter of Uranus?",a:50724,u:"kilometres",n:"About 4 times Earth's diameter."},
- {q:"How far is Jupiter from the Sun on average?",a:778e6,u:"kilometres",n:"About 5.2 AU."},
- {q:"How long does Saturn take to orbit the Sun?",a:29.4,u:"Earth years",n:"About 29.4 years."},
- {q:"How long does Jupiter take to orbit the Sun?",a:11.9,u:"Earth years",n:"About 11.9 years."},
- {q:"How tilted is Earth's axis?",a:23.4,u:"degrees",n:"This tilt causes the seasons."},
- {q:"How long does the Moon take to orbit Earth (relative to the stars)?",a:27.3,u:"days",n:"Sidereal month. New moon to new moon takes about 29.5 days."},
- {q:"How old is the Sun?",a:4.6e9,u:"years",n:"About 4.6 billion years."},
- {q:"How far does light travel in one year?",a:9.46e12,u:"kilometres",n:"One light-year ≈ 9.46 trillion km."},
- {q:"How many people have walked on the Moon?",a:12,u:"people",n:"All during Apollo missions, 1969–1972."},
- {q:"How tall is Olympus Mons on Mars?",a:21.9,u:"kilometres",n:"About 22 km above the Martian datum, the tallest volcano in the Solar System."},
- {q:"What is the average surface temperature on Venus?",a:465,u:"°C",n:"Hotter than Mercury, because of its thick CO₂ atmosphere."},
- {q:"What is the gravitational acceleration on Mars?",a:3.72,u:"metres per second²",n:"About 38% of Earth's."},
- {q:"How many times more massive than Earth is Jupiter?",a:318,u:"Earth masses",n:"More than twice all other planets combined."},
- {q:"How long does sunlight take to reach Neptune?",a:4.2,u:"hours",n:"Approximate; about 30 AU away."},
- {q:"How far away is Sirius, the brightest star in the night sky?",a:8.6,u:"light-years",n:"About 8.6 ly."},
- {q:"How long does the Sun take to orbit the centre of the Milky Way?",a:230e6,u:"years",n:"Estimate; values range from about 225 to 250 million years."},
- {q:"How much does the International Space Station weigh?",a:420,u:"tonnes",n:"Approximate; about 420,000 kg."},
- {q:"How fast is Voyager 1 travelling away from the Sun?",a:17,u:"kilometres per second",n:"About 17 km/s (about 61,000 km/h)."},
- {q:"How much power does the Sun give off?",a:3.8e26,u:"watts",n:"Its total luminosity is about 3.8 × 10²⁶ W."},
- {q:"How much solar power reaches each square metre at the top of Earth's atmosphere?",a:1361,u:"watts per square metre",n:"The 'solar constant'."},
- // ---- geography ----
- {q:"How deep is the Grand Canyon at its deepest?",a:1800,u:"metres",n:"About 1.8 km (roughly 6,000 ft)."},
- {q:"How long is the Grand Canyon?",a:446,u:"kilometres",n:"277 river miles."},
- {q:"How tall is K2, the world's second-highest mountain?",a:8611,u:"metres",n:"On the Pakistan–China border."},
- {q:"How tall is Mount Everest in feet?",a:29032,u:"feet",n:"8,848.86 m."},
- {q:"How many countries are in the European Union?",a:27,u:"countries",n:"Since the UK left in 2020."},
- {q:"How many states does Germany have?",a:16,u:"states",n:"Bundesländer."},
- {q:"How many time zones does Russia span?",a:11,u:"time zones",n:"From Kaliningrad to Kamchatka."},
- {q:"What is the area of Brazil?",a:8.5e6,u:"square kilometres",n:"The fifth-largest country."},
- {q:"What is the area of the United States?",a:9.83e6,u:"square kilometres",n:"Total area, including water."},
- {q:"What is the area of Canada?",a:9.98e6,u:"square kilometres",n:"The second-largest country."},
- {q:"What is the area of China?",a:9.6e6,u:"square kilometres",n:"About 9.6 million km²."},
- {q:"What is the area of India?",a:3.29e6,u:"square kilometres",n:"About 3.29 million km²."},
- {q:"What is the area of Japan?",a:377975,u:"square kilometres",n:"About 14,000 islands."},
- {q:"What is the area of Switzerland?",a:41285,u:"square kilometres",n:"About 41,000 km²."},
- {q:"What is the area of Luxembourg?",a:2586,u:"square kilometres",n:"About 2,600 km²."},
- {q:"What is the area of Monaco?",a:2.08,u:"square kilometres",n:"Including land reclaimed from the sea."},
- {q:"What is the area of Iceland?",a:103000,u:"square kilometres",n:"About 103,000 km²."},
- {q:"What is the area of the Mediterranean Sea?",a:2.5e6,u:"square kilometres",n:"Approximate value."},
- {q:"How salty is the Dead Sea?",a:34,u:"percent salt",n:"About 34%, nearly 10 times saltier than the ocean."},
- {q:"How tall is Victoria Falls?",a:108,u:"metres",n:"On the Zambia–Zimbabwe border."},
- {q:"At what altitude is Lake Titicaca?",a:3812,u:"metres",n:"One of the highest large lakes."},
- {q:"What is the average depth of Earth's oceans?",a:3700,u:"metres",n:"About 3.7 km."},
- {q:"What percentage of Earth's surface is covered by water?",a:71,u:"percent",n:"About 71%."},
- {q:"How fast can a tsunami travel across the deep ocean?",a:800,u:"km per hour",n:"Approximate; about as fast as a jet airliner."},
- {q:"What was the magnitude of the strongest earthquake ever recorded?",a:9.5,u:"magnitude",n:"Chile, 1960."},
- {q:"How long is the Mississippi River?",a:3730,u:"kilometres",n:"Approximate; river lengths vary with the measurement method."},
- {q:"How much water does the Amazon discharge into the ocean?",a:209000,u:"cubic metres per second",n:"Average; more than the next several rivers combined."},
- {q:"How many people lived on Earth in 1900?",a:1.6e9,u:"people",n:"About 1.6 billion."},
- {q:"How many people live in China?",a:1.41e9,u:"people",n:"About 1.41 billion (mid-2020s)."},
- // ---- buildings & engineering ----
- {q:"How many floors does the Empire State Building have?",a:102,u:"floors",n:"Opened in 1931."},
- {q:"How many floors does the Burj Khalifa have?",a:163,u:"floors",n:"Above-ground floors."},
- {q:"How many steps lead up to the Statue of Liberty's crown?",a:354,u:"steps",n:"From the pedestal."},
- {q:"How many rooms does Buckingham Palace have?",a:775,u:"rooms",n:"Including 78 bathrooms."},
- {q:"How tall are the Petronas Towers in Kuala Lumpur?",a:452,u:"metres",n:"The world's tallest buildings from 1998 to 2004."},
- {q:"How tall is the Shanghai Tower?",a:632,u:"metres",n:"China's tallest building."},
- {q:"How tall is Toronto's CN Tower?",a:553,u:"metres",n:"The world's tallest free-standing structure until 2007."},
- {q:"How tall is the Berlin TV Tower (Fernsehturm)?",a:368,u:"metres",n:"Germany's tallest structure."},
- {q:"How tall is Cologne Cathedral?",a:157,u:"metres",n:"Its twin spires took over 600 years to finish."},
- {q:"How tall is the Elizabeth Tower (Big Ben) in London?",a:96,u:"metres",n:"'Big Ben' is officially the name of the bell."},
- {q:"How long is the arch span of the Sydney Harbour Bridge?",a:503,u:"metres",n:"Opened in 1932."},
- {q:"How tall is the Hoover Dam?",a:221,u:"metres",n:"On the Colorado River."},
- {q:"How long is the Three Gorges Dam in China?",a:2335,u:"metres",n:"The world's largest hydroelectric dam by capacity."},
- {q:"How long is the Suez Canal?",a:193,u:"kilometres",n:"It links the Mediterranean and the Red Sea."},
- {q:"How long is Germany's Kiel Canal?",a:98,u:"kilometres",n:"Among the world's busiest artificial waterways."},
- {q:"How long is the Trans-Siberian Railway from Moscow to Vladivostok?",a:9289,u:"kilometres",n:"The journey takes about a week."},
- {q:"How long is Japan's Seikan Tunnel?",a:53.85,u:"kilometres",n:"An undersea railway tunnel connecting Honshu and Hokkaido."},
- {q:"How long was the Berlin Wall in total?",a:155,u:"kilometres",n:"Including the border between West Berlin and East Germany."},
- {q:"How many years did the Berlin Wall stand?",a:28,u:"years",n:"1961–1989."},
- {q:"How many stone blocks are in the Great Pyramid of Giza?",a:2.3e6,u:"blocks",n:"Estimate."},
- {q:"What is the recommended speed on German autobahns without a limit?",a:130,u:"km per hour",n:"The 'Richtgeschwindigkeit': advisory, not mandatory."},
- // ---- human body ----
- {q:"What is a typical resting heart rate for an adult?",a:70,u:"beats per minute",n:"The normal range is about 60–100 bpm."},
- {q:"How many bones are in the human skull?",a:22,u:"bones",n:"8 cranial and 14 facial bones."},
- {q:"How many vertebrae does a human spine have?",a:33,u:"vertebrae",n:"Including the fused ones; 24 of them can move."},
- {q:"How many ribs does a human have?",a:24,u:"ribs",n:"12 pairs."},
- {q:"How fast does scalp hair grow?",a:1.25,u:"centimetres per month",n:"About 1–1.5 cm per month."},
- {q:"How fast do fingernails grow?",a:3.5,u:"millimetres per month",n:"Toenails grow about half as fast."},
- {q:"How many breaths does an adult take per day?",a:20000,u:"breaths",n:"Rough estimate, at about 12–20 breaths per minute."},
- {q:"What share of the body's energy does the brain use?",a:20,u:"percent",n:"About 20%, despite being about 2% of body weight."},
- {q:"How much of an adult human body is water?",a:60,u:"percent",n:"About 50–65%, depending on age and sex."},
- {q:"How many protein-coding genes does a human have?",a:20000,u:"genes",n:"About 19,000–20,000."},
- {q:"What is the pH of stomach acid?",a:2,u:"pH",n:"Typically about 1.5–3.5."},
- {q:"How many atoms are in a human body?",a:7e27,u:"atoms",n:"Estimate, for a 70 kg adult."},
- {q:"How old was the oldest person ever verified?",a:122,u:"years",n:"Jeanne Calment, 1875–1997."},
- // ---- animals ----
- {q:"How fast can a cheetah run?",a:100,u:"km per hour",n:"Approximate; measured top speeds are about 93–104 km/h."},
- {q:"How much does an adult male African bush elephant weigh?",a:6000,u:"kilograms",n:"Typically about 5–6.5 tonnes."},
- {q:"How much can a blue whale weigh?",a:150000,u:"kilograms",n:"Approximate; the largest exceed 150 tonnes."},
- {q:"How fast can a peregrine falcon dive?",a:320,u:"km per hour",n:"The fastest animal; dives over 300 km/h are well documented."},
- {q:"How fast can an ostrich run?",a:70,u:"km per hour",n:"The fastest bird on land."},
- {q:"How many times per second does a honeybee beat its wings?",a:230,u:"beats per second",n:"Approximate; that's what makes the buzz."},
- {q:"What is the wingspan of a bald eagle?",a:2,u:"metres",n:"About 1.8–2.3 m."},
- {q:"How many hours a day does a domestic cat sleep?",a:15,u:"hours",n:"Typically 12–16 hours."},
- {q:"How long is a dog's pregnancy?",a:63,u:"days",n:"About 9 weeks."},
- {q:"How long is a horse's pregnancy?",a:340,u:"days",n:"About 11 months."},
- {q:"How many eggs does a modern laying hen produce per year?",a:300,u:"eggs",n:"Approximate; wild ancestors laid far fewer."},
- {q:"How much milk does a modern dairy cow give per day?",a:30,u:"litres",n:"Approximate; it varies widely by breed and farm."},
- {q:"How many shark species are there?",a:540,u:"species",n:"Approximate; new ones are still being described."},
- {q:"How many ant species have been described?",a:15000,u:"species",n:"Approximate; many more are probably undescribed."},
- // ---- sport & games ----
- {q:"How many squares are on a Scrabble board?",a:225,u:"squares",n:"15 × 15."},
- {q:"How many letter tiles are in an English Scrabble set?",a:100,u:"tiles",n:"Including 2 blanks."},
- {q:"How many dots are on a pair of standard dice in total?",a:42,u:"dots",n:"1+2+3+4+5+6 = 21 per die."},
- {q:"How many cards are in a tarot deck?",a:78,u:"cards",n:"22 major and 56 minor arcana."},
- {q:"How many squares are on a Monopoly board?",a:40,u:"squares",n:"Including the corners."},
- {q:"How many tiles are in a double-six domino set?",a:28,u:"tiles",n:"Every pair of numbers from 0 to 6."},
- {q:"How far apart are the bases in baseball?",a:27.43,u:"metres",n:"90 feet."},
- {q:"How high is a tennis net at the centre?",a:91.4,u:"centimetres",n:"3 feet."},
- {q:"How much does a regulation football (soccer ball) weigh?",a:430,u:"grams",n:"Rules allow 410–450 g."},
- {q:"What is the maximum weight of a golf ball?",a:45.93,u:"grams",n:"1.62 ounces."},
- {q:"How high is the net in men's volleyball?",a:2.43,u:"metres",n:"Women's: 2.24 m."},
- {q:"What is the diameter of an ice hockey puck?",a:7.62,u:"centimetres",n:"3 inches."},
- {q:"How long is the Formula 1 Monaco circuit?",a:3.337,u:"kilometres",n:"The shortest and slowest track on the calendar."},
- {q:"How many players does a rugby union team have on the field?",a:15,u:"players",n:"Rugby league uses 13."},
- {q:"How long is a bowling lane from the foul line to the head pin?",a:18.29,u:"metres",n:"60 feet."},
- // ---- tech ----
- {q:"How many pixels are on a 4K UHD screen?",a:8294400,u:"pixels",n:"3,840 × 2,160."},
- {q:"How many pixels are on a 1080p Full HD screen?",a:2073600,u:"pixels",n:"1,920 × 1,080."},
- {q:"How many characters are in the original ASCII set?",a:128,u:"characters",n:"7-bit encoding."},
- {q:"How much data did a 3.5-inch floppy disk hold?",a:1.44,u:"megabytes",n:"High-density format."},
- {q:"How much data does a single-layer DVD hold?",a:4.7,u:"gigabytes",n:"Dual-layer discs hold 8.5 GB."},
- {q:"How much data does a single-layer Blu-ray disc hold?",a:25,u:"gigabytes",n:"Dual-layer discs hold 50 GB."},
- {q:"How much music fits on a standard audio CD?",a:80,u:"minutes",n:"74–80 minutes, depending on the disc."},
- {q:"How fast does a typical desktop hard drive spin?",a:7200,u:"rpm",n:"Laptop drives often spin at 5,400 rpm."},
- {q:"What is the maximum speed of USB 3.0 (USB 3.2 Gen 1)?",a:5000,u:"megabits per second",n:"5 Gbit/s."},
- {q:"How many keys are on a standard full-size US keyboard?",a:104,u:"keys",n:"European ISO layouts have 105."},
- // ---- physics, chemistry, everyday ----
- {q:"How fast does sound travel in water?",a:1480,u:"metres per second",n:"More than 4 times faster than in air."},
- {q:"How fast does sound travel in steel?",a:5960,u:"metres per second",n:"Approximate; it varies by alloy."},
- {q:"At what temperature does ethanol boil?",a:78,u:"°C",n:"At sea-level pressure."},
- {q:"At what temperature does gold melt?",a:1064,u:"°C",n:"1,064 °C."},
- {q:"At what temperature does aluminium melt?",a:660,u:"°C",n:"660 °C."},
- {q:"What is the density of aluminium?",a:2.7,u:"grams per cubic centimetre",n:"About a third of steel's density."},
- {q:"What is the density of osmium, the densest element?",a:22.6,u:"grams per cubic centimetre",n:"Slightly denser than iridium."},
- {q:"What is the density of air at sea level?",a:1.225,u:"kilograms per cubic metre",n:"At 15 °C."},
- {q:"What is the density of seawater?",a:1025,u:"kilograms per cubic metre",n:"Fresh water is about 1,000 kg/m³."},
- {q:"What is the charge of one electron?",a:1.602e-19,u:"coulombs",n:"The elementary charge, exact by definition since 2019."},
- {q:"How strong is Earth's magnetic field at the surface?",a:50,u:"microtesla",n:"About 25–65 µT, depending on location."},
- {q:"What voltage does a car battery supply?",a:12,u:"volts",n:"A fully charged one measures about 12.6 V."},
- {q:"How much electric current flows in a typical lightning strike?",a:30000,u:"amperes",n:"Approximate; strong strikes exceed 100,000 A."},
- {q:"What is the half-life of plutonium-239?",a:24100,u:"years",n:"About 24,100 years."},
- {q:"What percentage of air is nitrogen?",a:78,u:"percent",n:"Oxygen is about 21%."},
- {q:"How much CO₂ does burning one litre of petrol release?",a:2.3,u:"kilograms",n:"Approximate; diesel releases about 2.6 kg per litre."},
- {q:"How much water does it take to produce 1 kg of beef?",a:15000,u:"litres",n:"Global average estimate (Water Footprint Network)."},
- {q:"How much water does it take to make one cotton T-shirt?",a:2700,u:"litres",n:"Estimate, mostly for growing the cotton."},
- {q:"How many calories are in a medium banana?",a:105,u:"kilocalories",n:"About 105 kcal (USDA)."},
- {q:"How much caffeine is in a cup of brewed coffee (240 ml)?",a:95,u:"milligrams",n:"USDA average; it varies a lot."},
- {q:"How much sugar is in a 330 ml can of regular cola?",a:35,u:"grams",n:"Approximate; about 9 teaspoons."},
- {q:"At what temperature does water boil, in Fahrenheit?",a:212,u:"°F",n:"At sea level, 100 °C."},
- {q:"How much does a typical mid-size car weigh?",a:1500,u:"kilograms",n:"Approximate; EVs are often heavier."},
- {q:"How many people were aboard the Titanic?",a:2224,u:"people",n:"Approximate; about 1,500 died."},
- {q:"How long did the Hundred Years' War last?",a:116,u:"years",n:"1337–1453."},
- {q:"How long did the Apollo 11 mission last?",a:8,u:"days",n:"About 8 days, 3 hours."},
- {q:"How many lines are in a sonnet?",a:14,u:"lines",n:"Traditional form."},
- {q:"How many strings does a concert pedal harp have?",a:47,u:"strings",n:"Usually 47."},
-];
 
 // ---------- Helpers ----------
 const $ = id => document.getElementById(id);
@@ -1519,93 +1180,92 @@ $('timeOpts').addEventListener('click',e=>{
   [...$('timeOpts').children].forEach(x=>x.classList.toggle('sel',x===b));
 });
 
-// ---- question packs (Plus): a practice run can use an extra set of questions instead of the standard ones (packs-data.js).
-// Pack runs are for fun: they are not saved to the best runs, so the leaderboard always compares the same questions.
-const PACKS=window.BP_PACKS||{};
-const QALL=Q.concat(...Object.values(PACKS).map(p=>p.q));          // every question there is, for remembering a run by position
-let svPack='';                                                      // '' = the standard questions
-const packOn=()=>runMode==='practice'&&PACKS[svPack]?PACKS[svPack]:null;
-const svPool=()=>(packOn()?packOn().q:Q).slice();
-(function(){
-  const box=$('packOpts'), ids=Object.keys(PACKS); if(!ids.length){ box.style.display='none'; return; }
-  const member=()=>!!(window.bpPlus&&window.bpPlus.has());
-  const paint=()=>{ if(svPack&&!member()) svPack='';
-    box.innerHTML='<button class="ghost'+(svPack?'':' sel')+'" data-pack="">Standard</button>'+ids.map(id=>'<button class="ghost'+(svPack===id?' sel':'')+'" data-pack="'+id+'">'+PACKS[id].name+(member()?'':' <span class="ptag">Plus</span>')+'</button>').join(''); };
-  box.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
-    if(b.dataset.pack&&!member()){ if(window.bpPlus) window.bpPlus.open('packs'); return; }
-    svPack=b.dataset.pack; paint(); });
-  paint(); window.addEventListener('load',paint); new MutationObserver(paint).observe(document.documentElement,{attributes:true,attributeFilter:['data-plan']});
-})();
+// ---- question packs (Plus): a practice run can use an extra set of questions instead of the standard ones. The
+// questions are on the server (content/packs.js); the browser only knows their names, from /api/sv/home.
+let svPacks=[], svPack='';                                          // '' = the standard questions
+function paintPacks(){
+  const box=$('packOpts'); if(!box) return;
+  if(!svPacks.length){ box.style.display='none'; return; } box.style.display='';
+  const member=!!(window.bpPlus&&window.bpPlus.has());
+  if(svPack&&!member) svPack='';
+  box.innerHTML='<button class="ghost'+(svPack?'':' sel')+'" data-pack="">Standard</button>'+svPacks.map(p=>'<button class="ghost'+(svPack===p.id?' sel':'')+'" data-pack="'+esc(p.id)+'">'+esc(p.name)+(member?'':' <span class="ptag">Plus</span>')+'</button>').join('');
+}
+$('packOpts').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.pack&&!(window.bpPlus&&window.bpPlus.has())){ if(window.bpPlus) window.bpPlus.open('packs'); return; }
+  svPack=b.dataset.pack; paintPacks(); });
+paintPacks(); window.addEventListener('load',paintPacks); new MutationObserver(paintPacks).observe(document.documentElement,{attributes:true,attributeFilter:['data-plan']});
 
-function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function screen(id){['start','game','over','runsScreen'].forEach(s=>$(s).classList.toggle('on',s===id));}
 
 // ---- daily run: same seeded order for everyone ----
+// ---- the run: dealt, timed and judged on the server (survival-server.js) ----
+// The browser shows the question and the time it has left, sends the estimate (or "time's up"), and shows what the
+// server worked out: the answer, the damage, the life left. The clock never pauses: the server counts from the moment
+// it showed the question, so leaving the page or the tab uses up the time.
 let runMode='practice', svDaily={days:{}}, userTimer=15;
+let sv=null;          // the run on screen, as the server last described it
+let svHome=null;      // the menu's state from the server: { date, done, going, blocked, practice, packs }
+let svNext=null;      // the server's reply to the last estimate, waiting behind "Next"
+let svDeadline=0, svBusy=false;
 function svToday(){const d=window.bpNow();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function seededShuffle(arr,seed){let h=2166136261;for(const c of seed){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}const r=()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};
-  const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-function svDailyStat(){
-  const t=svDaily.days[svToday()];
-  $('goDaily').disabled=!!t; $('goDaily').textContent=t?'Done for today':"Play today's run";
-  $('dailyStat').textContent=t?(t.score==null?'Started but not finished: counts as today\'s try':'Resets at midnight'):'';
-  svStatStrip();
+const svDayArg=()=>window.bpDay||undefined;          // a past day in the archive, otherwise today (the server knows which day that is)
+async function svPost(act,body){
+  const r=await fetch('/api/sv/'+act,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  return { ok:r.ok, status:r.status, j:await r.json().catch(()=>({})) };
 }
-async function svDailySave(){
-  try{localStorage.setItem('bp_svdaily',JSON.stringify(svDaily));}catch(e){}
-  if(cloud) try{ await cloud.col.doc('x_daily').set(svDaily); }catch(e){}
-}
-async function svDailyLoad(){
-  try{const l=JSON.parse(localStorage.getItem('bp_svdaily')||'null'); if(l&&l.days) svDaily=l;}catch(e){}
-  if(cloud) try{ const d=await cloud.col.doc('x_daily').get(); if(d.exists&&d.data().days) svDaily={days:Object.assign({},svDaily.days,d.data().days)}; }catch(e){}
+async function svLoadHome(){
+  try{ const r=await fetch('/api/sv/home'+(window.bpDay?'?day='+window.bpDay:''),{credentials:'same-origin'}); if(r.ok){ svHome=await r.json(); svPacks=svHome.packs||[]; paintPacks(); } }catch(e){}
   svDailyStat();
 }
-// Difficulty: 1 easy, 2 medium, 3 hard (huge/tiny magnitudes and known killers)
-const HARD_HINTS=['IPv6','electron','Avogadro','52!','Rubik','mass of the Sun','mass of the Earth','hydrogen atom','light travel in one year','atoms are in a human','power does the Sun','neurons','cells are in an adult','red blood cells','alveoli','base pairs','IPv4','gibibyte','stars are in the Milky Way','observable universe','orbit the centre of the Milky Way','heart beat in an 80-year','half-life of uranium','Earths would fit'];
-function qDiff(q){ if(HARD_HINTS.some(h=>q.q.includes(h))) return 3; const L=Math.abs(Math.log10(q.a)); return L>=12?3:L>=6?2:1; }
-function dailyDeck(day,suffix){
-  if(day<='2026-11-08') return seededShuffle(Q,'survival-'+day+(suffix||'')).reverse();   // keep the original order for past days
-  let h=2166136261; for(const c of 'ramp-'+day+(suffix||'')){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}
-  const r=()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};
-  const shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
-  const pools={1:shuf(Q.filter(q=>qDiff(q)===1)),2:shuf(Q.filter(q=>qDiff(q)===2)),3:shuf(Q.filter(q=>qDiff(q)===3))};
-  const out=[];
-  for(let i=0;i<Q.length;i++){
-    // first 8 questions easy; medium ones creep in after ~5, hard ones after ~10, slowly getting more likely
-    const pH=i<10?0:Math.min(0.25,(i-10)/80), pM=i<5?0:Math.min(0.35,(i-5)/45), x=r();
-    let t = x<pH?3 : x<pH+pM?2 : 1;
-    if(!pools[t].length) t=[1,2,3].find(k=>pools[k].length);
-    out.push(pools[t].pop());
-  }
-  return out.reverse();                                   // reversed because the game pops from the end
+function svDailyStat(){
+  const t=svDaily.days[(svHome&&svHome.date)||svToday()];
+  const done=!!(t&&t.score!=null)||!!(svHome&&svHome.done), blocked=!!(svHome&&svHome.blocked), going=!done&&!blocked&&!!(svHome&&svHome.going);
+  $('goDaily').disabled=done||blocked; $('goDaily').textContent=done||blocked?'Done for today':going?"Continue today's run":"Play today's run";
+  $('dailyStat').textContent=blocked?'Started but not finished: counts as today\'s try':done?'Resets at midnight':'';
+  svStatStrip();
 }
-function startRun(mode){
-  runMode = mode==='daily'?'daily':'practice';
-  if(runMode==='daily'){
-    if(svDaily.days[svToday()]) return svDailyStat();
-    svDaily.days[svToday()]={score:null,started:Date.now()}; svDailySave(); svDailyStat();
-  }
-  life=MAX; score=0; history=[];
-  deck = runMode==='daily' ? dailyDeck(svToday()) : shuffle(svPool());
-  if(runMode==='practice') timeLimit=userTimer;
-  $('score').textContent=0; drawLife(); screen('game'); nextQ();
+async function svDailySave(){}                       // the day results are written by the server now (x_daily)
+async function svDailyLoad(){
+  try{const l=JSON.parse(localStorage.getItem('bp_svdaily')||'null'); if(l&&l.days) svDaily=l;}catch(e){}
+  try{ const r=await fetch('/api/docs/x_daily',{credentials:'same-origin'}); if(r.ok){ const d=await r.json(); svDaily={days:(d.exists&&d.data&&d.data.days)||{}}; try{localStorage.setItem('bp_svdaily',JSON.stringify(svDaily));}catch(e){} } }catch(e){}
+  svDailyStat();
 }
-function nextQ(){
-  if(!deck.length) deck = runMode==='daily' ? dailyDeck(svToday(),'-2') : shuffle(svPool());
-  cur=deck.pop(); answered=false;
-  $('q').textContent=cur.q; $('unit').textContent=cur.u; $('inpUnit').textContent=cur.u;
+async function startRun(mode){
+  const daily=mode==='daily';
+  if(svBusy) return; svBusy=true;
+  try{
+    const r=await svPost('start', daily?{daily:true,day:svDayArg()}:{daily:false,timer:userTimer,pack:svPack||undefined});
+    if(!r.ok){
+      if(r.j.blocked){ svHome=Object.assign({},svHome,{blocked:true}); svDailyStat(); }
+      else $('dailyStat').textContent=r.j.error||'Something went wrong. Try again.';
+      return;
+    }
+    svTake(r.j,false);
+  }catch(e){ $('dailyStat').textContent='Could not reach the server. Try again.'; }
+  finally{ svBusy=false; }
+}
+// a run from the server: show where it stands
+function svTake(v,fresh){
+  sv=v; svNext=null; runMode=v.daily?'daily':'practice'; timeLimit=v.timer||0; life=v.life; score=v.score;
+  if(v.done){ gameOver(v,fresh); return; }
+  $('score').textContent=score; drawLife(); screen('game'); showQ();
+}
+function showQ(){                                    // the current question, with the time it has left
+  const q=sv.q; answered=false;
+  $('q').textContent=q.q; $('unit').textContent=q.u; $('inpUnit').textContent=q.u;
   $('inp').value=''; $('inp').disabled=false; $('sub').disabled=false; $('parsed').textContent='';
   $('rev').classList.remove('show');
   $('inp').focus();
-  tStart=performance.now(); cancelAnimationFrame(raf);
+  cancelAnimationFrame(raf);
   $('bar').style.width='100%'; $('bar').style.background='var(--blue)';
-  if(runMode==='daily') timeLimit=15;
-  $('tleft').textContent=timeLimit?timeLimit+'s':'';
-  if(timeLimit) raf=requestAnimationFrame(tick); else $('bar').style.width='0%';
-  svSaveRun();
+  if(timeLimit){
+    const left=sv.left==null?timeLimit*1000:sv.left;
+    svDeadline=performance.now()+left; tStart=svDeadline-timeLimit*1000;
+    $('tleft').textContent=Math.ceil(left/1000)+'s'; raf=requestAnimationFrame(tick);
+  } else { $('tleft').textContent=''; $('bar').style.width='0%'; }
 }
 function tick(now){
-  const left=1-(now-tStart)/(timeLimit*1000);
+  const left=(svDeadline-now)/(timeLimit*1000);
   $('bar').style.width=Math.max(0,left*100)+'%';
   if(left<0.33) $('bar').style.background='var(--bad)';
   $('tleft').textContent=Math.max(0,Math.ceil(left*timeLimit))+'s';
@@ -1613,8 +1273,9 @@ function tick(now){
   raf=requestAnimationFrame(tick);
 }
 $('inp').addEventListener('input',()=>{
+  if(!sv||!sv.q) return;
   const v=parseNum($('inp').value);
-  $('parsed').textContent = $('inp').value.trim()===''?'': isFinite(v)&&v>0 ? '= '+fmt(v)+' '+cur.u : 'enter a positive number (e.g. 2.5k, 3e6, 40 million)';
+  $('parsed').textContent = $('inp').value.trim()===''?'': isFinite(v)&&v>0 ? '= '+fmt(v)+' '+sv.q.u : 'enter a positive number (e.g. 2.5k, 3e6, 40 million)';
 });
 $('f').addEventListener('submit',e=>{
   e.preventDefault();
@@ -1624,40 +1285,40 @@ $('f').addEventListener('submit',e=>{
   resolve(v);
 });
 
-function resolve(g){
-  if(answered) return; answered=true; cancelAnimationFrame(raf);
+// the estimate goes to the server (null: the time ran out); what comes back is shown as the browser always showed it
+async function resolve(g){
+  if(answered||!sv) return; answered=true; cancelAnimationFrame(raf);
   $('inp').disabled=true; $('sub').disabled=true;
-  let dmg, healed=false;
-  if(g===null){ dmg=TIMEOUT_DMG; }
-  else{
-    dmg=Math.abs(Math.log10(g/cur.a));
-    if(dmg<=HEAL_WITHIN){ healed=true; }
+  const was=sv;
+  let r=null; try{ r=await svPost('answer',{daily:was.daily,day:was.daily?svDayArg():undefined,i:was.i,g}); }catch(e){}
+  if(sv!==was) return;                               // the run was left meanwhile
+  if(!r||!r.ok){
+    answered=false; $('inp').disabled=false; $('sub').disabled=false;
+    $('parsed').textContent=(r&&r.j.error)||'Could not reach the server. Try again.';
+    if(timeLimit) raf=requestAnimationFrame(tick);
+    return;
   }
-  const before=life;
-  life = healed ? Math.min(MAX,life+HEAL) : life-dmg;
-  history.push({q:cur.q,u:cur.u,a:cur.a,g,dmg:healed?-HEAL:dmg});
-  drawLife();
-  if(!healed && dmg>0.3){ $('qcard').classList.remove('flash'); void $('qcard').offsetWidth; $('qcard').classList.add('flash'); }
-
+  const v=r.j, L=v.last; svNext=v;
+  life=v.life; drawLife();
+  if(!L.healed && L.dmg>0.3){ $('qcard').classList.remove('flash'); void $('qcard').offsetWidth; $('qcard').classList.add('flash'); }
   const d=$('dmg');
-  if(g===null){ d.textContent='Time’s up  −'+TIMEOUT_DMG.toFixed(2); d.style.color='var(--bad)'; }
-  else if(healed){ d.textContent='Bullseye!  +'+HEAL.toFixed(2); d.style.color='var(--good)'; }
-  else { d.textContent='−'+dmg.toFixed(2); d.style.color= dmg<0.3?'var(--good)':dmg<1?'var(--warn)':'var(--bad)'; }
-
-  $('ans').textContent=fmt(cur.a)+' '+cur.u;
-  $('yg').textContent= g===null?'—':fmt(g)+' '+cur.u;
-  $('ratio').textContent= g===null?'You ran out of time':ratioText(g,cur.a);
-  $('ratio').style.color= g===null||(!healed&&dmg>=1)?'var(--bad)':healed||dmg<0.3?'var(--good)':'var(--warn)';
-  $('lifeAfter').textContent=`life ${before.toFixed(2)} → ${Math.max(0,life).toFixed(2)}`;
-  $('fact').textContent=cur.n;
-  drawScale(g,cur.a);
+  if(L.timeout){ d.textContent='Time’s up  −'+TIMEOUT_DMG.toFixed(2); d.style.color='var(--bad)'; }
+  else if(L.healed){ d.textContent='Bullseye!  +'+HEAL.toFixed(2); d.style.color='var(--good)'; }
+  else { d.textContent='−'+L.dmg.toFixed(2); d.style.color= L.dmg<0.3?'var(--good)':L.dmg<1?'var(--warn)':'var(--bad)'; }
+  $('ans').textContent=fmt(L.a)+' '+L.u;
+  $('yg').textContent= L.timeout?'—':fmt(L.g)+' '+L.u;
+  $('ratio').textContent= L.timeout?'You ran out of time':ratioText(L.g,L.a);
+  $('ratio').style.color= L.timeout||(!L.healed&&L.dmg>=1)?'var(--bad)':L.healed||L.dmg<0.3?'var(--good)':'var(--warn)';
+  $('lifeAfter').textContent=`life ${L.before.toFixed(2)} → ${Math.max(0,L.after).toFixed(2)}`;
+  $('fact').textContent=L.note||'';
+  drawScale(L.timeout?null:L.g,L.a);
   $('rev').classList.add('show');
-
-  if(life<=0){ $('next').textContent='See results →'; }
-  else { score++; $('score').textContent=score; $('next').textContent='Next →'; }
+  score=v.score;
+  if(v.done){ $('next').textContent='See results →'; }
+  else { $('score').textContent=score; $('next').textContent='Next →'; }
   setTimeout(()=>$('next').focus(),30);
-  svSaveRun();
 }
+
 function drawScale(g,a,scEl){
   const sc=scEl||$('scale'); sc.innerHTML='';
   const la=Math.log10(a), lg=g?Math.log10(g):la;
@@ -1676,49 +1337,23 @@ function drawScale(g,a,scEl){
   const la2=document.createElement('div');la2.className='pinlbl mono';la2.style.color='var(--good)';la2.style.left=pos(la)+'%';la2.textContent='answer';sc.appendChild(la2);
   if(g && Math.abs(pos(la)-pos(lg))>12){const lb=document.createElement('div');lb.className='pinlbl mono';lb.style.color='var(--bad)';lb.style.left=pos(lg)+'%';lb.textContent='you';sc.appendChild(lb);}
 }
-function advance(){ if(life<=0) gameOver(); else nextQ(); }
+function advance(){ const v=svNext; if(!v) return; svNext=null; if(v.done){ gameOver(v,true); return; } sv=v; showQ(); }
 $('next').addEventListener('click',advance);
+// A run that was going when the page was left comes back where it was; its clock has kept running meanwhile.
+async function svResume(){
+  await svLoadHome();
+  if(sv||$('game').classList.contains('on')||!svHome) return;
+  if(svHome.going||svHome.practice){
+    try{ const r=await svPost('start',svHome.going?{daily:true,day:svDayArg()}:{daily:false,resume:true}); if(r.ok&&!r.j.done) svTake(r.j,false); }catch(e){}
+  }
+}
 
-// ---- a run survives an accidental reload ----
-// Saved after every question and answer, and when the page is left. The clock keeps the time it had; reloading never adds any.
-function svSaveRun(){
-  try{
-    if(!deck||!cur||!$('game').classList.contains('on')) return;
-    const left=(!answered&&timeLimit)?Math.max(0,timeLimit*1000-(performance.now()-tStart)):null;
-    const state={mode:runMode,day:svToday(),t:Date.now(),life,score,history,timeLimit,pack:packOn()?svPack:'',deck:deck.map(q=>QALL.indexOf(q)),cur:QALL.indexOf(cur),answered:!!answered,left};
-    localStorage.setItem(window.bpRunKey('bp_sv_run'),JSON.stringify(state));
-    if(runMode==='daily'&&window.bpRun) bpRun.set('sv',svSteps(state),state);          // today's run is also kept on the server (run.js)
-  }catch(e){}
-}
-function svClearRun(){ try{localStorage.removeItem(window.bpRunKey('bp_sv_run'));}catch(e){} }
-// how far a saved run is: two steps per question (shown, answered)
-function svSteps(s){ const k=Array.isArray(s.history)?s.history.length:0; return 2*k+(s.answered?0:1)+1; }
-function svResume(){
-  let s=null; try{s=JSON.parse(localStorage.getItem(window.bpRunKey('bp_sv_run'))||'null');}catch(e){}
-  // today's daily run continues from the furthest point saved anywhere: this browser's copy or the server's
-  const far=window.bpRun&&bpRun.get('sv');
-  if(far&&far.mode==='daily'&&far.day===svToday()&&!(s&&s.mode==='daily'&&s.day===svToday()&&svSteps(s)>=svSteps(far))) s=far;
-  if(!s) return;
-  const stale=s.mode!=='daily'&&Date.now()-(s.t||0)>12*36e5;     // a practice run left overnight is not worth reviving
-  if(!Array.isArray(s.deck)||!QALL[s.cur]||stale||(s.mode==='daily'&&s.day!==svToday())) return svClearRun();
-  if($('game').classList.contains('on')) return;
-  runMode=s.mode==='daily'?'daily':'practice'; life=s.life; score=s.score||0; history=Array.isArray(s.history)?s.history:[]; timeLimit=s.timeLimit||0;
-  svPack=runMode==='practice'&&PACKS[s.pack]?s.pack:'';
-  deck=s.deck.map(i=>QALL[i]).filter(Boolean);
-  $('score').textContent=score; drawLife(); screen('game');
-  if(s.answered){ if(life<=0) gameOver(); else nextQ(); return; }    // reloaded while looking at an answer: go on to the next question
-  deck.push(QALL[s.cur]); nextQ();
-  if(timeLimit&&typeof s.left==='number') tStart=performance.now()-(timeLimit*1000-s.left);
-}
 const svVisible=()=>$('g-survival').classList.contains('on');
 if(window.bpAway) bpAway.watch('sv',()=>svVisible()&&runMode==='daily'&&$('game').classList.contains('on'));   // see away.js
-window.addEventListener('pagehide',()=>{ if(svVisible()) svSaveRun(); });
-window.addEventListener('hashchange',()=>{ if(svVisible()) svSaveRun(); });   // runs before the tab switch pauses the clock
 if(window.claude&&claude.use) claude.use('user').then(()=>{
   const onSurvival=()=>{ const h=(location.hash||'').replace('#',''); return !h||h==='survival'; };
-  const resume=()=>{ if(window.bpRun) bpRun.ready().then(svResume,svResume); else svResume(); };   // the server's copy first (run.js)
-  if(onSurvival()) resume();
-  else window.addEventListener('hashchange',function back(){ if(onSurvival()){ window.removeEventListener('hashchange',back); setTimeout(resume,0); } });
+  if(onSurvival()) svResume();
+  else { svLoadHome(); window.addEventListener('hashchange',function back(){ if(onSurvival()){ window.removeEventListener('hashchange',back); setTimeout(svResume,0); } }); }
 }).catch(()=>{});
 document.addEventListener('keydown',e=>{ if(e.key==='Enter' && answered && $('g-survival').classList.contains('on') && $('game').classList.contains('on') && document.activeElement!==$('next')){ e.preventDefault(); advance(); }});
 
@@ -1729,8 +1364,7 @@ function histHTML(h){
 }
 function strip(h){return h.map(r=>r.dmg<0?'🎯':r.dmg<0.3?'🟩':r.dmg<1?'🟨':r.dmg<2?'🟧':'🟥').join('');}
 function avgErrOf(h){const real=h.filter(r=>r.g!==null);return real.length? real.reduce((s,r)=>s+Math.abs(Math.log10(r.g/r.a)),0)/real.length : null;}
-// Runs live in two places: this browser (instant, cache) and the viewer's private
-// account storage (durable). On load they are merged, so nothing local is lost.
+// Best runs are recorded by the server (survival-server.js) and kept in the account; this browser keeps a copy to show.
 function loadRuns(){try{const r=JSON.parse(localStorage.getItem('bp_runs')||'[]');return Array.isArray(r)?r:[];}catch(e){return [];}}
 function saveRuns(r){try{localStorage.setItem('bp_runs',JSON.stringify(r));return true;}catch(e){return false;}}
 let cloud=null; // {col} once account storage is ready
@@ -1754,16 +1388,11 @@ async function cloudSync(){
     if(!db||!uid) throw 0;
     const col=db.collection('data/users/'+uid);
     const snap=await withRetry(()=>col.get());
+    // the best runs are recorded and trimmed to ten by the server (survival-server.js); this browser only shows them
     const remote=snap.docs.filter(d=>d.exists).map(d=>({id:d.id,...d.data()})).filter(r=>typeof r.score==='number' && !String(r.id).startsWith('x_'));
-    const local=loadRuns();
-    const byId=new Map(); remote.forEach(r=>byId.set(r.id,r)); local.forEach(r=>{ if(r&&r.id&&!byId.has(r.id)) byId.set(r.id,r); });
-    const merged=rankRuns([...byId.values()]);
-    const keep=merged.slice(0,10), keepIds=new Set(keep.map(r=>r.id));
-    const remoteIds=new Set(remote.map(r=>r.id));
-    for(const r of keep) if(!remoteIds.has(r.id)) await withRetry(()=>col.doc(r.id).set(cleanRun(r)));
-    for(const r of remote) if(!keepIds.has(r.id)) await withRetry(()=>col.doc(r.id).delete());
+    const keep=rankRuns(remote).slice(0,10);
     saveRuns(keep);
-    const top=keep.length?keep[0].score:0; if(top>+(store('bp_best')||0)) store('bp_best',top);
+    const top=keep.length?keep[0].score:0; if(top) store('bp_best',top); else { try{localStorage.removeItem('bp_best');}catch(e){} }
     cloud={col}; cloudState='ok';
     if(window.onCloudReady) try{ await window.onCloudReady(col); }catch(e){}
     svDailyLoad();
@@ -1771,26 +1400,8 @@ async function cloudSync(){
   clearTimeout(timer); setStorageNote(); showBest();
   if($('runsScreen').classList.contains('on')) renderRuns();
 }
-async function cloudSave(run, evicted){
-  if(!cloud) return;
-  try{
-    await withRetry(()=>cloud.col.doc(run.id).set(cleanRun(run)));
-    for(const r of evicted) await withRetry(()=>cloud.col.doc(r.id).delete());
-  }catch(e){ cloudState='off'; setStorageNote(); }
-}
 function rankRuns(r){return r.sort((a,b)=> b.score-a.score || ((a.avg??99)-(b.avg??99)) || a.t-b.t);}
 let lastRunId=null;
-function recordRun(){
-  const run={id:Date.now()+'-'+Math.random().toString(36).slice(2,6),t:Date.now(),score,avg:avgErrOf(history),timer:timeLimit,mode:runMode,h:history};
-  let runs=rankRuns([...loadRuns(),run]);
-  const placed=runs.findIndex(r=>r.id===run.id);
-  const evicted=runs.slice(10);
-  runs=runs.slice(0,10);
-  saveRuns(runs);
-  if(placed>-1&&placed<10) cloudSave(run, evicted.filter(r=>r.id!==run.id));
-  lastRunId = placed>-1 && placed<10 ? run.id : null;
-  return placed;
-}
 function renderRuns(){
   const runs=loadRuns(), list=$('runsList');
   if(!runs.length){ list.innerHTML='<div class="empty muted">No runs saved yet. Finish a run and it shows up here.</div>'; return; }
@@ -1810,36 +1421,51 @@ $('runsFromStart').addEventListener('click',()=>openRuns('start'));
 $('runsFromOver').addEventListener('click',()=>openRuns('over'));
 $('runsBack').addEventListener('click',()=>screen(runsReturn));
 $('runsPlay').addEventListener('click',startRun);
-$('clearRuns').addEventListener('click',()=>{
+$('clearRuns').addEventListener('click',async()=>{
   const b=$('clearRuns');
-  if(b.dataset.armed){ const old=loadRuns(); if(cloud) old.forEach(r=>cloud.col.doc(r.id).delete().catch(()=>{})); saveRuns([]); store('bp_best','0'); try{localStorage.removeItem('bp_best')}catch(e){} delete b.dataset.armed; b.textContent='Clear saved runs'; lastRunId=null; renderRuns(); showBest(); }
-  else { b.dataset.armed='1'; b.textContent='Click again to confirm'; setTimeout(()=>{delete b.dataset.armed;b.textContent='Clear saved runs';},3000); }
+  if(!b.dataset.armed){ b.dataset.armed='1'; b.textContent='Click again to confirm'; setTimeout(()=>{delete b.dataset.armed;b.textContent='Clear saved runs';},3000); return; }
+  delete b.dataset.armed; b.textContent='Clear saved runs';
+  try{ await svPost('clear-runs',{}); }catch(e){}
+  saveRuns([]); try{localStorage.removeItem('bp_best');}catch(e){} lastRunId=null; renderRuns(); showBest();
 });
 
-function gameOver(){
-  svClearRun();
+// The end of a run, with the result the server worked out. `fresh`: the run ended just now (not opened again later).
+function gameOver(v,fresh){
+  const res=(v&&v.result)||{score:score||0,avg:null,h:[]};
+  sv=null; svNext=null; cancelAnimationFrame(raf); answered=true;
+  history=res.h||[]; score=res.score||0;
   screen('over');
   $('finalScore').textContent=score;
   $('finalSub').textContent= score===1?'question':'questions';
-  const avg=avgErrOf(history);
-  $('avgErr').textContent = avg===null?'': `average error: ${avg.toFixed(2)} orders of magnitude (≈${Math.pow(10,avg).toFixed(1)}×)`;
+  const avg=res.avg;
+  $('avgErr').textContent = avg==null?'': `average error: ${avg.toFixed(2)} orders of magnitude (≈${Math.pow(10,avg).toFixed(1)}×)`;
   const best=+(store('bp_best')||0);
-  if(packOn()){ lastRunId=null; $('finalSub').textContent+=' ('+packOn().name+')'; }      // pack runs are not ranked
-  else {
-    const placed=recordRun();
+  if(v&&v.pack){ lastRunId=null; $('finalSub').textContent+=' ('+v.pack+')'; }      // pack runs are not ranked
+  else if(fresh&&res.placed!=null){
+    lastRunId=res.id||null;
     if(score>best){ store('bp_best',score); $('finalSub').textContent+=', a new best'; }
-    else if(placed>-1 && placed<10){ $('finalSub').textContent+=`, #${placed+1} in your best runs`; }
+    else if(res.placed>-1 && res.placed<10){ $('finalSub').textContent+=`, #${res.placed+1} in your best runs`; }
   }
   showBest();
-  if(runMode==='daily'){ svDaily.days[svToday()]={score,avg:avgErrOf(history),t:Date.now(),h:history}; svDailySave(); svDailyStat(); if(window.bpRun) bpRun.done('sv'); $('finalSub').textContent+=' (daily run)'; $('again').textContent='Practice run'; }
-  else $('again').textContent='Play again';
+  if(v&&v.daily){
+    svDaily.days[v.day||svToday()]={score,avg,t:Date.now(),h:history}; svHome=Object.assign({},svHome,{done:true,going:false}); svDailyStat();
+    $('finalSub').textContent+=' (daily run)'; $('again').textContent='Practice run';
+    if(fresh) window.dispatchEvent(new Event('bp-saved'));
+  }
+  else { $('again').textContent='Play again'; if(svHome) svHome.practice=false; }
   $('hist').innerHTML = histHTML(history);
   $('again').focus();
+  if(fresh&&res.placed!=null) cloudSync();           // the best runs as the server keeps them now
 }
-$('endRun').addEventListener('click',()=>{
+$('endRun').addEventListener('click',async()=>{
   const b=$('endRun');
   if(!b.dataset.armed){ b.dataset.armed='1'; b.textContent='Sure? Click again'; setTimeout(()=>{delete b.dataset.armed; b.textContent='End run';},3000); return; }
-  delete b.dataset.armed; b.textContent='End run'; cancelAnimationFrame(raf); answered=true; life=0; drawLife(); gameOver();
+  delete b.dataset.armed; b.textContent='End run';
+  if(!sv&&!svNext) return;
+  const was=sv||svNext; cancelAnimationFrame(raf); answered=true;
+  let r=null; try{ r=await svPost('end',{daily:was.daily,day:was.daily?svDayArg():undefined}); }catch(e){}
+  if(r&&r.ok) gameOver(r.j,true);
+  else { answered=false; $('parsed').textContent=(r&&r.j.error)||'Could not reach the server. Try again.'; }
 });
 $('go').addEventListener('click',()=>startRun('practice'));
 $('goDaily').addEventListener('click',()=>startRun('daily'));

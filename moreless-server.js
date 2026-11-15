@@ -13,9 +13,6 @@
 // The dealing is the one the browser used before, card for card, so a game dealt before this file existed (today's
 // game in progress, a past day in the archive) comes out the same.
 'use strict';
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
 const crypto = require('crypto');
 const { today, rngFrom, pick, shuffleR, fmt, pastDay, resultsOf, resultOn, markLate } = require('./games-common.js');
 
@@ -52,17 +49,10 @@ function deal(CATS, Q, seed, legacy){
   const r=rngFrom(seed);
   return CATS.map(cat=>{const s=itemsFor(cat,r,Q);return {name:s.name||cat.name,label:s.label,src:s.src,chain:chainOf(s.items,cat.gap,r,cat.diff,legacy?0:(cat.diff?1.5:cat.trivia?4:3))};});
 }
-// The Survival questions, which the trivia round compares. The whole list, exactly as the browser had it.
-function readQuestions(publicDir){
-  const html = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
-  const from = html.indexOf('const Q = ['), to = html.indexOf('\n];', from);
-  if (from < 0 || to < 0) throw new Error('question list not found in index.html');
-  return vm.runInNewContext('(' + html.slice(from + 'const Q = '.length, to + 2) + ')', {}, { timeout: 2000 });
-}
-
-module.exports = function createMoreLess({ cats, publicDir, send, readBody, records, docsOf, save, mayArchive }) {
-  let Q = [];
-  try { Q = readQuestions(publicDir); } catch (e) { console.error('More/Less trivia round has no questions: ' + e.message); }
+// `questions`: the Survival questions (content/survival.js), which the trivia round compares. The whole list, as the
+// browser had it, so every day's trivia round stays the same.
+module.exports = function createMoreLess({ cats, questions, send, readBody, records, docsOf, save, mayArchive }) {
+  const Q = Array.isArray(questions) ? questions : [];
   const dailyDeals = new Map();
   function dailyDeal(date) {
     if (!dailyDeals.has(date)) { if (dailyDeals.size > 12) dailyDeals.clear(); dailyDeals.set(date, deal(cats, Q, 'ml-' + date, date <= LEGACY_UNTIL)); }
