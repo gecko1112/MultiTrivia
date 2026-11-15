@@ -1,5 +1,6 @@
 // Account management on the server: picture, password, export, log out everywhere, delete.
 const { spawn } = require('child_process');
+const up = require('./up');
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
 const project = process.argv[2] || require('path').join(__dirname, '..'), readDb = require('./db.js').readDb, patchDb = require('./db.js').patchDb, PORT = 3989, B = 'http://127.0.0.1:' + PORT;
 const data = path.join(__dirname, '.tmp', 'acdata'); fs.rmSync(data, { recursive: true, force: true }); fs.mkdirSync(data, { recursive: true });
@@ -12,7 +13,7 @@ const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a
 const url = (type, buf) => 'data:image/' + type + ';base64,' + buf.toString('base64');
 (async () => {
   const out = [], ok = (n, v) => out.push([n, !!v]);
-  const srv = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data, BP_ADMINS: '' }, stdio: 'ignore' }); await wait(900);
+  const srv = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data, BP_ADMINS: '' }, stdio: 'ignore' }); await up(PORT);
   const jar = {};
   const call = async (who, m, u, b) => { const r = await fetch(B + u, { method: m, headers: { 'Content-Type': 'application/json', cookie: jar[who] || '' }, body: b == null ? undefined : JSON.stringify(b) }); const sc = r.headers.get('set-cookie'); if (sc) jar[who] = sc.split(';')[0]; const buf = Buffer.from(await r.arrayBuffer()); let j = {}; try { j = JSON.parse(buf.toString()); } catch (e) {} return { s: r.status, j, buf, h: r.headers }; };
   const PW = { anna: 'kiwi-lamp-4421', ben: 'kiwi-lamp-4422', cleo: 'kiwi-lamp-4423' };

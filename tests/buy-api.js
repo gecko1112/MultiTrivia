@@ -1,5 +1,6 @@
 // Plus on the server: who has it, the test checkout, the webhook, cancelling, admin gifts.
 const { spawn } = require('child_process');
+const up = require('./up');
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const project = process.argv[2] || require('path').join(__dirname, '..'), readDb = require('./db.js').readDb, patchDb = require('./db.js').patchDb, PORT = 3986, B = 'http://127.0.0.1:' + PORT;
 const data = path.join(__dirname, '.tmp', 'bdata'); fs.rmSync(data, { recursive: true, force: true }); fs.mkdirSync(data, { recursive: true });
@@ -7,7 +8,7 @@ fs.writeFileSync(path.join(data, 'admins.txt'), 'anna\n');
 const wait = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
   const out = [], ok = (n, v) => out.push([n, !!v]);
-  const boot = async () => { const s = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data, BP_ADMINS: '' }, stdio: 'ignore' }); await wait(900); return s; };
+  const boot = async () => { const s = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data, BP_ADMINS: '' }, stdio: 'ignore' }); await up(PORT); return s; };
   let srv = await boot();
   const jar = {};
   const call = async (who, m, u, b, h) => { const r = await fetch(B + u, { method: m, headers: Object.assign({ 'Content-Type': 'application/json', cookie: jar[who] || '' }, h || {}), body: b == null ? undefined : typeof b === 'string' ? b : JSON.stringify(b) }); const sc = r.headers.get('set-cookie'); if (sc) jar[who] = sc.split(';')[0]; const t = await r.text(); let j = {}; try { j = JSON.parse(t); } catch (e) {} return { s: r.status, j, t }; };

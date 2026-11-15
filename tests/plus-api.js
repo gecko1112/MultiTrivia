@@ -1,5 +1,6 @@
 // Streak saver rules (day.js, run here without a browser) and head-to-head on the server.
 const { spawn } = require('child_process');
+const up = require('./up');
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const { importStats } = require('./seed');
 const project = process.argv[2] || require('path').join(__dirname, '..'), readDb = require('./db.js').readDb, patchDb = require('./db.js').patchDb, PORT = 3985, B = 'http://127.0.0.1:' + PORT;
@@ -33,7 +34,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
   // ---- head-to-head
   const boot = () => spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data }, stdio: 'ignore' });
-  let srv = boot(); await wait(900);
+  let srv = boot(); await up(PORT);
   const jar = {};
   const call = async (who, m, u, b) => { const r = await fetch(B + u, { method: m, headers: { 'Content-Type': 'application/json', cookie: jar[who] || '' }, body: b ? JSON.stringify(b) : undefined }); const sc = r.headers.get('set-cookie'); if (sc) jar[who] = sc.split(';')[0]; return { s: r.status, j: await r.json().catch(() => ({})) }; };
   for (const [n, p] of [['anna', 'kiwi-lamp-4421'], ['ben', 'kiwi-lamp-4422'], ['cleo', 'kiwi-lamp-4423']]) await call(n, 'POST', '/api/signup', { username: n, password: p });
@@ -49,7 +50,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   // More/Less results come from the server, not the browser: put in place as an operator would (tests/seed.js)
   importStats(data, { anna: { ml: { days: { '2026-11-10': { score: 20 }, '2026-11-11': { score: 15 }, '2026-11-12': { score: 18 } } }, gl: { days: { '2026-11-10': { total: 300 } } } },
     ben: { ml: { days: { '2026-11-10': { score: 18 }, '2026-11-11': { score: 15 }, '2026-11-12': { score: 22 } } }, gl: { days: { '2026-11-09': { total: 400 } } } } });
-  await wait(450); srv.kill(); await wait(400); srv = boot(); await wait(900);   // the wait lets the server write to disk first
+  await wait(450); srv.kill(); await wait(400); srv = boot(); await up(PORT);   // the wait lets the server write to disk first
   const a = (await call('anna', 'GET', '/api/h2h')).j.players, b = (await call('ben', 'GET', '/api/h2h')).j.players;
   const vb = a.find(p => p.name === 'ben');
   out.push(['only players with a shared game are listed', a.length === 1 && !!vb]);

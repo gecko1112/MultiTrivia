@@ -1,5 +1,6 @@
 // Atlas and drinks rules, server only: can a player learn or change anything they should not?
 const { spawn } = require('child_process');
+const up = require('./up');
 const fs = require('fs'), path = require('path');
 const project = process.argv[2] || require('path').join(__dirname, '..'), readDb = require('./db.js').readDb, patchDb = require('./db.js').patchDb, PORT = 3978, B = 'http://127.0.0.1:' + PORT;
 const data = path.join(__dirname, '.tmp', 'gdata'); fs.rmSync(data, { recursive: true, force: true }); fs.mkdirSync(data, { recursive: true });
@@ -20,7 +21,7 @@ function player() {
   return p;
 }
 (async () => {
-  let srv = boot(); await wait(900);
+  let srv = boot(); await up(PORT);
   const C = JSON.parse(fs.readFileSync(path.join(project, 'geo', 'countries.json'), 'utf8')).countries, byId = new Map(C.map(c => [c.id, c]));
   const A = player(), Z = player();
   ok('not logged in is refused', (await A.get('/api/geo/home')).s === 401);
@@ -55,7 +56,7 @@ function player() {
   ok('daily is the same for everyone, careless spelling is accepted', zv.q.img === v.q.img && z1.last.ok === true && z1.last.name === w.last.name && z1.score === 1, sloppy);
 
   // restart the server in the middle: the daily continues where it was
-  await wait(400); srv.kill(); await wait(400); srv = boot(); await wait(900);
+  await wait(400); srv.kill(); await wait(400); srv = boot(); await up(PORT);
   const back = (await A.post('/api/geo/start', { mode: 'flags', daily: true })).j;
   ok('daily survives a server restart', back.i === 1 && back.marks[0] === false && back.q.img === w.q.img);
   v = back;
