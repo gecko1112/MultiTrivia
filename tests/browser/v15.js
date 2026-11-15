@@ -40,6 +40,7 @@ const project = process.argv[2] || require('path').join(__dirname, '..', '..'), 
     console.log('over:', await txt('#finalSub'), '| saved runs before/after:', before, await ev(`fetch('/api/docs').then(r=>r.json()).then(j=>j.docs.filter(d=>!d.id.startsWith('x_')).length)`));
 
     await ev(`location.hash='friends'`); await wait(1500);
+    await ev(`document.querySelector('[data-view=h2h]').click()`); await wait(300);   // head-to-head is one of the three tables of the Friends tab
     console.log('plus, h2h:', await txt('#h2h'));
     await ev(`document.querySelector('[data-h2h]').click()`); await wait(200);
     console.log('h2h detail:', await txt('#h2h .detbox')); await ev(`document.getElementById('h2h').scrollIntoView()`); await shot('03-h2h'); console.log('overflowX', await ox());

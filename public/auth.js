@@ -120,66 +120,117 @@
       return head+(d.rows||[]).map((r,i)=>`<div class="minirow">${[...r].map((c,j)=>`<span class="t ${c}">${E(((d.words||[])[i]||'')[j]||'').toUpperCase()}</span>`).join('')}</div>`).join(''); }
     return '';
   }
+  // ---- the Friends tab: one table at a time (a day, all time, head-to-head), chosen with the switch above it.
+  // Adding and removing friends sits behind "Manage" (friends.js).
+  let frView='day', dayDates=[];
+  const CHEV=d=>'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+d+'"/></svg>';
+  // [full heading, heading on a phone]
+  const HEAD={sv:['Survival','Surv.'],ml:['More/Less','M/L'],gl:['Guessless','Guess.'],cl:['Clueless','Clue.'],wd:['Wordy','Wordy'],at:['All time','']};
+  const th=(a,b)=>'<th><span class="thl">'+a+'</span><span class="ths">'+(b||a)+'</span></th>';
+  // the same result as cellText, with the part a phone leaves out wrapped in .cx
+  function cellHTML(k,d){
+    const cx=t=>'<span class="cx">'+t+'</span>';
+    if(k==='sv') return d.score==null?'unfinished':d.score+cx(' survived');
+    if(k==='ml') return d.score+cx('/25');
+    if(k==='gl') return d.total+cx('/500');
+    if(k==='cl') return d.solved?d.guesses+cx(' guesses'+(d.hints?' (+'+d.hints+' hints)':'')):'gave up';
+    return d.solved?d.guesses+'/6':'X/6';
+  }
+  // "Today, 15 November" or "Saturday, 14 November"; the year only when it is not this one
+  function dayTitle(d){
+    const x=new Date(d+'T12:00:00'), t=todayKey(), o={day:'numeric',month:'long'};
+    if(x.getFullYear()!==new Date(t+'T12:00:00').getFullYear()) o.year='numeric';
+    return d===t?'Today, '+x.toLocaleDateString(undefined,o):x.toLocaleDateString(undefined,Object.assign({weekday:'long'},o));
+  }
+  // the arrows step through the days that have results; the day itself opens the calendar for any other day
+  const prevDay=()=>dayDates.filter(d=>d<dayDate).pop()||null;
+  const nextDay=()=>{ const t=todayKey(), n=dayDates.find(d=>d>dayDate); return n&&n<=t?n:(dayDate<t?t:null); };
+  function dayNav(){
+    const $=id=>document.getElementById(id); if(!$('dayLabel')) return;
+    $('dayLabel').textContent=dayTitle(dayDate); $('dayLabel').setAttribute('aria-label','Choose a day. Showing '+prettyDate(dayDate));
+    $('dayPick').value=dayDate; $('dayPrev').disabled=!prevDay(); $('dayNext').disabled=!nextDay(); $('dayToday').hidden=dayDate===todayKey();
+  }
   async function loadDay(date){
     dayDate=date; const body=document.getElementById('dayBody'); body.innerHTML='<div class="muted">Loading…</div>';
-    document.getElementById('dayPick').value=date; document.getElementById('dayLabel').textContent=prettyDate(date)+(date===todayKey()?' (today)':'');
-    document.getElementById('dayNext').disabled = date>=todayKey();
+    dayNav();
     let j; try{ j=await api('GET','/api/day?date='+date); }catch(e){ body.innerHTML='<div class="muted">Could not load that day.</div>'; return; }
-    const mine=j.players.find(p=>p.me)||{};
-    const recent=j.dates.slice(-10).reverse();
-    document.getElementById('dayChips').innerHTML=recent.length?'<span class="muted" style="font-size:12px">Days with results:</span> '+recent.map(d=>`<button class="ghost sm daychip${d===date?' sel':''}" data-day="${d}">${new Date(d+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})}</button>`).join(''):'';
+    if(date!==dayDate) return;                                   // a later click has already moved on
+    dayDates=[...j.dates].sort(); dayNav();
     const played=j.players.filter(p=>GAMES.some(([k])=>p[k]));
+    const left=d=>d.away&&localStorage.getItem('bp_dev')==='1'?' <span class="pill" title="Left the page during the game">left '+d.away+'×</span>':'';
     // Atlas results come from the server's own record (geo-server.js), one row per player who finished at least one of the three.
-    const atCell=(m,d)=>!d?'<span class="muted">–</span>':(m==='route'?(d.won?d.used+(d.used===1?' guess':' guesses'):'not solved'):d.score+'/'+d.n)+(d.away&&localStorage.getItem('bp_dev')==='1'?' <span class="pill" title="Left the page during the game">left '+d.away+'×</span>':'');
+    const atCell=(m,d)=>!d?'<span class="muted">–</span>':(m==='route'?(d.won?d.used+(d.used===1?' guess':' guesses'):'not solved'):d.score+'/'+d.n)+left(d);
     const atl=j.players.filter(p=>p.at);
-    const atHTML=atl.length?`<h3 class="fh">Atlas</h3><table class="ft"><tr><th>Player</th><th>Flags</th><th>Outlines</th><th>Overland</th></tr>${atl.map(p=>`<tr class="${p.me?'meRow':''}"><td>${window.bpAvatar?window.bpAvatar(p.id,p.name,p.av,22):''}${E(p.name)}</td>${['flags','shapes','route'].map(m=>`<td class="mono">${atCell(m,p.at[m])}</td>`).join('')}</tr>`).join('')}</table>`:'';
+    const who=p=>(window.bpAvatar?window.bpAvatar(p.id,p.name,p.av,22):'')+E(p.name);
+    const atHTML=atl.length?'<h3 class="fh">Atlas</h3><div class="ftwrap"><table class="ft"><tr><th>Player</th><th>Flags</th><th>Outlines</th><th>Overland</th></tr>'+atl.map(p=>'<tr class="'+(p.me?'meRow':'')+'"><td>'+who(p)+'</td>'+['flags','shapes','route'].map(m=>'<td class="mono">'+atCell(m,p.at[m])+'</td>').join('')+'</tr>').join('')+'</table></div>':'';
     if(!played.length){ body.innerHTML=atHTML||'<div class="muted" style="padding:10px 0">Nobody played on this day.</div>'; return; }
-    body.innerHTML=`<table class="ft daytable"><tr><th>Player</th>${GAMES.map(([,l])=>`<th>${l}</th>`).join('')}</tr>${played.map((p,pi)=>`<tr class="${p.me?'meRow':''}"><td>${window.bpAvatar?window.bpAvatar(p.id,p.name,p.av,22):''}${E(p.name)}</td>${GAMES.map(([k])=>`<td>${p[k]?`<button class="cellbtn" data-p="${pi}" data-k="${k}">${cellText(k,p[k])} <span class="muted">▾</span></button>${p[k].away&&localStorage.getItem('bp_dev')==='1'?' <span class="pill" title="Left the page during the game">left '+p[k].away+'×</span>':''}`:'<span class="muted">–</span>'}</td>`).join('')}</tr><tr class="detrow" id="det-${pi}" style="display:none"><td colspan="${GAMES.length+1}"></td></tr>`).join('')}</table>
-      <div class="muted" style="font-size:12px;margin-top:6px">Click a result for details. They open once you have played that game of that day yourself.</div>`+atHTML;
+    body.innerHTML='<div class="ftwrap"><table class="ft daytable"><tr><th>Player</th>'+GAMES.map(([k])=>th(HEAD[k][0],HEAD[k][1])).join('')+'</tr>'+played.map((p,pi)=>
+      '<tr class="'+(p.me?'meRow':'')+'"><td>'+who(p)+'</td>'+GAMES.map(([k])=>'<td>'+(p[k]?'<button class="cellbtn" data-p="'+pi+'" data-k="'+k+'" aria-label="'+E(p.name)+', '+HEAD[k][0]+': '+E(cellText(k,p[k]))+'. Show details">'+cellHTML(k,p[k])+' <span class="muted">▾</span></button>'+left(p[k]):'<span class="muted">–</span>')+'</td>').join('')+'</tr>'+
+      '<tr class="detrow" id="det-'+pi+'" style="display:none"><td colspan="'+(GAMES.length+1)+'"></td></tr>').join('')+'</table></div>'+atHTML;
     body.querySelectorAll('.cellbtn').forEach(b=>b.addEventListener('click',()=>{
       const p=played[+b.dataset.p], k=b.dataset.k, tr=document.getElementById('det-'+b.dataset.p), td=tr.firstElementChild;
       if(tr.style.display!=='none' && tr.dataset.k===k){ tr.style.display='none'; return; }
       tr.dataset.k=k; tr.style.display='';
       const spoiler = !!p[k].locked;   // the server did not send the details
-      td.innerHTML=`<div class="detbox"><div class="dethead">${E(p.name)}: ${GAMES.find(g=>g[0]===k)[1]}, ${E(date)}</div>${spoiler?'<div class="muted">Finish '+(date===todayKey()?'today\'s ':'this day\'s ')+GAMES.find(g=>g[0]===k)[1]+' yourself to see these details.</div>':detailHTML(k,p[k])}</div>`;
+      td.innerHTML='<div class="detbox"><div class="dethead">'+E(p.name)+': '+GAMES.find(g=>g[0]===k)[1]+', '+E(date)+'</div>'+(spoiler?'<div class="muted">Finish '+(date===todayKey()?'today\'s ':'this day\'s ')+GAMES.find(g=>g[0]===k)[1]+' yourself to see these details.</div>':detailHTML(k,p[k]))+'</div>';
     }));
   }
+  // Head-to-head (Plus): counted on the server from daily games both players finished on the day itself.
   const H2H_GAMES=[['sv','Survival'],['ml','More/Less'],['gl','Guessless'],['cl','Clueless'],['wd','Wordy'],['flags','Flags'],['shapes','Outlines'],['route','Overland']];
   async function loadH2H(){
     const el=document.getElementById('h2h'); if(!el) return;
-    const head=tag=>`<h3 class="fh">Head-to-head${tag?' <span class="ptag">Plus</span>':''}</h3>`;
-    if(!(window.bpPlus&&window.bpPlus.has())){ el.innerHTML=head(true)+'<p class="muted" style="margin:0">Your record against each friend. <a href="#" class="pluslink" data-plus="h2h">See yours</a></p>'; return; }
-    let j; try{ j=await api('GET','/api/h2h'); }catch(e){ el.innerHTML=head()+'<div class="muted">Could not load your record.</div>'; return; }
-    if(!j.players.length){ el.innerHTML=head()+'<div class="muted">No daily game yet that you and a friend both played.</div>'; return; }
-    el.innerHTML=head()+`<table class="ft"><tr><th>Against</th><th>Won</th><th>Lost</th><th>Tied</th></tr>${j.players.map((p,i)=>
-      `<tr><td><button class="cellbtn" data-h2h="${i}">${E(p.name)} <span class="muted">▾</span></button></td><td class="mono" style="color:var(--good)">${p.won}</td><td class="mono" style="color:var(--bad)">${p.lost}</td><td class="mono">${p.tied}</td></tr>
-       <tr class="detrow" id="h2h-${i}" style="display:none"><td colspan="4"><div class="detbox"><table class="ft"><tr><th>Game</th><th>Won</th><th>Lost</th><th>Tied</th></tr>${H2H_GAMES.filter(([g])=>p.games[g]).map(([g,n])=>`<tr><td>${n}</td>${p.games[g].map(v=>`<td class="mono">${v}</td>`).join('')}</tr>`).join('')}</table></div></td></tr>`).join('')}</table>`;
+    const member=!!(window.bpPlus&&window.bpPlus.has());
+    const tag=document.getElementById('h2hTag'); if(tag) tag.hidden=member;
+    if(!member){ el.innerHTML='<p class="muted" style="margin:0">Your record against each friend. <a href="#" class="pluslink" data-plus="h2h">See yours</a></p>'; return; }
+    let j; try{ j=await api('GET','/api/h2h'); }catch(e){ el.innerHTML='<div class="muted">Could not load your record.</div>'; return; }
+    if(!j.players.length){ el.innerHTML='<div class="muted">No daily game yet that you and a friend both played.</div>'; return; }
+    el.innerHTML='<div class="ftwrap"><table class="ft"><tr><th>Against</th><th>Won</th><th>Lost</th><th>Tied</th></tr>'+j.players.map((p,i)=>
+      '<tr><td><button class="cellbtn" data-h2h="'+i+'">'+E(p.name)+' <span class="muted">▾</span></button></td><td class="mono" style="color:var(--good)">'+p.won+'</td><td class="mono" style="color:var(--bad)">'+p.lost+'</td><td class="mono">'+p.tied+'</td></tr>'+
+      '<tr class="detrow" id="h2h-'+i+'" style="display:none"><td colspan="4"><div class="detbox"><table class="ft"><tr><th>Game</th><th>Won</th><th>Lost</th><th>Tied</th></tr>'+H2H_GAMES.filter(([g])=>p.games[g]).map(([g,n])=>'<tr><td>'+n+'</td>'+p.games[g].map(v=>'<td class="mono">'+v+'</td>').join('')+'</tr>').join('')+'</table></div></td></tr>').join('')+'</table></div>';
   }
-  window.onFriendsTab=async function(){
-    const el=document.getElementById('friendsBody');
-    if(!document.getElementById('dayBody')){
-      el.innerHTML=`<div id="frBox"></div><div class="daybar"><button class="ghost sm" id="dayPrev" aria-label="Previous day">◀</button><input type="date" id="dayPick"><button class="ghost sm" id="dayNext" aria-label="Next day">▶</button><button class="ghost sm" id="dayToday">Today</button><span class="muted" id="dayLabel"></span></div>
-        <div class="daychips" id="dayChips"></div><div id="dayBody"></div><div id="h2h"></div><div id="allTime"></div>`;
-      // Head-to-head (Plus): counted on the server from daily games both players finished on the day itself.
-      document.getElementById('h2h').addEventListener('click',e=>{ const b=e.target.closest('[data-h2h]'); if(!b) return; const tr=document.getElementById('h2h-'+b.dataset.h2h); tr.style.display=tr.style.display==='none'?'':'none'; });
-      document.getElementById('dayPick').addEventListener('change',e=>{ if(e.target.value) loadDay(e.target.value); });
-      document.getElementById('dayPrev').addEventListener('click',()=>loadDay(shiftDate(dayDate,-1)));
-      document.getElementById('dayNext').addEventListener('click',()=>loadDay(shiftDate(dayDate,1)));
-      document.getElementById('dayToday').addEventListener('click',()=>loadDay(todayKey()));
-      document.getElementById('dayChips').addEventListener('click',e=>{const b=e.target.closest('[data-day]'); if(b) loadDay(b.dataset.day);});
-    }
-    document.getElementById('dayPick').max=todayKey();
-    if(window.bpFriends){ window.bpFriends.draw(); window.bpFriends.load(); }
-    await authReady; loadDay(dayDate||todayKey());
-    loadH2H();
-    const at=document.getElementById('allTime');
+  // All time: every player's best in one table. The small line under a number says what it rests on.
+  async function loadAllTime(){
+    const at=document.getElementById('allTime'); if(!at) return;
     try{
       const j=await api('GET','/api/leaderboard?date='+todayKey()); const P=j.players; const meName=me?me.username:'';
-      const tbl=(title,rows,cols)=>`<h3 class="fh">${title}</h3><table class="ft"><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>${rows.length?rows.join(''):`<tr><td colspan="${cols.length}" class="muted">Nobody yet</td></tr>`}</table>`;
-      const tr=(p,cells)=>`<tr class="${p.name===meName?'meRow':''}"><td>${window.bpAvatar?window.bpAvatar(p.id,p.name,p.av,22):''}${E(p.name)}</td>${cells.map(c=>`<td class="mono">${c}</td>`).join('')}</tr>`;
-      at.innerHTML=
-        tbl('Survival: best run (any mode)', P.filter(p=>p.survival).sort((a,b)=>b.survival.score-a.survival.score||(a.survival.avg??99)-(b.survival.avg??99)).map(p=>tr(p,[p.survival.score, p.survival.avg==null?'–':p.survival.avg.toFixed(2)+' OoM', p.survivalRuns])), ['Player','Survived','Avg error','Saved runs'])+
-        tbl('All time', [...P].sort((a,b)=>b.ml.best+b.gl.best/20-(a.ml.best+a.gl.best/20)).map(p=>tr(p,[`${p.ml.best} (${p.ml.played})`,`${p.gl.best} (${p.gl.played})`,`${p.cl.solved}/${p.cl.played}`, p.wd?`${p.wd.won}/${p.wd.played}, streak ${p.wd.streak}`:'–'])), ['Player','More/Less best (games)','Guessless best (rounds)','Clueless solved','Wordy won']);
-    }catch(e){ at.innerHTML='<div class="muted">Could not load the all-time tables.</div>'; }
+      const sub=t=>'<small class="sub">'+t+'</small>', n=(c,one,many)=>c+' '+(c===1?one:many);
+      const tr=(p,cells)=>'<tr class="'+(p.name===meName?'meRow':'')+'"><td>'+(window.bpAvatar?window.bpAvatar(p.id,p.name,p.av,22):'')+E(p.name)+'</td>'+cells.map(c=>'<td class="mono">'+c+'</td>').join('')+'</tr>';
+      const rows=[...P].sort((a,b)=>b.ml.best+b.gl.best/20-(a.ml.best+a.gl.best/20)).map(p=>tr(p,[
+        p.survival?p.survival.score+sub((p.survival.avg==null?'':'avg error '+p.survival.avg.toFixed(2)+', ')+n(p.survivalRuns,'run','runs')):'<span class="muted">–</span>',
+        p.ml.best+sub(n(p.ml.played,'game','games')),
+        p.gl.best+sub(n(p.gl.played,'round','rounds')),
+        p.cl.solved+'/'+p.cl.played,
+        p.wd?p.wd.won+'/'+p.wd.played+sub('streak '+p.wd.streak):'<span class="muted">–</span>']));
+      at.innerHTML='<div class="ftwrap"><table class="ft"><tr><th>Player</th>'+th('Survival best','Surv.')+th('More/Less best','M/L')+th('Guessless best','Guess.')+th('Clueless solved','Clue.')+th('Wordy won','Wordy')+'</tr>'+rows.join('')+'</table></div>';
+    }catch(e){ at.innerHTML='<div class="muted">Could not load the all-time table.</div>'; }
+  }
+  function setView(v){
+    frView=v;
+    const $=id=>document.getElementById(id);
+    document.querySelectorAll('#frSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.view===v?'true':'false'));
+    $('dayBar').hidden=$('dayBody').hidden=v!=='day'; $('allTime').hidden=v!=='all'; $('h2h').hidden=v!=='h2h';
+  }
+  window.onFriendsTab=async function(){
+    const el=document.getElementById('friendsBody'), $=id=>document.getElementById(id);
+    if(!$('dayBody')){
+      el.innerHTML='<div id="frBox"></div>'+
+        '<div class="frbar"><div class="seg" id="frSeg" role="group" aria-label="Which table"><button type="button" data-view="day">By day</button><button type="button" data-view="all">All time</button><button type="button" data-view="h2h">Head-to-head<span class="ptag" id="h2hTag" hidden>Plus</span></button></div>'+
+        '<div class="daybar" id="dayBar"><button type="button" class="ghost sm ic" id="dayPrev" aria-label="Earlier day with results">'+CHEV('M15 5l-7 7 7 7')+'</button>'+
+          '<span class="daypick"><button type="button" class="ghost sm" id="dayLabel"></button><input type="date" id="dayPick" tabindex="-1" aria-hidden="true"></span>'+
+          '<button type="button" class="ghost sm ic" id="dayNext" aria-label="Later day with results">'+CHEV('M9 5l7 7-7 7')+'</button><button type="button" class="ghost sm" id="dayToday" hidden>Today</button></div></div>'+
+        '<div id="dayBody"></div><div id="allTime"></div><div id="h2h"></div>';
+      $('frSeg').addEventListener('click',e=>{ const b=e.target.closest('[data-view]'); if(b) setView(b.dataset.view); });
+      $('h2h').addEventListener('click',e=>{ const b=e.target.closest('[data-h2h]'); if(!b) return; const tr=$('h2h-'+b.dataset.h2h); tr.style.display=tr.style.display==='none'?'':'none'; });
+      $('dayLabel').addEventListener('click',()=>{ const p=$('dayPick'); try{ p.showPicker(); }catch(e){ try{ p.focus(); p.click(); }catch(_){} } });
+      $('dayPick').addEventListener('change',e=>{ if(e.target.value) loadDay(e.target.value); });
+      $('dayPrev').addEventListener('click',()=>{ const d=prevDay(); if(d) loadDay(d); });
+      $('dayNext').addEventListener('click',()=>{ const d=nextDay(); if(d) loadDay(d); });
+      $('dayToday').addEventListener('click',()=>loadDay(todayKey()));
+    }
+    setView(frView);
+    $('dayPick').max=todayKey();
+    if(window.bpFriends){ window.bpFriends.draw(); window.bpFriends.load(); }
+    await authReady; loadDay(dayDate||todayKey());
+    loadH2H(); loadAllTime();
   };
 })();
