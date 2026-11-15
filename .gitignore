@@ -1,6 +1,7 @@
 data/
 backups/
 tests/.tmp/
+tests/xdata-api/
 *.log
 .impeccable/tmp/
 .claude/settings.local.json

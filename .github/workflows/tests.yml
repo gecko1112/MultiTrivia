@@ -1,0 +1,21 @@
+# Runs the server tests (node tests/run.js) on every pull request and every push to dev or main.
+# The browser checks in tests/browser need a local Edge and are run by hand.
+name: Tests
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node tests/run.js

@@ -92,6 +92,13 @@ Who has Plus is decided on the server (`plus-server.js`) and stored with the acc
   - `"env": "live"` takes real money from everybody. Do not set it before the legal pages exist and Paddle has verified the account.
 - **In Paddle:** one product with a monthly and a yearly price, and a notification destination `https://<your address>/api/plus/webhook/paddle` with all `subscription` events ticked. The API key needs the permission to write subscriptions (for "Cancel subscription").
 
+## Branches
+
+- `main` is the stable version, the one that gets deployed. It changes only when `dev` has been tried and is merged into it.
+- `dev` is where development comes together.
+- Each piece of work gets its own branch off `dev` (`feature/...`, `fix/...`, `chore/...`) and comes back through a pull request into `dev`.
+- Every pull request and every push to `dev` or `main` runs the server tests on GitHub (`.github/workflows/tests.yml`). The browser checks in `tests/browser` are run by hand.
+
 ## Files
 
 | File | What it is |
