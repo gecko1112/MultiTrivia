@@ -177,7 +177,8 @@ const gzCache = new Map(); // file -> {etag, raw, gz}
 function serveStatic(req, res, urlPath) {
   let p = decodeURIComponent(urlPath.split('?')[0]);
   if (p === '/') p = '/index.html';
-  if (['/welcome', '/pricing', '/terms', '/privacy', '/refunds', '/imprint'].includes(p)) p += '.html';   // the public pages, readable without an account
+  // the public pages, readable without an account; the four legal ones also exist in German under /de/
+  if (p === '/welcome' || p === '/pricing' || /^\/(de\/)?(terms|privacy|refunds|imprint)$/.test(p)) p += '.html';
   const file = path.normalize(path.join(PUBLIC, p));
   if (!file.startsWith(PUBLIC + path.sep)) { res.writeHead(403); return res.end(); }
   fs.stat(file, (err, st) => {
