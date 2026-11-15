@@ -17,29 +17,12 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
+const { today, rngFrom, pick, shuffleR, fmt, pastDay, resultsOf, resultOn, markLate } = require('./games-common.js');
 
 const ROUNDS = 5, CALLS = 5;                         // five categories, up to five calls each
 const LEGACY_UNTIL = '2026-11-11';                   // daily games up to this day keep the pairs their players saw back then
-const FIRST_DAY = '2026-01-01';
-const TZ = process.env.BP_TZ || 'Europe/Berlin';     // the day changes at midnight in this time zone (as in the Atlas)
-const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
-const today = () => dayFmt.format(new Date());
 
 // ---- the browser's dealing, unchanged (it lived in public/games.js)
-function hashStr(s){let h=1779033703^s.length;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19;}return ()=>{h=Math.imul(h^(h>>>16),2246822507);h=Math.imul(h^(h>>>13),3266489909);return (h^=h>>>16)>>>0;};}
-function rngFrom(seed){let a=hashStr(seed)();return ()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-function pick(arr,r){return arr[Math.floor(r()*arr.length)];}
-function shuffleR(a,r){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-function sup(n){const m={"-":"⁻","0":"⁰","1":"¹","2":"²","3":"³","4":"⁴","5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹"};return String(n).split('').map(c=>m[c]).join('');}
-function fmt(v){
-  if(!isFinite(v)) return "—";
-  const a = Math.abs(v);
-  if(a>=1e15 || (a<0.001 && a>0)){ const e=Math.floor(Math.log10(a)); const c=v/Math.pow(10,e); return (+c.toPrecision(3))+" × 10"+sup(e); }
-  const names=[[1e12,"trillion"],[1e9,"billion"],[1e6,"million"]];
-  for(const [d,n] of names) if(a>=d) return (+(v/d).toPrecision(3))+" "+n;
-  if(a>=1000) return Math.round(v).toLocaleString('en-US');
-  return (+v.toPrecision(4)).toString();
-}
 function itemsFor(cat,r,Q){
   if(cat.trivia){
     return {label:'the number', src:'Each card is a different quantity in its own unit. Compare the raw numbers.',
@@ -107,19 +90,8 @@ module.exports = function createMoreLess({ cats, publicDir, send, readBody, reco
   }
   const card = (it, open) => Object.assign({ name: it.name }, it.sub ? { sub: it.sub } : null, it.icon ? { icon: it.icon } : null, it.rating ? { rating: true } : null, open ? { v: it.v, show: it.show } : null);
 
-  // ---- the account's results (x_stats.ml) and archive marks (x_late)
-  function statsML(user) {
-    const docs = docsOf(user), st = docs.x_stats = (docs.x_stats && typeof docs.x_stats === 'object') ? docs.x_stats : {};
-    const ml = st.ml = (st.ml && typeof st.ml === 'object') ? st.ml : {};
-    if (!ml.days || typeof ml.days !== 'object') ml.days = {};
-    ml.best = ml.best || 0; ml.played = ml.played || 0;
-    return ml;
-  }
-  const finishedOn = (user, date) => { const st = docsOf(user).x_stats, d = st && st.ml && st.ml.days; return (d && d[date]) || null; };
-  function markLate(user, date) {
-    const docs = docsOf(user), late = docs.x_late = (docs.x_late && typeof docs.x_late === 'object') ? docs.x_late : {};
-    late.days = late.days || {}; late.days[date] = Object.assign({}, late.days[date], { ml: 1 });
-  }
+  // ---- the account's results (x_stats.ml) and archive marks (x_late), see games-common.js
+  const finishedOn = (user, date) => resultOn(docsOf(user), 'ml', date);
   // A daily game somebody had started in the browser before the server dealt More/Less: its calls so far come along,
   // so it continues where it was instead of being dealt again (the pairs are the same, see above).
   function carried(user, date) {
@@ -147,9 +119,9 @@ module.exports = function createMoreLess({ cats, publicDir, send, readBody, reco
     return { user, daily: true, day: date, cats: dailyDeal(date), rec: mine[date] };
   }
   function finish(run, w) {
-    const rec = record(run, w), ml = statsML(run.user);
+    const rec = record(run, w), ml = resultsOf(docsOf(run.user), 'ml');
     ml.played++; ml.best = Math.max(ml.best, rec.score);
-    if (run.daily) { run.rec.t1 = Date.now(); ml.days[run.day] = rec; if (run.rec.late) markLate(run.user, run.day); }
+    if (run.daily) { run.rec.t1 = Date.now(); ml.days[run.day] = rec; if (run.rec.late) markLate(docsOf(run.user), 'ml', run.day); }
     else practice.delete(run.user);
     save();
     return { best: ml.best, played: ml.played, day: run.daily ? run.day : null, rec: run.daily ? rec : null };
@@ -164,19 +136,12 @@ module.exports = function createMoreLess({ cats, publicDir, send, readBody, reco
     if (stats) out.stats = stats;
     return out;
   }
-  // A past day (the Archive, a Plus feature). null for today, the date for an allowed past day, false for anything else.
-  function pastDay(user, v) {
-    if (v == null || v === '' || v === today()) return null;
-    if (typeof v !== 'string' || !/^\d{4}-\d\d-\d\d$/.test(v) || isNaN(Date.parse(v + 'T12:00:00Z')) || v > today() || v < FIRST_DAY) return false;
-    return mayArchive(user) ? v : false;
-  }
-
   async function handle(req, res, url, query, user) {
     if (!url.startsWith('/api/ml/')) return false;
     const act = url.slice('/api/ml/'.length);
     if (req.method === 'GET') {
       if (act === 'home') {                          // what the menu needs: is today's game finished, going, or not started
-        const day = pastDay(user, query.get('day')); if (day === false) { send(res, 403, { error: 'That day is not available' }); return true; }
+        const day = pastDay(query.get('day'), mayArchive(user)); if (day === false) { send(res, 403, { error: 'That day is not available' }); return true; }
         const date = day || today(), done = !!finishedOn(user, date), going = !done && !!(records(user)[date] || carried(user, date).length);
         send(res, 200, { date, done, going, practice: practice.has(user) }); return true;
       }
@@ -184,7 +149,7 @@ module.exports = function createMoreLess({ cats, publicDir, send, readBody, reco
     }
     if (req.method !== 'POST') { send(res, 405, { error: 'not allowed' }); return true; }
     const body = await readBody(req), daily = body.daily === true;
-    const day = daily ? pastDay(user, body.day) : null;
+    const day = daily ? pastDay(body.day, mayArchive(user)) : null;
     if (day === false) { send(res, 403, { error: 'That day is not available' }); return true; }
 
     if (act === 'start') {                           // a daily game that exists is continued, never dealt again

@@ -17,8 +17,9 @@
 | `security-api.js` | Sign-up limit, logins ending after idle time, the move from db.json to SQLite |
 | `run-api.js` | Today's daily games in progress (`x_run`): only ever move forward, cannot be deleted |
 | `moreless-api.js` | More/Less dealt and judged on the server: no number before its call, the result can't be uploaded |
+| `guessless-api.js` | Guessless dealt and scored on the server: no answer before its estimate, the result can't be uploaded |
 
-Results the server decides (More/Less so far) can't be uploaded by a browser. A test that needs such a result puts it
+Results the server decides (More/Less and Guessless so far) can't be uploaded by a browser. A test that needs such a result puts it
 in place the way an operator would, with `importStats` from `seed.js` and a restart of its server.
 
 `tests/browser/` holds click-through runs in a headless Microsoft Edge (Windows). They are started one at a time,

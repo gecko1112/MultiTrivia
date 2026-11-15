@@ -1,6 +1,6 @@
-// Data for Guessless (More/Less is dealt on the server: content/moreless.js).
-// Guessless: one question per category per day.
-window.GL_CATS = [
+// Guessless: the questions, their answers and notes. SERVER ONLY: this folder is never sent to the browser, which learns
+// an answer only after the estimate was sent (guessless-server.js). One question per category per day.
+module.exports = [
  {key:"nature", name:"Nature", qs:[
   {q:"How fast can a peregrine falcon dive?",a:320,u:"km per hour",n:"The fastest animal; dives over 300 km/h are well documented."},
   {q:"How many hours a day does a domestic cat sleep?",a:15,u:"hours",n:"Typically 12–16 hours."},

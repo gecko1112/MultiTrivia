@@ -57,10 +57,10 @@ const rightCall = (cats, ci, si) => (cats[ci].chain[si + 1].v > cats[ci].chain[s
     ok('friends see the score in the day table', (r.j.players.find(p => p.id === 'anna') || {}).ml && r.j.players.find(p => p.id === 'anna').ml.score === 24, r.j);
 
     // the browser cannot write More/Less results
-    r = await call('anna', 'PUT', '/api/docs/x_stats', { ml: { days: { [D]: { score: 25 }, '2026-01-05': { score: 25 } }, best: 25, played: 99 }, gl: { days: { [D]: { total: 400 } }, best: 400, played: 1 } });
+    r = await call('anna', 'PUT', '/api/docs/x_stats', { ml: { days: { [D]: { score: 25 }, '2026-01-05': { score: 25 } }, best: 25, played: 99 }, settings: { sound: 'off' } });
     st = (await call('anna', 'GET', '/api/docs/x_stats')).j.data;
     ok('a browser upload cannot change the More/Less results', r.s === 200 && st.ml.days[D].score === 24 && !st.ml.days['2026-01-05'] && st.ml.best === 24 && st.ml.played === 1, st.ml);
-    ok('  the rest of the upload is kept', st.gl && st.gl.days[D].total === 400);
+    ok('  the rest of the upload is kept', st.settings && st.settings.sound === 'off');
     await call('anna', 'DELETE', '/api/docs/x_stats');
     st = (await call('anna', 'GET', '/api/docs/x_stats')).j;
     ok('deleting the document keeps the More/Less results', st.exists && st.data.ml.days[D].score === 24 && !st.data.gl, st);
@@ -102,9 +102,9 @@ const rightCall = (cats, ci, si) => (cats[ci].chain[si + 1].v > cats[ci].chain[s
     const late = (await call('anna', 'GET', '/api/docs/x_late')).j;
     st = (await call('anna', 'GET', '/api/docs/x_stats')).j.data;
     ok('a past day played late is stored and marked late', v.done && st.ml.days[Y].score === 25 && late.exists && late.data.days[Y].ml === 1, { late, y: st.ml.days[Y] });
-    await call('anna', 'PUT', '/api/docs/x_late', { days: { [Y]: { gl: 1 } } });
+    await call('anna', 'PUT', '/api/docs/x_late', { days: { [Y]: { xx: 1 } } });
     const late2 = (await call('anna', 'GET', '/api/docs/x_late')).j.data;
-    ok('the browser cannot take the late mark away, but keeps its own marks', late2.days[Y].ml === 1 && late2.days[Y].gl === 1, late2);
+    ok('the browser cannot take the late mark away, but keeps its own marks', late2.days[Y].ml === 1 && late2.days[Y].xx === 1, late2);
     await call('anna', 'DELETE', '/api/docs/x_late');
     ok('  not even by deleting the document', (await call('anna', 'GET', '/api/docs/x_late')).j.data.days[Y].ml === 1);
 

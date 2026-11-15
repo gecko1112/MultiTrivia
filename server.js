@@ -151,7 +151,7 @@ const validDocId = id => typeof id === 'string' && /^[A-Za-z0-9_\-.:~@+]{1,100}$
 // reader of results keeps working: x_stats.<game> holds the results, x_late.days[day].<game> marks an archive game.
 // Those parts belong to the server. Whatever the browser sends for them is replaced by what the server has, and
 // deleting the document keeps them.
-const SERVER_GAMES = ['ml'];
+const SERVER_GAMES = ['ml', 'gl'];
 function keepServerParts(id, old, body) {
   if (id === 'x_stats') {
     const out = Object.assign({}, body);
@@ -307,6 +307,12 @@ const moreless = require('./moreless-server.js')({ cats: require('./content/more
   records: u => (db.ml[u] = db.ml[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
   mayArchive: u => hasPlus(u) });                   // past days are a Plus feature
 
+// ---------- Guessless (dealt and scored on the server; daily estimates in db.gl, results in the account's x_stats.gl) ----------
+if (!db.gl) db.gl = {};
+const guessless = require('./guessless-server.js')({ cats: require('./content/guessless.js'), send, readBody, save,
+  records: u => (db.gl[u] = db.gl[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
+  mayArchive: u => hasPlus(u) });
+
 // ---------- Drinks (one-phone drinking games, dealt and judged on the server) ----------
 if (!db.drinks) db.drinks = {};                     // per account: counters and earned badges of the drinking games
 const drinks = require('./drinks-server.js')({ send, readBody, party, geo, records: Object.assign(u => (db.drinks[u] = db.drinks[u] || {}), { save }) });
@@ -368,6 +374,7 @@ const server = http.createServer(async (req, res) => {
     if (await party.handle(req, res, url, user)) return;
     if (await geo.handle(req, res, url, query, user)) return;
     if (await moreless.handle(req, res, url, query, user)) return;
+    if (await guessless.handle(req, res, url, query, user)) return;
     if (await drinks.handle(req, res, url, query, user)) return;
     if (await plus.handle(req, res, url, query, user)) return;
     if (await account.handle(req, res, url, query, user)) return;

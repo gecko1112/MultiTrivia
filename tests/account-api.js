@@ -51,10 +51,10 @@ const url = (type, buf) => 'data:image/' + type + ';base64,' + buf.toString('bas
   ok('log out everywhere else', (await call('ben', 'POST', '/api/account/logout-all')).s === 200 && (await call('ben3', 'GET', '/api/me')).s === 401 && (await call('ben', 'GET', '/api/me')).s === 200);
 
   // ---- export
-  await call('ben', 'PUT', '/api/docs/x_stats', { gl: { days: { '2026-11-13': { total: 180 } } } });
+  await call('ben', 'PUT', '/api/docs/notes', { days: { '2026-11-13': { total: 180 } } });     // any document the browser owns
   await call('ben', 'POST', '/api/away', { game: 'gl', day: new Date().toISOString().slice(0, 10) });
   r = await call('ben', 'GET', '/api/account/export');
-  ok('the export holds the account\'s own data', r.s === 200 && r.j.account.username === 'Ben' && r.j.saved.x_stats.gl.days['2026-11-13'].total === 180 && Object.keys(r.j.leftThePage).length === 1 && /attachment/.test(r.h.get('content-disposition')));
+  ok('the export holds the account\'s own data', r.s === 200 && r.j.account.username === 'Ben' && r.j.saved.notes.days['2026-11-13'].total === 180 && Object.keys(r.j.leftThePage).length === 1 && /attachment/.test(r.h.get('content-disposition')));
   ok('and neither the password nor anybody else', !/salt|hash|anna|cleo/.test(r.buf.toString()));
 
   // ---- delete
