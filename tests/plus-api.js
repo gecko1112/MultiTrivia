@@ -47,6 +47,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   // More/Less results come from the server, not the browser: put in place as an operator would (tests/seed.js)
   importStats(data, { anna: { ml: { days: { '2026-11-10': { score: 20 }, '2026-11-11': { score: 15 }, '2026-11-12': { score: 18 } } }, gl: { days: { '2026-11-10': { total: 300 } } } },
     ben: { ml: { days: { '2026-11-10': { score: 18 }, '2026-11-11': { score: 15 }, '2026-11-12': { score: 22 } } }, gl: { days: { '2026-11-09': { total: 400 } } } } });
+  importStats(data, { anna: { cl: { days: { '2026-11-10': { solved: true, guesses: 30, hints: 0 }, '2026-11-11': { solved: false, guesses: 50 } } } },
+    ben: { cl: { days: { '2026-11-10': { solved: true, guesses: 12, hints: 2 }, '2026-11-11': { solved: true, guesses: 90 } } } } });
   importData(data, { anna: { words: { days: { '2026-11-10': { solved: true, guesses: 3, word: 'crane' }, '2026-11-11': { solved: true, guesses: 2, word: 'plant' } } } },
     ben: { words: { days: { '2026-11-10': { solved: false, guesses: 6, word: 'crane' }, '2026-11-11': { solved: true, guesses: 5, word: 'plant' } } }, late: { '2026-11-11': { wd: 1 } } } });
   await wait(450); srv.kill(); await wait(400); srv = boot(); await up(PORT);   // the wait lets the server write to disk first
