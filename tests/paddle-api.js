@@ -1,5 +1,6 @@
 // The Paddle provider, tested with notices signed the way Paddle signs them and a stand-in for Paddle's API.
 const { spawn } = require('child_process');
+const up = require('./up');
 const fs = require('fs'), path = require('path'), crypto = require('crypto'), http = require('http');
 const project = process.argv[2] || require('path').join(__dirname, '..'), readDb = require('./db.js').readDb, patchDb = require('./db.js').patchDb, PORT = 3987, APIPORT = 3988, B = 'http://127.0.0.1:' + PORT;
 const data = path.join(__dirname, '.tmp', 'paddata'); fs.rmSync(data, { recursive: true, force: true }); fs.mkdirSync(data, { recursive: true });
@@ -17,7 +18,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const api = http.createServer((req, res) => { let b = ''; req.on('data', c => b += c); req.on('end', () => { seen.push({ url: req.url, m: req.method, auth: req.headers.authorization, body: b });
     res.writeHead(apiStatus, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ data: sub({ scheduled_change: { action: 'cancel', effective_at: iso(END), resume_at: null } }) })); }); }).listen(APIPORT, '127.0.0.1');
 
-  const srv = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data, BP_ADMINS: '' }, stdio: 'ignore' }); await wait(900);
+  const srv = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data, BP_ADMINS: '' }, stdio: 'ignore' }); await up(PORT);
   const jar = {};
   const call = async (who, m, u, b, h) => { const r = await fetch(B + u, { method: m, headers: Object.assign({ 'Content-Type': 'application/json', cookie: jar[who] || '' }, h || {}), body: b == null ? undefined : typeof b === 'string' ? b : JSON.stringify(b) }); const sc = r.headers.get('set-cookie'); if (sc) jar[who] = sc.split(';')[0]; const t = await r.text(); let j = {}; try { j = JSON.parse(t); } catch (e) {} return { s: r.status, j, t }; };
   for (const [n, p] of [['anna', 'kiwi-lamp-4421'], ['ben', 'kiwi-lamp-4422']]) await call(n, 'POST', '/api/signup', { username: n, password: p });

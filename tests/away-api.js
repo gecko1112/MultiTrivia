@@ -1,10 +1,11 @@
 const { spawn } = require('child_process');
+const up = require('./up');
 const fs = require('fs'), path = require('path');
 const project = process.argv[2] || require('path').join(__dirname, '..'), readDb = require('./db.js').readDb, patchDb = require('./db.js').patchDb, PORT = 3982, B = 'http://127.0.0.1:' + PORT;
 const data = path.join(__dirname, '.tmp', 'adata'); fs.rmSync(data, { recursive: true, force: true }); fs.mkdirSync(data, { recursive: true });
 const wait = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
-  const srv = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data }, stdio: 'ignore' }); await wait(900);
+  const srv = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data }, stdio: 'ignore' }); await up(PORT);
   let cookie = '';
   const call = async (m, u, b) => { const r = await fetch(B + u, { method: m, headers: { 'Content-Type': 'application/json', cookie }, body: b ? JSON.stringify(b) : undefined }); const sc = r.headers.get('set-cookie'); if (sc) cookie = sc.split(';')[0]; return { s: r.status, j: await r.json().catch(() => ({})) }; };
   await call('POST', '/api/signup', { username: 'anna', password: 'kiwi-lamp-4421' });

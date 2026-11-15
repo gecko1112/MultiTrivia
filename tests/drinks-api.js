@@ -1,5 +1,6 @@
 // Drinks, server only: the one-phone games are dealt and judged by the server.
 const { spawn } = require('child_process');
+const up = require('./up');
 const fs = require('fs'), path = require('path');
 const project = process.argv[2] || require('path').join(__dirname, '..'), readDb = require('./db.js').readDb, patchDb = require('./db.js').patchDb, PORT = 3979, B = 'http://127.0.0.1:' + PORT;
 const data = path.join(__dirname, '.tmp', 'ddata'); fs.rmSync(data, { recursive: true, force: true }); fs.mkdirSync(data, { recursive: true });
@@ -16,7 +17,7 @@ function player() {
   return p;
 }
 (async () => {
-  const srv = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data }, stdio: 'ignore' }); await wait(900);
+  const srv = spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data }, stdio: 'ignore' }); await up(PORT);
   const A = player(), Z = player();
   ok('not logged in is refused', (await A.get('state')).s === 401);
   await A.call('POST', '/api/signup', { username: 'anna', password: 'kiwi-lamp-4421' }); await Z.call('POST', '/api/signup', { username: 'zoe', password: 'kiwi-lamp-4421' });

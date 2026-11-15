@@ -1,4 +1,5 @@
 const { spawn } = require('child_process');
+const up = require('./up');
 const fs = require('fs'), path = require('path');
 const { importStats } = require('./seed');
 const project = process.argv[2] || require('path').join(__dirname, '..'), readDb = require('./db.js').readDb, patchDb = require('./db.js').patchDb, PORT = 3984, B = 'http://127.0.0.1:' + PORT;
@@ -6,7 +7,7 @@ const data = path.join(__dirname, '.tmp', 'aadata'); fs.rmSync(data, { recursive
 const wait = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
   const boot = () => spawn(process.execPath, [path.join(project, 'server.js')], { env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: data }, stdio: 'ignore' });
-  let srv = boot(); await wait(900);
+  let srv = boot(); await up(PORT);
   const jar = {};
   const call = async (who, m, u, b) => { const r = await fetch(B + u, { method: m, headers: { 'Content-Type': 'application/json', cookie: jar[who] || '' }, body: b ? JSON.stringify(b) : undefined }); const sc = r.headers.get('set-cookie'); if (sc) jar[who] = sc.split(';')[0]; return { s: r.status, j: await r.json().catch(() => ({})) }; };
   await call('anna', 'POST', '/api/signup', { username: 'anna', password: 'kiwi-lamp-4421' });
@@ -19,7 +20,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await call('anna', 'PUT', '/api/docs/x_words', { days: { [D]: { solved: true, guesses: 3, word: 'crane', rows: [], words: [] } } });
   await call('anna', 'PUT', '/api/docs/x_daily', { days: { [D]: { score: 5, avg: 1, h: [] } } });
   importStats(data, { anna: { ml: { days: { [D]: { score: 20 } } } } });     // a More/Less result comes from the server, not the browser
-  await wait(450); srv.kill(); await wait(400); srv = boot(); await wait(900);
+  await wait(450); srv.kill(); await wait(400); srv = boot(); await up(PORT);
   await away('anna', 'wd');
   const row = async who => (await call(who, 'GET', '/api/day?date=' + D)).j.players.find(p => p.name === 'anna');
   out.push(['a normal friend gets no count', !JSON.stringify(await row('ben')).includes('away')]);
