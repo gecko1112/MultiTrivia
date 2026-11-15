@@ -15,7 +15,12 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
+/* The page moves one screen at a time: the first screen, each game, then the close. Scrolling settles on the
+   nearest of them, so a game always ends up filling the window instead of stopping half-way. welcome.js switches
+   this on (.paged) and turns the page itself for the wheel and the keys (.turning while it moves). */
 html{scroll-behavior:smooth;scrollbar-color:var(--axis) var(--bg)}
+html.paged{scroll-snap-type:y mandatory}
+html.turning{scroll-snap-type:none;scroll-behavior:auto}
 body{margin:0;background:var(--bg);color:var(--text);font:17px/1.5 var(--body);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
 ::selection{background:var(--sv);color:#fff}
 a{color:inherit;text-underline-offset:.18em;text-decoration-thickness:1px}
@@ -27,15 +32,16 @@ ol{padding:0;list-style:none}
 .top{height:60px;background:var(--top);color:#fff;display:flex;align-items:center;gap:12px;padding:0 var(--pad)}
 .logo{font:700 30px/1 var(--head);letter-spacing:.04em;text-transform:uppercase;text-decoration:none;margin-right:auto}
 .top nav{display:flex;gap:10px}
+.top nav[hidden]{display:none}
 .btn{display:inline-flex;align-items:center;justify-content:center;font:700 16px/1 var(--head);letter-spacing:.1em;text-transform:uppercase;text-decoration:none;white-space:nowrap;
-  padding:11px 16px;border-radius:10px;border:1px solid var(--btn);background:var(--btn);color:#fff;cursor:pointer;transition:transform .2s var(--out),background-color .2s}
+  min-height:44px;padding:11px 16px;border-radius:10px;border:1px solid var(--btn);background:var(--btn);color:#fff;cursor:pointer;transition:transform .2s var(--out),background-color .2s}
 .btn:hover{transform:translateY(-1px);background:var(--btn-hover);border-color:var(--btn-hover)}
 .btn:active{transform:none}
 .btn.ghost{background:transparent;border-color:#6b7099;color:inherit}
 .btn.ghost:hover{background:color-mix(in srgb,currentColor 12%,transparent)}
 
 /* ---- first screen: the question, the verdict, the line ---- */
-.hero{min-height:calc(100svh - 60px);display:flex;flex-direction:column;padding-top:clamp(22px,4vh,36px);overflow:hidden}
+.hero{scroll-snap-align:start;scroll-margin-top:60px;min-height:calc(100svh - 60px);display:flex;flex-direction:column;padding-top:clamp(22px,4vh,36px);overflow:hidden}
 .ask{display:flex;justify-content:space-between;align-items:flex-start;gap:clamp(24px,5vw,72px);padding:0 var(--pad)}
 .q{font:600 clamp(24px,2.8vw,40px)/1.15 var(--body);max-width:17em;text-wrap:balance;min-height:2.3em}
 .say{max-width:400px;text-align:right;flex:none}
@@ -72,53 +78,71 @@ ol{padding:0;list-style:none}
 .rest span{display:block;color:var(--muted);font-size:14px;margin-top:4px}
 .turn{font-size:22px;padding:18px 26px}
 
-/* ---- one field of colour per game ---- */
-.game{background:var(--c);color:var(--ink);display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:clamp(24px,5vw,80px);align-items:center;padding:clamp(56px,9vw,120px) var(--pad);scroll-margin-top:0}
-.game.flip .tell{order:2}
-#guessless{grid-template-columns:minmax(0,7fr) minmax(0,5fr)}
-#guessless .bars div{height:38px;margin-bottom:10px}
-#guessless .bars span{font-size:16px}
+/* ---- one field of colour per game ----
+   Each game is one window: its name at the scale of the verdict, the rule in one sentence beside it, and one worked
+   example across the full width below. Sizes follow the window in both directions (vw and svh), so the three parts
+   fill a wide laptop screen and a short one alike. Every second game mirrors the name row. */
+.game{background:var(--c);color:var(--ink);display:grid;grid-template-columns:minmax(0,1fr);align-content:center;gap:clamp(18px,3.6svh,40px);
+  min-height:100svh;padding:clamp(24px,5svh,56px) var(--pad);scroll-snap-align:start;overflow:hidden;overflow:clip}
+/* The field arrives with the scroll; its two parts sweep in from the sides (welcome.js sets .sweep and .in).
+   Parked parts have no transition, so a field that has left the window resets unseen. */
+.sweep .game:not(.in) .tell,.sweep .game.flip:not(.in) .demo{transform:translateX(-100vw)}
+.sweep .game:not(.in) .demo,.sweep .game.flip:not(.in) .tell{transform:translateX(100vw)}
+.sweep .game.in .tell,.sweep .game.in .demo{transition:transform .85s var(--out)}
+.sweep .game.in .demo{transition-delay:.07s}
 .game ::selection{background:var(--ink);color:var(--c)}
 .game :focus-visible{outline-color:var(--ink)}
-.tell h2{font:700 clamp(54px,6.6vw,96px)/.9 var(--head);text-transform:uppercase;letter-spacing:.005em}
-.tell p{margin-top:16px;font-size:clamp(17px,1.5vw,21px);font-weight:500;max-width:22em;color:color-mix(in srgb,var(--ink) 86%,var(--c))}
-.fine{font-size:14px;color:color-mix(in srgb,var(--ink) 80%,var(--c));margin-top:14px}
-.demo{background:var(--ink);color:#eceefa;border-radius:16px;padding:clamp(18px,2.4vw,30px);box-shadow:0 18px 40px -18px color-mix(in srgb,var(--ink) 70%,transparent)}
+.tell{display:flex;align-items:flex-end;justify-content:space-between;gap:clamp(20px,5vw,72px)}
+.game.flip .tell{flex-direction:row-reverse}
+.tell h2{font:700 clamp(72px,min(14.5vw,25svh),236px)/.82 var(--head);text-transform:uppercase;letter-spacing:-.01em;white-space:nowrap}
+.tell p{font-size:clamp(17px,min(1.6vw,2.9svh),24px);font-weight:500;line-height:1.35;max-width:17em;text-align:right;text-wrap:balance;color:color-mix(in srgb,var(--ink) 86%,var(--c))}
+.game.flip .tell p{text-align:left}
+.fine{font-size:clamp(13px,1.05vw,15px);color:color-mix(in srgb,var(--ink) 80%,var(--c));margin-top:clamp(12px,2.4svh,22px)}
+.demo{background:var(--ink);color:#eceefa;border-radius:clamp(14px,1.6vw,24px);padding:clamp(20px,4.4svh,46px) clamp(20px,3.4vw,52px);box-shadow:0 18px 40px -18px color-mix(in srgb,var(--ink) 70%,transparent)}
 .demo .fine{color:#a9aecb}
-/* More/Less: two things, one call */
-.duel{display:grid;grid-template-columns:1fr auto 1fr;gap:12px 18px;align-items:center}
-.duel b{display:block;font:700 clamp(24px,2.5vw,34px)/1.05 var(--head);text-transform:uppercase;letter-spacing:.03em}
-.duel span{display:block;color:#a9aecb;font-size:14px;margin-top:2px}
-.duel strong{display:block;margin-top:14px;font:600 17px/1.2 var(--body)}
+/* More/Less: two things, one call. The numbers are what is compared, so they are set large. */
+.duel{display:grid;grid-template-columns:1fr auto 1fr;gap:0 clamp(18px,3vw,48px);align-items:end}   /* the two numbers stand on one line */
+.duel b{display:block;font:700 clamp(30px,min(5.6vw,10svh),88px)/.95 var(--head);text-transform:uppercase;letter-spacing:.01em}
+.duel span{display:block;color:#a9aecb;font-size:clamp(14px,min(1.5vw,2.6svh),22px);margin-top:.3em}
+.duel strong{display:block;margin-top:clamp(12px,2.8svh,28px);font:700 clamp(26px,min(4.4vw,7.6svh),68px)/1 var(--head);letter-spacing:.02em;text-transform:uppercase}
 .duel .was{color:var(--c)}
-.duel .vs{font:700 20px/1 var(--head);letter-spacing:.1em;text-transform:uppercase;color:#a9aecb}
-.duel .fine{grid-column:1/-1;margin-top:4px}
-/* Guessless: five results on one ruler */
-.bars div{height:26px;margin-bottom:8px;background:#252840;border-radius:5px;position:relative}
-.bars div::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--w);background:var(--c);border-radius:5px}
-.bars span{position:absolute;right:10px;top:50%;transform:translateY(-50%);font:600 14px/1 var(--body);color:#eceefa;mix-blend-mode:difference}
-.bars .sum{margin-top:16px;font:500 17px/1 var(--body);color:#a9aecb}
-.bars .sum b{font:700 clamp(40px,4.4vw,60px)/1 var(--head);color:var(--c);letter-spacing:.02em;margin-right:6px}
+.duel .vs{align-self:center;font:700 clamp(20px,2.2vw,34px)/1 var(--head);letter-spacing:.1em;text-transform:uppercase;color:#a9aecb}
+.duel .fine{grid-column:1/-1}
+/* Guessless: five results on one ruler, the total beside them */
+.bars{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:clamp(8px,1.5svh,14px) clamp(24px,4vw,64px);align-items:center}
+.bars div{grid-column:1;height:clamp(30px,6.4svh,60px);background:#252840;border-radius:6px;position:relative}
+.bars div::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--w);background:var(--c);border-radius:6px}
+.bars span{position:absolute;right:14px;top:50%;transform:translateY(-50%);font:600 clamp(14px,min(1.5vw,2.6svh),22px)/1 var(--body);color:#eceefa;mix-blend-mode:difference}
+.bars .sum{grid-column:2;grid-row:1/6;font:500 clamp(16px,1.5vw,22px)/1.2 var(--body);color:#a9aecb;text-align:right}
+.bars .sum b{display:block;font:700 clamp(72px,min(11.5vw,20svh),190px)/.85 var(--head);color:var(--c);letter-spacing:.01em}
+.bars .fine{grid-column:1/-1;margin-top:clamp(4px,1svh,10px)}
 /* Clueless: guesses getting warmer */
-.ranks li:not(.fine){display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:9px 0;border-bottom:1px solid #373b57;font-size:19px;font-weight:500}
-.ranks b{font:700 26px/1 var(--head);letter-spacing:.03em;color:#a9aecb}
+.ranks li:not(.fine){display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:clamp(7px,1.7svh,16px) 0;border-bottom:1px solid #373b57;font-size:clamp(19px,min(2.5vw,4.3svh),38px);font-weight:500}
+.ranks b{font:700 clamp(26px,min(3.3vw,5.6svh),52px)/1 var(--head);letter-spacing:.03em;color:#a9aecb}
 .ranks .hot span,.ranks .hot b{color:var(--c)}
-.ranks .hot b{font-size:40px}
-/* Wordy: three tries */
-.tiles div{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:8px;max-width:420px}
-.tiles i{aspect-ratio:1;display:grid;place-items:center;border-radius:8px;background:#252840;color:#a9aecb;font:700 clamp(24px,3vw,40px)/1 var(--head);font-style:normal}
+.ranks .hot b{font-size:clamp(44px,min(7vw,12svh),116px)}
+/* Wordy: three tries on a board, centred the way the game shows it */
+.tiles{--t:clamp(44px,min(8.4vw,13.5svh),128px);display:grid;justify-content:center;gap:clamp(6px,.8vw,12px)}
+.tiles div{display:grid;grid-template-columns:repeat(5,var(--t));gap:inherit}
+.tiles i{aspect-ratio:1;display:grid;place-items:center;border-radius:clamp(7px,.9vw,14px);background:#252840;color:#a9aecb;font:700 calc(var(--t)*.56)/1 var(--head);font-style:normal}
 .tiles .ok{background:var(--c);color:var(--ink)}
+.tiles .fine{text-align:center}
 
 /* ---- two plain facts, then the close ---- */
-.plain{display:grid;grid-template-columns:1fr 1fr;gap:clamp(28px,6vw,96px);padding:clamp(64px,9vw,120px) var(--pad) clamp(40px,6vw,72px)}
+.plain{scroll-snap-align:start;display:grid;grid-template-columns:1fr 1fr;gap:clamp(28px,6vw,96px);padding:clamp(64px,9vw,120px) var(--pad) clamp(40px,6vw,72px)}
 .plain h2{font:700 clamp(34px,3.6vw,52px)/1 var(--head);text-transform:uppercase;letter-spacing:.02em}
 .plain p{margin-top:14px;max-width:32em;color:var(--muted)}
 .plain a{color:var(--text)}
-.close{padding:clamp(56px,8vw,110px) var(--pad) clamp(72px,10vw,130px)}
-.yours{font:700 clamp(74px,17.2vw,262px)/.82 var(--head);letter-spacing:-.01em;text-transform:uppercase;color:var(--verdict)}
-.go{display:flex;align-items:center;flex-wrap:wrap;gap:14px 22px;margin-top:clamp(20px,3vw,34px)}
-.go p{color:var(--muted)}
-footer{border-top:1px solid var(--line)}
+/* The close: "Your turn" and the one button on the same line, the button at the right end standing on the word's
+   baseline, the way "Your turn" ends the first screen's band. The line stays a step below the verdict, which remains
+   the largest thing on the page. The baseline of Barlow at line-height .82 is the bottom of the line box. */
+.close{scroll-snap-align:start;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:14px clamp(28px,4vw,64px);
+  padding:clamp(56px,8vw,110px) var(--pad) clamp(72px,10vw,130px)}
+.yours{font:700 clamp(74px,13vw,212px)/.82 var(--head);letter-spacing:-.01em;text-transform:uppercase;color:var(--verdict)}
+.go{display:contents}
+.go .turn{grid-column:2;font-size:clamp(24px,2.2vw,36px);padding:.72em 1.1em;border-radius:14px}
+.go p{grid-column:2;text-align:right;color:var(--muted)}
+footer{scroll-snap-align:end;border-top:1px solid var(--line)}
 footer nav{padding:18px var(--pad);display:flex;flex-wrap:wrap;gap:6px 22px;font-size:14px;color:var(--muted)}
 
 /* ---- narrower screens ---- */
@@ -131,13 +155,26 @@ footer nav{padding:18px var(--pad);display:flex;flex-wrap:wrap;gap:6px 22px;font
   .under{flex-direction:column;align-items:flex-start}
   .rest{grid-template-columns:1fr 1fr}
   .turn{grid-column:1/-1}
-  .game,.plain,#guessless{grid-template-columns:1fr}
-  .game.flip .tell{order:0}
+  .plain{grid-template-columns:1fr}
+  .game{min-height:0;padding:clamp(40px,7svh,64px) var(--pad);gap:22px;scroll-snap-align:center}
+  .tell,.game.flip .tell{flex-direction:column;align-items:flex-start;gap:12px}
+  .tell h2{font-size:clamp(60px,22vw,170px)}
+  .tell p,.game.flip .tell p{text-align:left;font-size:18px}
+  .demo{padding:22px 20px}
+  .duel b{font-size:clamp(30px,9.5vw,64px)} .duel span{font-size:15px} .duel strong{font-size:clamp(26px,8vw,54px);margin-top:14px}
+  .bars{grid-template-columns:1fr;row-gap:9px} .bars div{height:34px} .bars span{font-size:15px}
+  .bars .sum{grid-column:1;grid-row:auto;text-align:left;margin-top:6px} .bars .sum b{display:inline;font-size:clamp(56px,17vw,120px);margin-right:8px}
+  .ranks li:not(.fine){font-size:clamp(19px,5.4vw,30px);padding:9px 0} .ranks b{font-size:clamp(26px,7vw,40px)} .ranks .hot b{font-size:clamp(44px,13vw,84px)}
+  .tiles{--t:min(15.5vw,88px);gap:8px}
   .yours{font-size:clamp(74px,27vw,200px)}
+  .close{grid-template-columns:minmax(0,1fr)}
+  .go .turn,.go p{grid-column:1;justify-self:start;text-align:left}
+  .go .turn{margin-top:clamp(8px,2vw,16px)}
 }
 @media (max-width:480px){
-  .top{gap:8px}.logo{font-size:24px}.btn{padding:10px 11px;font-size:15px}
+  .top{gap:8px}.logo{font-size:24px}.top .btn{padding:10px 11px;font-size:15px}   /* the top bar only: the big buttons keep their size */
+  .go .turn{justify-self:stretch}
   .scale{margin-left:calc(var(--pad) + 8px);margin-right:calc(var(--pad) + 8px)}
-  .duel{grid-template-columns:1fr}.duel .vs{justify-self:start}
+  .duel{grid-template-columns:1fr;gap:14px 0}.duel .vs{justify-self:start}
 }
 @media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto} .btn,.rest a{transition:none} }

@@ -33,6 +33,7 @@ const STEPS = [
   { tab: 'friends', sel: ['#g-friends'], text: "Friends. Everyone's results, side by side. This is the real game." },
   { tab: 'lina', sel: ['#g-lina'], text: "Lina's Corner. A cat you can dress up. Nobody loses here." },
   { sel: '#lvlChip', text: "Your level. It rewards turning up more than talent." },
+  { tab: 'survival', side: true, sel: '#side', text: "Press it and this slides out. Your progress, and what your friends scored. Close it when it hurts." },
   { sel: '#bpTourBtn', text: "That's it. I'll be around. Don't poke me.", next: 'Done' }
 ];
 
@@ -313,6 +314,8 @@ async function show(i){
   const tk = ++tour.tk; tour.i = i;
   const s = STEPS[i];
   if (s.tab && curGame() !== s.tab) { location.hash = s.tab; await wait(90); if (!tour || tour.tk !== tk) return; }
+  // one stop opens the side panel; every other stop leaves it as the player had it
+  if (window.bpSide) { window.bpSide.peek(s.side ? true : null); if (s.side) { await wait(RM ? 40 : 380); if (!tour || tour.tk !== tk) return; } }
   const el = findTarget(s.sel);
   if (el) { try { el.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) {} await wait(30); if (!tour || tour.tk !== tk) return; }
   bText.textContent = s.text;
@@ -361,6 +364,7 @@ async function endTour(annoyed){
   const t = tour; t.ending = true;
   try { localStorage.setItem('bp_bot_tour_' + userId, '1'); } catch (e) {}
   bubble.classList.remove('on'); blocker.classList.remove('on'); ring.classList.remove('on', 'lit');
+  if (window.bpSide) window.bpSide.peek(null);
   if (curGame() !== t.home) location.hash = t.home;
   await flyOff(!!annoyed);
   tour = null; lastEgg = Date.now();

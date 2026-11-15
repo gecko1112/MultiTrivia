@@ -103,22 +103,39 @@ function dayAvg(days,f,dp){const v=Object.values(days||{}).map(d=>d&&d[f]).filte
 function mlStatLine(){
   const t=stats.ml.days[todayKey()];
   $('mlStat').innerHTML=statCells([['Today',t?t.score+' / 25':'–'],['Best',stats.ml.best?stats.ml.best+' / 25':'–'],['Average',dayAvg(stats.ml.days,'score')],['Played',stats.ml.played||0]]);
-  $('mlDaily').textContent=t?"See today's result":"Play today's game";
+  const going=!t&&mlSaved(); $('mlDaily').textContent=t?"See today's result":going&&going.daily?"Continue today's game":"Play today's game";
 }
 // ---- a game survives an accidental reload: the questions are rebuilt from the seed, the answers so far are saved ----
-function mlSave(next){ try{ localStorage.setItem(window.bpRunKey('bp_ml_run'),JSON.stringify({seed:ml.seed,daily:ml.daily,day:todayKey(),t:Date.now(),ci:next?next[0]:ml.ci,si:next?next[1]:ml.si,res:ml.res,log:ml.log})); }catch(e){} }
+// Today's daily game is also kept on the server (run.js): once started it is continued, from any browser, never dealt again.
+function mlSave(next){
+  const s={seed:ml.seed,daily:ml.daily,day:todayKey(),t:Date.now(),ci:next?next[0]:ml.ci,si:next?next[1]:ml.si,res:ml.res,log:ml.log};
+  try{ localStorage.setItem(window.bpRunKey('bp_ml_run'),JSON.stringify(s)); }catch(e){}
+  if(ml.daily&&window.bpRun) bpRun.set('ml',ml.log.length+1,s);
+}
 function mlClear(){ try{localStorage.removeItem(window.bpRunKey('bp_ml_run'));}catch(e){} }
-function mlResume(){
+// the saved game to go on with: this browser's copy, or for today's daily the server's when that is further along
+function mlSaved(){
   let s=null; try{s=JSON.parse(localStorage.getItem(window.bpRunKey('bp_ml_run'))||'null');}catch(e){}
-  if(!s||ml) return;
-  if((s.daily&&(s.day!==todayKey()||stats.ml.days[todayKey()]))||Date.now()-(s.t||0)>12*36e5){ mlClear(); return; }
+  if(s&&s.daily&&s.day!==todayKey()) s=null;
+  const far=window.bpRun&&bpRun.get('ml');
+  if(far&&far.day===todayKey()&&!(s&&s.daily&&(s.log||[]).length>=(far.log||[]).length)) s=far;
+  return s;
+}
+function mlContinue(s){
   ml=mlBuild(s.seed,s.daily); ml.ci=s.ci; ml.si=s.si; ml.res=s.res; ml.log=s.log;
   show('ml','Play'); if(ml.ci>=5) mlFinish(); else mlRender(true);
+}
+function mlResume(){
+  const s=mlSaved();
+  if(!s||ml) return;
+  if((s.daily&&stats.ml.days[todayKey()])||(!s.daily&&Date.now()-(s.t||0)>12*36e5)){ mlClear(); return; }
+  mlContinue(s);
 }
 function mlShowIntro(){ if(ml&&$('mlPlay').style.display!=='none') return; show('ml','Intro'); mlStatLine(); }
 function mlStart(daily){
   const k=todayKey();
   if(daily && stats.ml.days[k]){ mlEnd(stats.ml.days[k],true); return; }
+  const going=daily&&mlSaved(); if(going&&going.daily){ mlContinue(going); return; }      // today's game was started before
   ml=mlBuild(daily?'ml-'+k:'mlp-'+Date.now()+Math.random(),daily);
   show('ml','Play'); mlRender(true); mlSave();
 }
@@ -172,7 +189,7 @@ function mlFinish(){
   const score=ml.res.flat().filter(x=>x).length;
   const rec={score,grid:ml.res.map(r=>r.map(x=>x?1:0)),cats:ml.cats.map(c=>c.name),log:ml.log.map(l=>({c:l.cat,a:l.a.name,av:l.a.show,b:l.b.name,bv:l.b.show,ch:l.choice,ok:l.ok}))};
   stats.ml.played++; stats.ml.best=Math.max(stats.ml.best,score);
-  if(ml.daily) stats.ml.days[todayKey()]=rec;
+  if(ml.daily){ stats.ml.days[todayKey()]=rec; if(window.bpRun) bpRun.done('ml'); }
   saveStats(); mlEnd(rec,ml.daily); ml=null; mlClear();
 }
 let mlLastRec=null,mlLastDaily=false;
@@ -180,12 +197,20 @@ function mlEnd(rec,daily){
   mlLastRec=rec; mlLastDaily=daily; show('ml','End');
   $('mlEndLbl').textContent=daily?"Today's score":'Practice score';
   $('mlFinal').textContent=rec.score;
-  $('mlGrid').innerHTML=rec.grid.map((row,i)=>`<div>${row.map(x=>x?'🟩':'🟥').join('')}<span>${esc(rec.cats[i])}</span></div>`).join('');
+  $('mlGrid').innerHTML=(rec.grid||[]).map((row,i)=>`<div>${row.map(x=>x?'🟩':'🟥').join('')}<span>${esc((rec.cats||[])[i]||'')}</span></div>`).join('');
   $('mlHist').innerHTML=(rec.log||[]).map(l=>`<div class="hrow"><div><div class="hq">${esc(l.b)} vs ${esc(l.a)}</div><div class="hsub mono">${esc(l.bv)} vs ${esc(l.av)}, you said ${l.ch}</div></div><div class="hd mono" style="color:${l.ok?'var(--good)':'var(--bad)'}">${l.ok?'✓':'✗'}</div></div>`).join('');
 }
+// Leaving a practice game throws it away, after asking. Leaving today's daily game only puts it aside: it stays where
+// it is and "Continue today's game" goes on with it, so nobody gets the same questions a second time.
 function armedConfirm(btn,label,fn){ if(!btn.dataset.armed){ btn.dataset.armed='1'; btn.textContent='Leave? Progress is lost'; setTimeout(()=>{delete btn.dataset.armed; btn.textContent=label;},3000); return; } delete btn.dataset.armed; btn.textContent=label; fn(); }
-$('mlQuit').addEventListener('click',()=>armedConfirm($('mlQuit'),'← Menu',()=>{ ml=null; mlClear(); show('ml','Intro'); mlStatLine(); }));
-$('glQuit').addEventListener('click',()=>armedConfirm($('glQuit'),'← Menu',()=>{ gl=null; glClear(); show('gl','Intro'); glStatLine(); }));
+$('mlQuit').addEventListener('click',()=>{
+  if(ml&&ml.daily){ ml=null; show('ml','Intro'); mlStatLine(); return; }
+  armedConfirm($('mlQuit'),'← Menu',()=>{ ml=null; mlClear(); show('ml','Intro'); mlStatLine(); });
+});
+$('glQuit').addEventListener('click',()=>{
+  if(gl&&gl.daily){ gl=null; show('gl','Intro'); glStatLine(); return; }
+  armedConfirm($('glQuit'),'← Menu',()=>{ gl=null; glClear(); show('gl','Intro'); glStatLine(); });
+});
 $('mlDaily').addEventListener('click',()=>mlStart(true));
 $('mlPractice').addEventListener('click',()=>mlStart(false));
 $('mlAgain').addEventListener('click',()=>mlStart(false));
@@ -197,21 +222,39 @@ let gl=null;
 function glStatLine(){
   const t=stats.gl.days[todayKey()];
   $('glStat').innerHTML=statCells([['Today',t?t.total+' / 500':'–'],['Best',stats.gl.best?stats.gl.best+' / 500':'–'],['Average',dayAvg(stats.gl.days,'total',0)],['Played',stats.gl.played||0]]);
-  $('glDaily').textContent=t?"See today's result":"Play today's 5";
+  const going=!t&&glSaved(); $('glDaily').textContent=t?"See today's result":going&&going.gl.daily?"Continue today's 5":"Play today's 5";
 }
-function glSave(){ try{ localStorage.setItem(window.bpRunKey('bp_gl_run'),JSON.stringify({day:todayKey(),t:Date.now(),gl})); }catch(e){} }
+// how far a saved game is: two steps per question (shown, answered)
+const glSteps=g=>2*((g.res||[]).length)+(g.answered?0:1)+1;
+function glSave(){
+  const s={day:todayKey(),t:Date.now(),gl};
+  try{ localStorage.setItem(window.bpRunKey('bp_gl_run'),JSON.stringify(s)); }catch(e){}
+  if(gl.daily&&window.bpRun) bpRun.set('gl',glSteps(gl),JSON.parse(JSON.stringify(s)));   // today's game is also kept on the server (run.js)
+}
 function glClear(){ try{localStorage.removeItem(window.bpRunKey('bp_gl_run'));}catch(e){} }
-function glResume(){
+// the saved game to go on with: this browser's copy, or for today's daily the server's when that is further along
+function glSaved(){
   let s=null; try{s=JSON.parse(localStorage.getItem(window.bpRunKey('bp_gl_run'))||'null');}catch(e){}
-  if(!s||!s.gl||!Array.isArray(s.gl.qs)||gl) return;
-  if((s.gl.daily&&(s.day!==todayKey()||stats.gl.days[todayKey()]))||Date.now()-(s.t||0)>12*36e5){ glClear(); return; }
-  gl=s.gl; show('gl','Play');
-  if(gl.answered){ if(gl.i<4){ gl.i++; glQ(); } else glFinish(); } else glQ();   // reloaded while looking at an answer: go on
+  if(s&&(!s.gl||!Array.isArray(s.gl.qs)||(s.gl.daily&&s.day!==todayKey()))) s=null;
+  const far=window.bpRun&&bpRun.get('gl');
+  if(far&&far.gl&&Array.isArray(far.gl.qs)&&far.day===todayKey()&&!(s&&s.gl.daily&&glSteps(s.gl)>=glSteps(far.gl))) s=far;
+  return s;
+}
+function glContinue(s){
+  gl=JSON.parse(JSON.stringify(s.gl)); show('gl','Play');
+  if(gl.answered){ if(gl.i<4){ gl.i++; glQ(); } else glFinish(); } else glQ();   // left while looking at an answer: go on
+}
+function glResume(){
+  const s=glSaved();
+  if(!s||gl) return;
+  if((s.gl.daily&&stats.gl.days[todayKey()])||(!s.gl.daily&&Date.now()-(s.t||0)>12*36e5)){ glClear(); return; }
+  glContinue(s);
 }
 function glShowIntro(){ if(gl&&$('glPlay').style.display!=='none') return; show('gl','Intro'); glStatLine(); }
 function glStart(daily){
   const k=todayKey();
   if(daily && stats.gl.days[k]){ glEnd(stats.gl.days[k],true); return; }
+  const going=daily&&glSaved(); if(going&&going.gl.daily){ glContinue(going); return; }   // today's game was started before
   const r=rngFrom(daily?'gl-'+k:'glp-'+Date.now()+Math.random());
   gl={daily,qs:GL_CATS.map(c=>({cat:c.name,...pick(c.qs,r)})),i:0,res:[],answered:false};
   show('gl','Play'); glQ();
@@ -246,14 +289,14 @@ function glFinish(){
   const total=gl.res.reduce((s,x)=>s+x.pts,0);
   const rec={total,res:gl.res};
   stats.gl.played++; stats.gl.best=Math.max(stats.gl.best,total);
-  if(gl.daily) stats.gl.days[todayKey()]=rec;
+  if(gl.daily){ stats.gl.days[todayKey()]=rec; if(window.bpRun) bpRun.done('gl'); }
   saveStats(); glEnd(rec,gl.daily); gl=null; glClear();
 }
 let glLast=null,glLastDaily=false;
 function glEnd(rec,daily){
   glLast=rec; glLastDaily=daily; show('gl','End');
   $('glEndLbl').textContent=daily?"Today's score":'Practice score'; $('glFinal').textContent=rec.total;
-  $('glHist').innerHTML=rec.res.map(r=>`<div class="hrow"><div><div class="hq">${esc(r.cat)}: ${esc(r.q)}</div><div class="hsub mono">You said ${esc(fmt(r.g))}, answer ${esc(fmt(r.a))} ${esc(r.u)}</div></div><div class="hd mono" style="color:${r.pts>=70?'var(--good)':r.pts>=30?'var(--warn)':'var(--bad)'}">${r.pts}</div></div>`).join('');
+  $('glHist').innerHTML=(rec.res||[]).map(r=>`<div class="hrow"><div><div class="hq">${esc(r.cat)}: ${esc(r.q)}</div><div class="hsub mono">You said ${esc(fmt(r.g))}, answer ${esc(fmt(r.a))} ${esc(r.u)}</div></div><div class="hd mono" style="color:${r.pts>=70?'var(--good)':r.pts>=30?'var(--warn)':'var(--bad)'}">${r.pts}</div></div>`).join('');
 }
 $('glDaily').addEventListener('click',()=>glStart(true));
 $('glPractice').addEventListener('click',()=>glStart(false));
@@ -284,13 +327,20 @@ function clStatLine(){
   $('clDaily').textContent=t?"See today's word":"Play today's word";
 }
 function clShowIntro(){ if(cl&&$('clPlay').style.display!=='none') return; show('cl','Intro'); clStatLine(); }
-function clSaveProgress(){ if(cl&&cl.daily) try{localStorage.setItem('bp_cl_'+todayKey(),JSON.stringify({t:cl.target,g:cl.guesses.map(x=>x.w),h:cl.hints,done:cl.done}));}catch(e){} }
+function clSaveProgress(){
+  if(!cl||!cl.daily) return;
+  const s={t:cl.target,g:cl.guesses.map(x=>x.w),h:cl.hints,done:cl.done};
+  try{localStorage.setItem('bp_cl_'+todayKey(),JSON.stringify(s));}catch(e){}
+  if(window.bpRun&&!window.bpDay){ if(cl.done) bpRun.done('cl'); else bpRun.set('cl',s.g.length+1,s); }   // today's guesses are also kept on the server (run.js)
+}
 async function clStart(daily){
   $('clMsg').textContent=''; const btn=daily?$('clDaily'):$('clPractice'); const old=btn.textContent; btn.textContent='Loading words…';
   try{ await clLoad(); }catch(e){ btn.textContent=old; $('clStat').textContent='Could not load the word list.'; return; }
   btn.textContent=old;
   let target, saved=null;
-  if(daily){ target=clDailyTarget(); try{saved=JSON.parse(localStorage.getItem('bp_cl_'+todayKey())||'null');}catch(e){} if(saved&&saved.t!==target) saved=null; }
+  if(daily){ target=clDailyTarget(); try{saved=JSON.parse(localStorage.getItem('bp_cl_'+todayKey())||'null');}catch(e){} if(saved&&saved.t!==target) saved=null;
+    // guesses made in another browser today count too: go on from whichever copy has more
+    if(window.bpRun){ try{ await bpRun.ready(); }catch(e){} const far=bpRun.get('cl'); if(far&&far.t===target&&Array.isArray(far.g)&&!(saved&&saved.done)&&(!saved||far.g.length>saved.g.length)) saved=far; } }
   else { const others=CL.targets.filter(t=>t!==clDailyTarget()); target=others[Math.floor(Math.random()*others.length)]; }
   const ranks=clRanks(target);
   cl={daily,target,ranks,guesses:[],hints:0,done:false,last:null};
@@ -364,5 +414,6 @@ $('clDaily').addEventListener('click',()=>clStart(true));
 $('clPractice').addEventListener('click',()=>clStart(false));
 
 route();
-if(window.claude&&claude.use) claude.use('user').then(()=>{ mlResume(); glResume(); }).catch(()=>{});   // only once it is clear whose game this is
+// only once it is clear whose game this is, and after the server's copy of today's games has been read (run.js)
+if(window.claude&&claude.use) claude.use('user').then(()=>window.bpRun?bpRun.ready():null).then(()=>{ mlResume(); glResume(); refreshIntros(); }).catch(()=>{});
 })();

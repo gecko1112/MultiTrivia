@@ -11,7 +11,8 @@ const project = process.argv[2] || require('path').join(__dirname, '..', '..'), 
   const modal = () => ev(`(()=>{const n=document.getElementById('plusNote'); const m=n&&n.closest('[role=dialog]')||document.querySelector('[role=dialog]'); return m?m.innerText.replace(/\\s*[\\r\\n]+\\s*/g,' | '):''})()`);
   const btn = () => ev(`document.getElementById('plusBtn').textContent+' / plan='+document.documentElement.getAttribute('data-plan')+' / cache='+localStorage.getItem('bp_plus')`);
   try {
-    // ---- a normal account
+    // ---- a normal account. Buying is switched on in the developer preview only (canBuy in plus.js).
+    await ev(`localStorage.setItem('bp_dev','1')`);
     await reload('#survival'); await clean();
     console.log('1 normal:', await btn());
     await ev(`document.getElementById('plusBtn').click()`); await wait(300);

@@ -146,6 +146,23 @@ function signupCount(ip, made) { const c = SIGNUPS.get(ip) || { made: 0, tries: 
 setInterval(() => { const now = Date.now(); for (const [k, c] of SIGNUPS) if (now - c.t > HOUR) SIGNUPS.delete(k); }, 10 * 60 * 1000).unref();
 const validDocId = id => typeof id === 'string' && /^[A-Za-z0-9_\-.:~@+]{1,100}$/.test(id);
 
+// ---------- today's daily games in progress (account doc "x_run": { day, games: { ml: { n, s }, ... } }) ----------
+// A daily game may be played once, so a game that was started can only move forward. An upload for an earlier day, or
+// with fewer steps (n) for the same day, does not replace what is stored; the browser gets the stored state back and
+// continues from there (public/run.js). The doc cannot be deleted through the API.
+const RUN_GAMES = ['sv', 'ml', 'gl', 'cl', 'wd'];
+function mergeRun(old, neu) {
+  const okDay = d => typeof d === 'string' && /^\d{4}-\d\d-\d\d$/.test(d);
+  const steps = g => (g && typeof g.n === 'number' && isFinite(g.n) ? g.n : -1);
+  const kept = old && okDay(old.day) && old.games && typeof old.games === 'object' ? old : null;
+  if (!neu || !okDay(neu.day) || !neu.games || typeof neu.games !== 'object') return kept || { day: '', games: {} };
+  const latest = new Date(Date.now() + 36 * 36e5).toISOString().slice(0, 10);   // no day further ahead than any time zone's tomorrow
+  if (neu.day > latest || (kept && neu.day < kept.day)) return kept || { day: '', games: {} };
+  const games = kept && kept.day === neu.day ? Object.assign({}, kept.games) : {};
+  for (const g of RUN_GAMES) { const n = neu.games[g]; if (n && typeof n === 'object' && steps(n) >= 0 && steps(n) >= steps(games[g])) games[g] = n; }
+  return { day: neu.day, games };
+}
+
 // ---------- leaderboard ----------
 function leaderboard(date, players) {
   return players.map(u => {
@@ -177,7 +194,8 @@ const gzCache = new Map(); // file -> {etag, raw, gz}
 function serveStatic(req, res, urlPath) {
   let p = decodeURIComponent(urlPath.split('?')[0]);
   if (p === '/') p = '/index.html';
-  if (['/welcome', '/pricing', '/terms', '/privacy', '/refunds', '/imprint'].includes(p)) p += '.html';   // the public pages, readable without an account
+  // the public pages, readable without an account; the four legal ones also exist in German under /de/
+  if (p === '/welcome' || p === '/pricing' || /^\/(de\/)?(terms|privacy|refunds|imprint)$/.test(p)) p += '.html';
   const file = path.normalize(path.join(PUBLIC, p));
   if (!file.startsWith(PUBLIC + path.sep)) { res.writeHead(403); return res.end(); }
   fs.stat(file, (err, st) => {
@@ -377,9 +395,13 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'PUT') {
         const body = await readBody(req);
         if (!body || typeof body !== 'object' || Array.isArray(body)) return send(res, 400, { error: 'body must be an object' });
+        if (id === 'x_run') { const run = mergeRun(db.docs[user][id], body); db.docs[user][id] = run; save(); return send(res, 200, { ok: true, data: run }); }
         db.docs[user][id] = body; save(); return send(res, 200, { ok: true });
       }
-      if (req.method === 'DELETE') { delete db.docs[user][id]; save(); return send(res, 200, { ok: true }); }
+      if (req.method === 'DELETE') {
+        if (id === 'x_run') return send(res, 403, { error: 'A daily game in progress cannot be discarded.' });
+        delete db.docs[user][id]; save(); return send(res, 200, { ok: true });
+      }
     }
     send(res, 404, { error: 'not found' });
   } catch (e) {

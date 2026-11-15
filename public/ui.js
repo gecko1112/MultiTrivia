@@ -53,8 +53,10 @@ function rankValue(k, d){
 
 function render(){
   if (!layout) return;
+  root.setAttribute('data-view', curTab());                     // lets the page style itself per view (phones: no footer on games)
   const g = GAMES.find(x => x[1] === curTab());
-  layout.classList.toggle('split', !!g && loggedIn);
+  paintSide();
+  if (!g && $('sdFriends')) $('sdFriends').innerHTML = '';     // "Friends today" belongs to a game
   if (!loggedIn || !day) return;
   const me = day.players.find(p => p.me) || {};
 
@@ -83,6 +85,40 @@ function render(){
     : '<div class="pnote">Nobody yet.</div>';
   box.innerHTML = '<div class="panel"><div class="phd"><h2>' + (window.bpDay ? 'Friends that day' : 'Friends today') + '</h2><span>' + g[2] + '</span></div>' + friends + '</div>';
 }
+
+// ---------------------------------------------------------------- the side panel (level, friends today)
+// Closed until the level chip in the top bar is pressed. Next to a game on a wide screen it opens as a third column
+// and that choice is remembered (bp_side). Everywhere else it is a drawer: it slides in, and closes again with its
+// own button, Escape, a click beside it, or a change of page. The tour can show it for one step (peek).
+const side = $('side'), chip = $('lvlChip'), wideMq = window.matchMedia ? matchMedia('(min-width:1240px)') : null;
+let drawerOpen = false, peek = null;
+const sidePref = () => { try { return localStorage.getItem('bp_side') === '1'; } catch (e) { return false; } };
+const dockable = () => !!(wideMq && wideMq.matches && GAMES.some(x => x[1] === curTab()));
+function sideOpen(){ return loggedIn && (peek != null ? peek : dockable() ? sidePref() : drawerOpen); }
+function paintSide(){
+  if (!layout || !side) return;
+  const dock = loggedIn && dockable(), open = sideOpen();
+  layout.classList.toggle('split', dock && open);
+  side.classList.toggle('drawer', !dock);
+  side.classList.toggle('open', !dock && open);
+  if (chip) chip.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function setSide(on){
+  if (dockable()) { try { localStorage.setItem('bp_side', on ? '1' : '0'); } catch (e) {} }
+  else drawerOpen = on;
+  paintSide();
+  if (dockable()) return;
+  const to = on ? $('sdClose') : chip;                         // the drawer takes the focus and hands it back
+  if (to && (on || side.contains(document.activeElement))) { try { to.focus({ preventScroll: true }); } catch (e) {} }
+}
+window.bpSide = { toggle(){ setSide(!sideOpen()); }, peek(on){ peek = on == null ? null : !!on; paintSide(); } };
+if ($('sdClose')) $('sdClose').addEventListener('click', () => setSide(false));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && drawerOpen && !dockable() && peek == null) setSide(false); });
+document.addEventListener('click', e => {
+  if (!drawerOpen || dockable() || peek != null || !side || side.contains(e.target) || (chip && chip.contains(e.target))) return;
+  if (e.target.closest && e.target.closest('#layout, .topbar, .sitefoot')) setSide(false);   // not for clicks in pop-up windows
+});
+if (wideMq) { const h = () => paintSide(); if (wideMq.addEventListener) wideMq.addEventListener('change', h); else if (wideMq.addListener) wideMq.addListener(h); }
 
 async function load(){
   if (!loggedIn || document.hidden) return;
@@ -115,7 +151,7 @@ document.addEventListener('click', e => {
   }, 120);
 });
 
-window.addEventListener('hashchange', () => { render(); soon(); showSelectedTab(); });
+window.addEventListener('hashchange', () => { drawerOpen = false; render(); soon(); showSelectedTab(); });
 window.addEventListener('load', showSelectedTab);
 window.addEventListener('bp-saved', soon);                      // a game just saved a result
 document.addEventListener('visibilitychange', () => { if (!document.hidden) soon(); });
@@ -124,6 +160,8 @@ render();
 if (window.claude && window.claude.use) window.claude.use('user').then(() => { loggedIn = true; render(); load(); }).catch(() => {});
 
 // ---------------------------------------------------------------- pop-up window (shared)
+// A drawn cross (the side panel uses the same one): a typed "×" sits off centre, its place depends on the font.
+const XICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg>';
 let modal = null;
 function closeModal(){
   if (!modal) return;
@@ -136,7 +174,7 @@ window.bpModal = {
   open(o){
     closeModal();
     const back = document.createElement('div'); back.className = 'bpm-back';
-    back.innerHTML = '<div class="bpm' + (o.wide ? ' wide' : '') + '" role="dialog" aria-modal="true"><div class="bpm-hd"><h2>' + o.title + '</h2><button type="button" class="bpm-x" aria-label="Close">×</button></div><div class="bpm-body">' + o.html + '</div></div>';
+    back.innerHTML = '<div class="bpm' + (o.wide ? ' wide' : '') + '" role="dialog" aria-modal="true"><div class="bpm-hd"><h2>' + o.title + '</h2><button type="button" class="bpm-x" aria-label="Close">' + XICON + '</button></div><div class="bpm-body">' + o.html + '</div></div>';
     const onKey = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeModal(); } };
     modal = { back, onKey, from: document.activeElement };
     back.addEventListener('mousedown', e => { if (e.target === back) closeModal(); });
@@ -196,7 +234,7 @@ window.bpToast = function(heading, title, text, onClick, celebrate){
   if (!wrap) { wrap = document.createElement('div'); wrap.className = 'bpt-wrap'; wrap.setAttribute('aria-live', 'polite'); document.body.appendChild(wrap); }
   while (wrap.children.length >= 3) wrap.firstChild.remove();
   const t = document.createElement('button'); t.type = 'button'; t.className = 'bpt' + (celebrate ? ' cele' : '');
-  t.innerHTML = '<span class="th">' + E(heading) + '</span><span class="tb"><b>' + E(title) + '</b>' + E(text || '') + '</span><span class="tx" title="Close" aria-label="Close">×</span><span class="tm"></span>';
+  t.innerHTML = '<span class="th">' + E(heading) + '</span><span class="tb"><b>' + E(title) + '</b>' + E(text || '') + '</span><span class="tx" title="Close" aria-label="Close">' + XICON + '</span><span class="tm"></span>';
   let left = TOAST_MS, since = Date.now(), timer = null;
   const gone = () => { t.classList.add('out'); setTimeout(() => t.remove(), 320); };
   const run = () => { since = Date.now(); timer = setTimeout(gone, left); };

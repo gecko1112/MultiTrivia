@@ -20,6 +20,8 @@ const W = Number(process.argv[3]) || 1440, H = Number(process.argv[4]) || 900, T
     await shot('02-request'); console.log('  overflowX', await ev(`document.documentElement.scrollWidth-innerWidth`));
     await ev(`document.querySelector('[data-fr=accept]').click()`); await wait(1200);
     console.log('4 accepted:', await box()); console.log('  badge:', await ev(`(document.querySelector('.frn')||{textContent:'none'}).textContent`), '| table:', await table(), '| side panel:', await ev(`document.getElementById('sdFriends').innerText.split(String.fromCharCode(10)).join(' ').slice(0,80)`));
+    // the friend list with its remove buttons sits behind "Manage"
+    console.log('  manage closed, remove buttons:', await ev(`document.querySelectorAll('[data-fr=remove]').length`)); await ev(`document.getElementById('frManage').click()`); await wait(200);
     await ev(`document.querySelector('[data-fr=remove][data-u=lini]').click()`); await wait(150);
     console.log('5 remove asks:', await ev(`document.querySelector('[data-fr=remove][data-u=lini]').textContent`), '| still friends', await ev(`document.querySelectorAll('[data-fr=remove]').length`));
     await shot('03-friends');

@@ -8,7 +8,7 @@ const E = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '
 const call = (method, url, body) => fetch(url, { method, credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined })
   .then(r => r.json().catch(() => ({})).then(j => { if (!r.ok) throw new Error(j.error || 'That did not work. Try again in a moment.'); return j; }));
 const pretty = c => c.slice(0, 4) + '-' + c.slice(4);
-let state = null, note = '', bad = false;
+let state = null, note = '', bad = false, manage = false;
 
 // a small number on the Friends tab while requests are waiting
 function badge(){
@@ -19,22 +19,35 @@ function badge(){
   if (!b) { b = document.createElement('span'); b.className = 'frn'; tab.appendChild(b); }
   b.textContent = n; b.setAttribute('aria-label', n + (n === 1 ? ' friend request' : ' friend requests'));
 }
+// Requests that wait for an answer are always shown. Everything else (adding somebody, your code, requests you sent,
+// the list with its remove buttons) sits behind the "Manage" button in the tab's heading; with no friends yet it is open.
 function draw(){
-  const box = $('frBox'); if (!box) return;
-  if (!state || state.open) { box.innerHTML = ''; return; }           // a private server where everybody sees everybody
+  const box = $('frBox'), btn = $('frManage');
+  const usable = !!state && !state.open;                              // not a private server where everybody sees everybody
+  if (btn) { btn.hidden = !(usable && state.friends.length); btn.setAttribute('aria-expanded', manage ? 'true' : 'false'); btn.textContent = manage ? 'Done' : 'Manage'; }
+  if (!box) return;
+  if (!usable) { box.innerHTML = ''; return; }
   const av = f => window.bpAvatar ? window.bpAvatar(f.id, f.name, f.av, 24) : '';
   const row = (title, items) => items.length ? '<div class="fr-row"><span class="fr-lbl">' + title + '</span>' + items.join('') + '</div>' : '';
-  box.innerHTML = '<div class="fr">' +
-    '<div class="fr-head"><form id="frAdd" class="fr-add"><input type="text" id="frWho" maxlength="40" placeholder="Username or friend code" aria-label="Username or friend code" autocomplete="off" autocapitalize="off" spellcheck="false"><button type="submit" class="sm">Add friend</button></form>' +
-      '<div class="fr-code">Your friend code <b class="mono">' + pretty(state.code) + '</b><button type="button" class="ghost sm" id="frCopy">Copy</button></div></div>' +
-    '<p class="fr-msg' + (bad ? ' bad' : '') + '" id="frMsg" role="status">' + E(note) + '</p>' +
+  const open = manage || !state.friends.length;
+  const msg = '<p class="fr-msg' + (bad ? ' bad' : '') + '" id="frMsg" role="status">' + E(note) + '</p>';
+  const html =
     row('Wants to be your friend', state.incoming.map(f => '<span class="fr-chip">' + E(f.name) + '<button type="button" class="sm" data-fr="accept" data-u="' + E(f.id) + '">Accept</button><button type="button" class="ghost sm" data-fr="decline" data-u="' + E(f.id) + '">Decline</button></span>')) +
-    row('Waiting for an answer', state.outgoing.map(f => '<span class="fr-chip">' + E(f.name) + '<button type="button" class="ghost sm" data-fr="cancel" data-u="' + E(f.id) + '">Take back</button></span>')) +
-    (state.friends.length
-      ? row('Friends', state.friends.map(f => '<span class="fr-chip">' + av(f) + E(f.name) + '<button type="button" class="fr-x" data-fr="remove" data-u="' + E(f.id) + '" data-n="' + E(f.name) + '" title="Remove" aria-label="Remove ' + E(f.name) + '">×</button></span>'))
-      : '<p class="muted fr-none">No friends yet. Results, leaderboards and pictures are shared between friends only: give somebody your code, or add them by username.</p>') +
-    '</div>';
+    (!open ? (note ? msg : '') :
+      '<div class="fr-head"><form id="frAdd" class="fr-add"><input type="text" id="frWho" maxlength="40" placeholder="Username or friend code" aria-label="Username or friend code" autocomplete="off" autocapitalize="off" spellcheck="false"><button type="submit" class="sm">Add friend</button></form>' +
+        '<div class="fr-code">Your friend code <b class="mono">' + pretty(state.code) + '</b><button type="button" class="ghost sm" id="frCopy">Copy</button></div></div>' + msg +
+      row('Waiting for an answer', state.outgoing.map(f => '<span class="fr-chip">' + E(f.name) + '<button type="button" class="ghost sm" data-fr="cancel" data-u="' + E(f.id) + '">Take back</button></span>')) +
+      (state.friends.length
+        ? row('Friends', state.friends.map(f => '<span class="fr-chip">' + av(f) + E(f.name) + '<button type="button" class="fr-x" data-fr="remove" data-u="' + E(f.id) + '" data-n="' + E(f.name) + '" title="Remove" aria-label="Remove ' + E(f.name) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></span>'))
+        : '<p class="muted fr-none">No friends yet. Results, leaderboards and pictures are shared between friends only: give somebody your code, or add them by username.</p>'));
+  box.innerHTML = html ? '<div class="fr">' + html + '</div>' : '';
 }
+document.addEventListener('click', e => {
+  if (!e.target.closest || !e.target.closest('#frManage')) return;
+  manage = !manage; if (!manage) say('');
+  draw();
+  const w = manage && $('frWho'); if (w) { try { w.focus({ preventScroll: true }); } catch (err) {} }
+});
 async function load(){
   try { state = await call('GET', '/api/friends'); } catch (e) { return; }
   badge(); draw();
