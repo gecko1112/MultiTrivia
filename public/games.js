@@ -59,7 +59,11 @@ function saveStats(){
 }
 window.onCloudReady=async function(col){
   statsCol=col;
-  try{ const d=await col.doc('x_stats').get(); if(d.exists) stats=merge(stats,d.data()); }catch(e){}
+  try{
+    const d=await col.doc('x_stats').get(), srv=d.exists?d.data():{};
+    if(d.exists) stats=merge(stats,srv);
+    stats.ml=merge(blank(),{ml:srv.ml}).ml;   // More/Less results come from the server only (moreless-server.js)
+  }catch(e){}
   saveStats(); refreshIntros();
 };
 function refreshIntros(){ if($('mlIntro').style.display!=='none') mlStatLine(); if($('glIntro').style.display!=='none') glStatLine(); if($('clIntro').style.display!=='none') clStatLine(); }
@@ -67,77 +71,47 @@ async function copyText(btn,txt,label){try{await navigator.clipboard.writeText(t
 function show(prefix,part){['Intro','Play','End'].forEach(p=>{const el=$(prefix+p); if(el) el.style.display=(p===part)?'':'none';});}
 
 // ===================== MORE / LESS =====================
-let ml=null;
-function mlItemsFor(cat,r){
-  if(cat.trivia){
-    return {label:'the number', src:'Each card is a different quantity in its own unit. Compare the raw numbers.',
-      items:Q.map(q=>({name:q.q.replace(/\?$/,''),sub:'in '+q.u,v:q.a,show:fmt(q.a)+' '+q.u}))};
-  }
-  const set=pick(cat.sets,r);
-  return {name:set.name, label:set.label, src:set.src, rating:!!set.rating, items:set.items.map(([n,s,v,ic])=>({name:n, sub:set.flag?'':s, v,
-    icon:set.flag?s:(ic||set.icon||''), rating:!!set.rating,
-    show:set.rating?v.toFixed(1)+' / 10':set.money?'$'+fmt(v):fmt(v)+' '+set.unit}))};
-}
-function mlChain(items,gap,r,diff,near){
-  const okPair=(x,p)=>diff?Math.abs(x.v-p.v)>=diff:Math.max(x.v,p.v)/Math.min(x.v,p.v)>=gap;
-  let pool=shuffleR(items,r); const chain=[pool.pop()];
-  while(chain.length<6 && pool.length){
-    const prev=chain[chain.length-1];
-    // "near" keeps a pair comparable: at most that many times bigger (for ratings: that many points apart).
-    const dist=(x,p)=>diff?Math.abs(x.v-p.v):Math.max(x.v,p.v)/Math.min(x.v,p.v);
-    let i=near?pool.findIndex(x=>okPair(x,prev)&&dist(x,prev)<=near):pool.findIndex(x=>okPair(x,prev));
-    if(i<0&&near){ let bd=Infinity; pool.forEach((x,j)=>{ if(okPair(x,prev)&&dist(x,prev)<bd){ bd=dist(x,prev); i=j; } }); }   // nothing that close: take the closest
-    if(i<0) i=pool.findIndex(x=>x.v!==prev.v);
-    if(i<0) break;
-    chain.push(pool.splice(i,1)[0]);
-  }
-  return chain;
-}
-function mlBuild(seed,daily){
-  const r=rngFrom(seed);
-  const legacy=daily&&todayKey()<='2026-11-11';   // daily games up to this date keep the pairs their players already saw
-  const cats=ML_CATS.map(cat=>{const s=mlItemsFor(cat,r);return {name:s.name||cat.name,label:s.label,src:s.src,chain:mlChain(s.items,cat.gap,r,cat.diff,legacy?0:(cat.diff?1.5:cat.trivia?4:3))};});
-  return {daily,seed,cats,ci:0,si:0,res:[[],[],[],[],[]],log:[],busy:false};
-}
+// Dealt and judged on the server (moreless-server.js). The browser shows the left card with its number and the right
+// card without it, sends the call, and gets back whether it was right, the right card's number and the next pair.
+// Today's game lives on the server too: it continues from any browser and is never dealt again.
+let ml=null;          // the game on screen, as the server last described it
+let mlHome=null;      // the menu's state from the server: { date, done, going, practice }
+let mlBusy=false;
 function dayAvg(days,f,dp){const v=Object.values(days||{}).map(d=>d&&d[f]).filter(x=>typeof x==='number');return v.length?(v.reduce((a,b)=>a+b,0)/v.length).toFixed(dp==null?1:dp):'–';}
+const mlDayArg=()=>window.bpDay||undefined;      // a past day in the archive, otherwise today (the server knows which day that is)
+async function mlPost(act,body){
+  const r=await fetch('/api/ml/'+act,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error||'Something went wrong. Try again.'); return j;
+}
+async function mlLoadHome(){ try{ const r=await fetch('/api/ml/home'+(window.bpDay?'?day='+window.bpDay:''),{credentials:'same-origin'}); if(r.ok) mlHome=await r.json(); }catch(e){} }
 function mlStatLine(){
-  const t=stats.ml.days[todayKey()];
+  const day=(mlHome&&mlHome.date)||todayKey(), t=stats.ml.days[day];
   $('mlStat').innerHTML=statCells([['Today',t?t.score+' / 25':'–'],['Best',stats.ml.best?stats.ml.best+' / 25':'–'],['Average',dayAvg(stats.ml.days,'score')],['Played',stats.ml.played||0]]);
-  const going=!t&&mlSaved(); $('mlDaily').textContent=t?"See today's result":going&&going.daily?"Continue today's game":"Play today's game";
+  const done=!!t||!!(mlHome&&mlHome.done), going=!done&&!!(mlHome&&mlHome.going);
+  $('mlDaily').textContent=done?"See today's result":going?"Continue today's game":"Play today's game";
 }
-// ---- a game survives an accidental reload: the questions are rebuilt from the seed, the answers so far are saved ----
-// Today's daily game is also kept on the server (run.js): once started it is continued, from any browser, never dealt again.
-function mlSave(next){
-  const s={seed:ml.seed,daily:ml.daily,day:todayKey(),t:Date.now(),ci:next?next[0]:ml.ci,si:next?next[1]:ml.si,res:ml.res,log:ml.log};
-  try{ localStorage.setItem(window.bpRunKey('bp_ml_run'),JSON.stringify(s)); }catch(e){}
-  if(ml.daily&&window.bpRun) bpRun.set('ml',ml.log.length+1,s);
+// the server's numbers after a finished game: best, games played, and the day's result
+function mlTakeStats(s){
+  stats.ml.best=s.best; stats.ml.played=s.played; if(s.day&&s.rec) stats.ml.days[s.day]=s.rec;
+  try{localStorage.setItem('bp_stats',JSON.stringify(stats));}catch(e){}
 }
-function mlClear(){ try{localStorage.removeItem(window.bpRunKey('bp_ml_run'));}catch(e){} }
-// the saved game to go on with: this browser's copy, or for today's daily the server's when that is further along
-function mlSaved(){
-  let s=null; try{s=JSON.parse(localStorage.getItem(window.bpRunKey('bp_ml_run'))||'null');}catch(e){}
-  if(s&&s.daily&&s.day!==todayKey()) s=null;
-  const far=window.bpRun&&bpRun.get('ml');
-  if(far&&far.day===todayKey()&&!(s&&s.daily&&(s.log||[]).length>=(far.log||[]).length)) s=far;
-  return s;
+function mlShow(v){
+  if(v.done){ ml=null; mlEnd(v.rec,v.daily); return; }
+  ml=v; show('ml','Play'); mlRender(true);
 }
-function mlContinue(s){
-  ml=mlBuild(s.seed,s.daily); ml.ci=s.ci; ml.si=s.si; ml.res=s.res; ml.log=s.log;
-  show('ml','Play'); if(ml.ci>=5) mlFinish(); else mlRender(true);
-}
-function mlResume(){
-  const s=mlSaved();
-  if(!s||ml) return;
-  if((s.daily&&stats.ml.days[todayKey()])||(!s.daily&&Date.now()-(s.t||0)>12*36e5)){ mlClear(); return; }
-  mlContinue(s);
+async function mlResume(){                        // a game that was going when the page was left comes back
+  await mlLoadHome();
+  if(!ml&&mlHome&&(mlHome.going||mlHome.practice)){
+    try{ mlShow(await mlPost('start',mlHome.going?{daily:true,day:mlDayArg()}:{daily:false,resume:true})); }catch(e){}
+  }
+  if($('mlIntro').style.display!=='none') mlStatLine();
 }
 function mlShowIntro(){ if(ml&&$('mlPlay').style.display!=='none') return; show('ml','Intro'); mlStatLine(); }
-function mlStart(daily){
-  const k=todayKey();
-  if(daily && stats.ml.days[k]){ mlEnd(stats.ml.days[k],true); return; }
-  const going=daily&&mlSaved(); if(going&&going.daily){ mlContinue(going); return; }      // today's game was started before
-  ml=mlBuild(daily?'ml-'+k:'mlp-'+Date.now()+Math.random(),daily);
-  show('ml','Play'); mlRender(true); mlSave();
+async function mlStart(daily){
+  if(mlBusy) return; mlBusy=true;
+  try{ mlShow(await mlPost('start',{daily,day:daily?mlDayArg():undefined})); }
+  catch(e){ $('mlDaily').textContent=e.message; setTimeout(mlStatLine,2500); }
+  finally{ mlBusy=false; }
 }
 function mlCard(item,revealed,cls){
   return `<div class="mlcard ${cls||''}">${item.icon?`<div class="ic">${item.icon}</div>`:''}<div class="nm">${esc(item.name)}</div>${item.sub?`<div class="sb">${esc(item.sub)}</div>`:''}
@@ -145,24 +119,25 @@ function mlCard(item,revealed,cls){
     <div class="mlbtns"><button data-c="more">▲ More</button><button class="ghost" data-c="less">▼ Less</button></div>`}</div>`;
 }
 function mlRender(fresh){
-  const c=ml.cats[ml.ci], L=c.chain[ml.si], R=c.chain[ml.si+1];
-  const done=ml.res.flat().filter(x=>x).length, total=ml.res.flat().length;
-  $('mlCat').textContent=`Round ${ml.ci+1} of 5: ${c.name}${ml.daily?'':' (practice)'}`;
+  const v=ml, done=v.res.flat().filter(x=>x).length, total=v.res.flat().length;
+  $('mlCat').textContent=`Round ${v.ci+1} of 5: ${v.cat.name}${v.daily?'':' (practice)'}`;
   $('mlScore').textContent=`${done}/${total}`;
-  $('mlDots').innerHTML=Array.from({length:25},(_,i)=>{const a=Math.floor(i/5),b=i%5,v=ml.res[a][b];return `<i class="${v===true?'ok':v===false?'no':(a===ml.ci&&b===ml.si)?'cur':''}"></i>`;}).join('');
-  $('mlQ').textContent=`More or less ${c.label} than the left card?`;
-  $('mlSrc').textContent=c.src;
-  $('mlBoard').innerHTML=mlCard(L,true)+mlCard(R,false,fresh?'':'enter')+'<div class="orb mono">OR</div>';
+  $('mlDots').innerHTML=Array.from({length:25},(_,i)=>{const a=Math.floor(i/5),b=i%5,x=(v.res[a]||[])[b];return `<i class="${x===true?'ok':x===false?'no':(a===v.ci&&b===v.si)?'cur':''}"></i>`;}).join('');
+  $('mlQ').textContent=`More or less ${v.cat.label} than the left card?`;
+  $('mlSrc').textContent=v.cat.src;
+  $('mlBoard').innerHTML=mlCard(v.left,true)+mlCard(v.right,false,fresh?'':'enter')+'<div class="orb mono">OR</div>';
   $('mlBoard').querySelectorAll('[data-c]').forEach(b=>b.addEventListener('click',()=>mlAnswer(b.dataset.c)));
 }
-function mlAnswer(choice){
-  if(ml.busy) return; ml.busy=true;
-  const c=ml.cats[ml.ci], L=c.chain[ml.si], R=c.chain[ml.si+1];
-  const ok=(choice==='more')===(R.v>L.v);
-  ml.res[ml.ci][ml.si]=ok;
-  ml.log.push({cat:c.name,a:L,b:R,choice,ok});
-  mlSave((ml.si>=4||ml.si+2>=c.chain.length)?[ml.ci+1,0]:[ml.ci,ml.si+1]);
-  const cards=$('mlBoard').children; const right=cards[1];
+async function mlAnswer(choice){
+  if(!ml||ml.busy) return; const was=ml; was.busy=true;
+  const cards=$('mlBoard').children, right=cards[1], btns=[...right.querySelectorAll('.mlbtns button')];
+  btns.forEach(b=>b.disabled=true);
+  let v;
+  try{ v=await mlPost('answer',{daily:was.daily,day:was.daily?mlDayArg():undefined,i:was.i,choice}); }
+  catch(e){ was.busy=false; btns.forEach(b=>b.disabled=false); $('mlQ').textContent=e.message; return; }
+  if(ml!==was) return;                            // the player left meanwhile
+  const ok=v.last.ok, R=v.last.b;                 // the called card, now with its number
+  if(v.stats) mlTakeStats(v.stats);
   right.querySelector('.mlbtns').remove();
   const val=right.querySelector('.val'); val.style.color=ok?'var(--good)':'var(--bad)';
   // count-up
@@ -172,25 +147,19 @@ function mlAnswer(choice){
     if(p<1) requestAnimationFrame(step);})(t0);
   right.classList.add(ok?'ok':'no');
   const lbl=document.createElement('div'); lbl.className='lbl'; lbl.textContent=ok?'✓ correct':'✗ wrong'; lbl.style.color=ok?'var(--good)':'var(--bad)'; right.appendChild(lbl);
-  $('mlDots').children[ml.ci*5+ml.si].className=ok?'ok':'no';
-  $('mlScore').textContent=`${ml.res.flat().filter(x=>x).length}/${ml.res.flat().length}`;
+  $('mlDots').children[was.ci*5+was.si].className=ok?'ok':'no';
+  $('mlScore').textContent=`${v.res.flat().filter(x=>x).length}/${v.res.flat().length}`;
   setTimeout(()=>{
-    const lastInCat = ml.si>=4 || ml.si+2>=c.chain.length;
-    if(lastInCat){
-      ml.ci++; ml.si=0; ml.busy=false;
-      if(ml.ci>=5) return mlFinish();
-      mlRender(true); return;
+    if(ml!==was) return;
+    if(v.done){                                   // the server has stored the result: show it, and tell the rest of the page
+      ml=null; mlEnd(v.rec,v.daily);
+      if(v.daily) mlHome=Object.assign({},mlHome,{done:true,going:false}); else if(mlHome) mlHome.practice=false;
+      window.dispatchEvent(new Event('bp-saved')); return;
     }
+    if(v.ci!==was.ci){ ml=v; mlRender(true); return; }
     cards[0].classList.add('fadeOut'); right.classList.add('slideL');
-    setTimeout(()=>{ ml.si++; ml.busy=false; mlRender(false); },460);
+    setTimeout(()=>{ if(ml!==was) return; ml=v; mlRender(false); },460);
   },1300);
-}
-function mlFinish(){
-  const score=ml.res.flat().filter(x=>x).length;
-  const rec={score,grid:ml.res.map(r=>r.map(x=>x?1:0)),cats:ml.cats.map(c=>c.name),log:ml.log.map(l=>({c:l.cat,a:l.a.name,av:l.a.show,b:l.b.name,bv:l.b.show,ch:l.choice,ok:l.ok}))};
-  stats.ml.played++; stats.ml.best=Math.max(stats.ml.best,score);
-  if(ml.daily){ stats.ml.days[todayKey()]=rec; if(window.bpRun) bpRun.done('ml'); }
-  saveStats(); mlEnd(rec,ml.daily); ml=null; mlClear();
 }
 let mlLastRec=null,mlLastDaily=false;
 function mlEnd(rec,daily){
@@ -204,8 +173,8 @@ function mlEnd(rec,daily){
 // it is and "Continue today's game" goes on with it, so nobody gets the same questions a second time.
 function armedConfirm(btn,label,fn){ if(!btn.dataset.armed){ btn.dataset.armed='1'; btn.textContent='Leave? Progress is lost'; setTimeout(()=>{delete btn.dataset.armed; btn.textContent=label;},3000); return; } delete btn.dataset.armed; btn.textContent=label; fn(); }
 $('mlQuit').addEventListener('click',()=>{
-  if(ml&&ml.daily){ ml=null; show('ml','Intro'); mlStatLine(); return; }
-  armedConfirm($('mlQuit'),'← Menu',()=>{ ml=null; mlClear(); show('ml','Intro'); mlStatLine(); });
+  if(ml&&ml.daily){ ml=null; show('ml','Intro'); mlHome=Object.assign({},mlHome,{going:true}); mlStatLine(); return; }
+  armedConfirm($('mlQuit'),'← Menu',()=>{ ml=null; if(mlHome) mlHome.practice=false; mlPost('quit',{daily:false}).catch(()=>{}); show('ml','Intro'); mlStatLine(); });
 });
 $('glQuit').addEventListener('click',()=>{
   if(gl&&gl.daily){ gl=null; show('gl','Intro'); glStatLine(); return; }

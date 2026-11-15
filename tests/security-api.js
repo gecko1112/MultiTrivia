@@ -44,13 +44,13 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     && (await (async () => { let last = 0; for (let i = 0; i < 6; i++) last = (await call('o' + (3 + i), 'POST', '/api/signup', { username: 'spoof' + i, password: 'kiwi-lamp-447' + i }, { 'X-Forwarded-For': '10.0.0.' + i + ', 203.0.113.9' })).s; return last; })()) === 429);
   ok('logging in is not affected by the sign-up brake', (await call('back', 'POST', '/api/login', { username: 'newbie0', password: 'kiwi-lamp-4400' })).s === 200);
   ok('the refused ones do not exist', (await call('x', 'POST', '/api/login', { username: 'newbie6', password: 'kiwi-lamp-4460' })).s === 401);
-  await call('n0', 'PUT', '/api/docs/x_stats', { ml: { days: { '2026-11-13': { score: 21 } } } });
+  await call('n0', 'PUT', '/api/docs/notes', { days: { '2026-11-13': { score: 21 } } });    // any document the browser owns
   await stop(srv);
 
   // ---- restart: everything is still there, the old data too
   srv = await boot({});
   ok('after a restart the login is still valid', (await call('n0', 'GET', '/api/me')).s === 200);
-  ok('and the saved result is there', (await call('n0', 'GET', '/api/docs/x_stats')).j.data.ml.days['2026-11-13'].score === 21);
+  ok('and the saved result is there', (await call('n0', 'GET', '/api/docs/notes')).j.data.days['2026-11-13'].score === 21);
   await stop(srv);
   db = readDb(project, data);
   ok('the migrated accounts are still complete after other accounts changed', openStore.same(bare(db.users.olduser), old.users.olduser) && openStore.same(db.docs.olduser, old.docs.olduser) && Object.keys(db.users).length === 2 + 5 + 2 + 3);   // 2 old, 5 newbies, and 5 from the second address

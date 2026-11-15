@@ -28,8 +28,9 @@ const W = Number(process.argv[3]) || 1280, H = Number(process.argv[4]) || 900, T
     console.log('  continue -> same place:', (await txt('#mlCat') + ' | ' + await txt('#mlScore') + ' | ' + await ev(`[...document.querySelectorAll('#mlBoard .nm')].map(n=>n.textContent).join(' vs ')`)) === mlAt);
     await wait(700); console.log('  storage emptied, keys left:', await wipe()); await go('moreless');
     console.log('  after reload with empty storage -> same place:', (await txt('#mlCat') + ' | ' + await txt('#mlScore') + ' | ' + await ev(`[...document.querySelectorAll('#mlBoard .nm')].map(n=>n.textContent).join(' vs ')`)) === mlAt, '| playing', await shown('mlPlay'));
-    console.log('  asking the server for a fresh start:', await ev(`fetch('/api/docs/x_run',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:window.bpRealToday(),games:{ml:{n:1,s:{}}}})}).then(r=>r.json()).then(j=>'stored steps stay '+j.data.games.ml.n)`),
-      '| deleting it:', await ev(`fetch('/api/docs/x_run',{method:'DELETE'}).then(r=>r.status)`));
+    // More/Less is dealt and judged on the server: starting again continues, and an answered pair cannot be called again
+    console.log('  asking the server to start again:', await ev(`fetch('/api/ml/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({daily:true})}).then(r=>r.json()).then(j=>'calls made stay '+j.i)`),
+      '| calling the first pair again:', await ev(`fetch('/api/ml/answer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({daily:true,i:0,choice:'more'})}).then(r=>r.status)`));
     // a practice game is still thrown away, after asking
     await ev(`document.getElementById('mlQuit').click()`); await wait(300); await ev(`document.getElementById('mlPractice').click()`); await wait(700);
     await ev(`document.getElementById('mlQuit').click()`); await wait(200);
@@ -81,6 +82,7 @@ const W = Number(process.argv[3]) || 1280, H = Number(process.argv[4]) || 900, T
     await wait(700); await wipe(); await go('survival');
     console.log('  after reload with empty storage -> same place:', (await txt('#score') + ' | ' + await txt('#q')) === svAt, '| in the game', await ev(`document.getElementById('game').classList.contains('on')`));
 
-    console.log('server copy:', await ev(`fetch('/api/docs/x_run').then(r=>r.json()).then(j=>Object.entries(j.data.games).map(([g,v])=>g+':'+(v.done?'done':v.n)).join(' '))`));
+    console.log('server copy:', await ev(`fetch('/api/docs/x_run').then(r=>r.json()).then(j=>Object.entries(j.data.games).map(([g,v])=>g+':'+(v.done?'done':v.n)).join(' '))`),
+      '| More/Less on the server:', await ev(`fetch('/api/ml/home').then(r=>r.json()).then(j=>j.going?'going':j.done?'done':'not started')`));
     console.log('ERRORS', JSON.stringify(t.errors.filter(e => !/401/.test(e)))); t.done(0);
   } catch (e) { console.error('FAILED', e); console.log('ERRORS', JSON.stringify(t.errors)); t.done(1); } })();
