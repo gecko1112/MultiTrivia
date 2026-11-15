@@ -49,7 +49,8 @@ exports.start = async function (project, W, H, TAG) {
   // restart the server. The page stays logged in (the login is kept in the database).
   const d = new Date(), k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const res = (ml, gl) => Object.assign(ml == null ? {} : { ml: { days: { [k]: { score: ml } }, best: ml, played: 1 } }, { gl: { days: { [k]: { total: gl } }, best: gl, played: 1 } });
-  require('../seed').importStats(data, { lini: res(21, 388), fickric: res(18, 430), maximdog: res(null, 365), gecko: res(19, 412) });
+  const wd = n => ({ days: { [k]: { solved: true, guesses: n, word: 'plant', rows: [], words: [] } }, played: 1, won: 1, streak: 1, maxStreak: 1, dist: [0, 0, 0, 0, 0, 0].map((x, i) => (i === n - 1 ? 1 : 0)) });
+  require('../seed').importData(data, { lini: { stats: res(21, 388), words: wd(3) }, fickric: { stats: res(18, 430), words: wd(4) }, maximdog: { stats: res(null, 365) }, gecko: { stats: res(19, 412) } });
   await wait(450); srv.kill(); await wait(400); srv = boot(); await wait(900);
   return { cdp, ev, shot, reload, done, errors, wait };
 };

@@ -55,7 +55,7 @@ The server also keeps its own daily copies of the database (30 days) in `/var/li
 
 ## Importing someone's data
 
-Put a file named `<username>.json` in `data/import/` and restart the server. It's merged into that account once and then renamed to `.imported`.
+Put a file named `<username>.json` in `data/import/` and restart the server. It's merged into that account once and then renamed to `.imported`. It can hold `stats` (More/Less, Guessless, Clueless), `words` (Wordy) and `late` (archive marks); results already there win for the same day.
 
 ## Bring over your runs from the Claude version
 
@@ -108,8 +108,9 @@ Who has Plus is decided on the server (`plus-server.js`) and stored with the acc
 | `plus-server.js` | Ballpark Plus: who has it, checkout, payment notices |
 | `moreless-server.js` | More/Less: deals the pairs, judges every call and stores the result. The browser never gets a number before its call |
 | `guessless-server.js` | Guessless: deals the five questions, scores every estimate and stores the result. The browser never gets an answer before its estimate |
+| `wordy-server.js` | Wordy: picks the word, checks and colours every guess, stores the result. The browser learns the word only at the end |
 | `games-common.js` | What the server-judged daily games share: the day, the archive rule, where results are kept |
-| `content/` | Game content only the server reads, never sent to the browser (More/Less cards, Guessless questions, with their numbers) |
+| `content/` | Game content only the server reads, never sent to the browser (More/Less cards, Guessless questions, Wordy's word lists) |
 | `data/avatars/` | Profile pictures. Back this folder up together with `data/ballpark.sqlite` |
 | `public/` | The game pages. `public/de/` holds the German versions of the four legal pages; `public/run.js` keeps today's daily games in progress on the server, so a started daily can only be continued, never dealt again |
 | `store.js` | Reads and writes the database |

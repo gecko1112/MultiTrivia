@@ -1,7 +1,7 @@
 const { spawn } = require('child_process');
 const up = require('./up');
 const fs = require('fs'), path = require('path');
-const { importStats } = require('./seed');
+const { importData } = require('./seed');
 const project = process.argv[2] || require('path').join(__dirname, '..'), readDb = require('./db.js').readDb, patchDb = require('./db.js').patchDb, PORT = 3983, B = 'http://127.0.0.1:' + PORT;
 const data = path.join(__dirname, '.tmp', 'sdata'); fs.rmSync(data, { recursive: true, force: true }); fs.mkdirSync(data, { recursive: true });
 const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -21,7 +21,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     x_daily: { days: { [D]: { score: 7, avg: 0.5, t: 1, h: [{ q: 'SECRETSV' }] } } },
   };
   for (const id of Object.keys(full)) await call('anna', 'PUT', '/api/docs/' + id, full[id]);
-  importStats(data, { anna: { ml: full.x_stats.ml, gl: full.x_stats.gl } });  // More/Less and Guessless results come from the server, not the browser
+  importData(data, { anna: { stats: { ml: full.x_stats.ml, gl: full.x_stats.gl }, words: full.x_words } });   // results the server decides come from the server, not the browser
   await wait(450); srv.kill(); await wait(400); srv = boot(); await up(PORT);   // the wait lets the server write to disk first
   const out = [];
   const day = async who => (await call(who, 'GET', '/api/day?date=' + D)).j;
@@ -30,7 +30,8 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   out.push(['the scores still do', a.ml.score === 20 && a.gl.total === 300 && a.cl.guesses === 12 && a.cl.hints === 1 && a.wd.guesses === 4 && a.wd.solved === true && a.sv.score === 7]);
   out.push(['every game is marked locked', ['sv', 'ml', 'gl', 'cl', 'wd'].every(k => a[k].locked === true)]);
   out.push(['the owner sees their own details', JSON.stringify((await day('anna')).players.find(p => p.me)).includes('SECRETWORD')]);
-  await call('ben', 'PUT', '/api/docs/x_words', { days: { [D]: { solved: false, guesses: 6, word: 'x', rows: [], words: [] } } });
+  importData(data, { ben: { words: { days: { [D]: { solved: false, guesses: 6, word: 'x', rows: [], words: [] } } } } });   // ben has played Wordy that day
+  await wait(450); srv.kill(); await wait(400); srv = boot(); await up(PORT);
   j = await day('ben'); a = j.players.find(p => p.name === 'anna');
   out.push(['after playing Wordy: Wordy opens', !a.wd.locked && a.wd.word === 'SECRETWD']);
   out.push(['the other four stay shut', ['sv', 'ml', 'gl', 'cl'].every(k => a[k].locked) && !JSON.stringify(a).includes('SECRETWORD')]);
@@ -40,7 +41,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   await call('ben', 'PUT', '/api/docs/x_daily', { days: { [D]: { score: 3, avg: 1, t: 1, h: [] } } });
   a = (await day('ben')).players.find(p => p.name === 'anna');
   out.push(['a finished one does', !a.sv.locked && a.sv.h.length === 1]);
-  out.push(['another day is judged on its own', !JSON.stringify(await (async () => { await call('anna', 'PUT', '/api/docs/x_words', { days: { [D]: full.x_words.days[D], '2026-11-11': { solved: true, guesses: 2, word: 'SECRETOLD', rows: [], words: [] } } }); return (await call('ben', 'GET', '/api/day?date=2026-11-11')).j; })()).includes('SECRETOLD')]);
+  out.push(['another day is judged on its own', !JSON.stringify(await (async () => { importData(data, { anna: { words: { days: { '2026-11-11': { solved: true, guesses: 2, word: 'SECRETOLD', rows: [], words: [] } } } } }); await wait(450); srv.kill(); await wait(400); srv = boot(); await up(PORT); return (await call('ben', 'GET', '/api/day?date=2026-11-11')).j; })()).includes('SECRETOLD')]);
   out.forEach(([n, ok]) => console.log((ok ? 'ok    ' : 'FAIL  ') + n));
   srv.kill(); process.exitCode = out.every(o => o[1]) ? 0 : 1;
 })();
