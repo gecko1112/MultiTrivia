@@ -107,7 +107,12 @@ function finish(){
   document.getElementById('wdNext').addEventListener('click',()=>start(false));
 }
 function prevDay(k){const d=new Date(k+'T12:00:00');d.setDate(d.getDate()-1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function save(){ if(g&&g.daily) try{localStorage.setItem('bp_wd_'+todayKey(),JSON.stringify({t:g.target,rows:g.rows.map(r=>r.w)}));}catch(e){} }
+function save(){
+  if(!g||!g.daily) return;
+  const s={t:g.target,rows:g.rows.map(r=>r.w)};
+  try{localStorage.setItem('bp_wd_'+todayKey(),JSON.stringify(s));}catch(e){}
+  if(window.bpRun&&!window.bpDay&&s.rows.length){ if(g.done) bpRun.done('wd'); else bpRun.set('wd',s.rows.length+1,s); }   // today's tries are also kept on the server (run.js)
+}
 function persist(){ try{localStorage.setItem('bp_words',JSON.stringify(st));}catch(e){} if(col) col.doc('x_words').set(st).catch(()=>{}); }
 function start(daily){
   document.getElementById('wdEnd').style.display='none';
@@ -116,6 +121,9 @@ function start(daily){
   if(daily){
     let saved=null; try{saved=JSON.parse(localStorage.getItem('bp_wd_'+todayKey())||'null');}catch(e){}
     const rec=st.days[todayKey()];
+    // tries made in another browser today count too: go on from whichever copy has more
+    const far=window.bpRun&&bpRun.get('wd');
+    if(far&&far.t===target&&Array.isArray(far.rows)&&(!saved||saved.t!==target||far.rows.length>saved.rows.length)) saved=far;
     const words = saved&&saved.t===target ? saved.rows : [];
     for(const w of words){ const res=score(w,target); g.rows.push({w,res}); if(res.every(x=>x==='c')){g.done=true;g.won=true;break;} }
     if(!g.done && g.rows.length>=6){ g.done=true; }
@@ -132,6 +140,7 @@ document.getElementById('wdPractice').addEventListener('click',()=>start(false))
   try{ const l=JSON.parse(localStorage.getItem('bp_words')||'null'); if(l) st=Object.assign(st,l); }catch(e){}
   start(true);
   try{ if(!window.claude||!claude.use) return; const db=await claude.use('db'), u=await claude.use('user'); const id=u&&await u.id(); if(!db||!id) return;
+    if(window.bpRun){ await bpRun.ready(); const far=bpRun.get('wd'); if(far&&g&&g.daily&&!g.done&&Array.isArray(far.rows)&&far.rows.length>g.rows.length) start(true); }
     col=db.collection('data/users/'+id); const d=await col.doc('x_words').get();
     if(d.exists){ st=Object.assign({days:{},played:0,won:0,streak:0,maxStreak:0,dist:[0,0,0,0,0,0]},d.data()); try{localStorage.setItem('bp_words',JSON.stringify(st));}catch(e){} if(!g||g.daily) start(true); }
   }catch(e){}
