@@ -56,8 +56,17 @@ setInterval(backup, 6 * 60 * 60 * 1000).unref();
         }
         docs.x_stats = Object.assign({}, cur, out);
       }
+      if (d.words && typeof d.words === 'object') {       // Wordy results (x_words); existing results win for the same day
+        const cur = docs.x_words || {};
+        docs.x_words = Object.assign({}, d.words, cur, { days: Object.assign({}, d.words.days || {}, cur.days || {}) });
+      }
+      if (d.late && typeof d.late === 'object') {         // archive marks (x_late.days[day][game])
+        const cur = docs.x_late || {}, days = Object.assign({}, cur.days || {});
+        for (const [day, marks] of Object.entries(d.late)) days[day] = Object.assign({}, marks, days[day]);
+        docs.x_late = Object.assign({}, cur, { days });
+      }
       fs.renameSync(file, file + '.imported');
-      console.log(`  Imported ${n} runs${d.stats ? ' and game stats' : ''} into "${db.users[user].display}".`);
+      console.log(`  Imported ${n} runs${d.stats ? ' and game stats' : ''}${d.words ? ' and Wordy results' : ''} into "${db.users[user].display}".`);
       store.save();
     } catch (e) { console.log(`  Import failed for ${f}: ${e.message}`); }
   }
@@ -151,8 +160,10 @@ const validDocId = id => typeof id === 'string' && /^[A-Za-z0-9_\-.:~@+]{1,100}$
 // reader of results keeps working: x_stats.<game> holds the results, x_late.days[day].<game> marks an archive game.
 // Those parts belong to the server. Whatever the browser sends for them is replaced by what the server has, and
 // deleting the document keeps them.
-const SERVER_GAMES = ['ml', 'gl'];
+const SERVER_GAMES = ['ml', 'gl', 'wd'];
+const SERVER_DOCS = ['x_words'];                    // whole documents only the server writes (Wordy's results)
 function keepServerParts(id, old, body) {
+  if (SERVER_DOCS.includes(id)) return old && typeof old === 'object' ? old : {};
   if (id === 'x_stats') {
     const out = Object.assign({}, body);
     for (const g of SERVER_GAMES) { if (old && old[g]) out[g] = old[g]; else delete out[g]; }
@@ -313,6 +324,12 @@ const guessless = require('./guessless-server.js')({ cats: require('./content/gu
   records: u => (db.gl[u] = db.gl[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
   mayArchive: u => hasPlus(u) });
 
+// ---------- Wordy (picked and judged on the server; daily guesses in db.wd, results in the account's x_words) ----------
+if (!db.wd) db.wd = {};
+const wordy = require('./wordy-server.js')({ words: require('./content/wordy.js'), send, readBody, save,
+  records: u => (db.wd[u] = db.wd[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
+  mayArchive: u => hasPlus(u) });
+
 // ---------- Drinks (one-phone drinking games, dealt and judged on the server) ----------
 if (!db.drinks) db.drinks = {};                     // per account: counters and earned badges of the drinking games
 const drinks = require('./drinks-server.js')({ send, readBody, party, geo, records: Object.assign(u => (db.drinks[u] = db.drinks[u] || {}), { save }) });
@@ -375,6 +392,7 @@ const server = http.createServer(async (req, res) => {
     if (await geo.handle(req, res, url, query, user)) return;
     if (await moreless.handle(req, res, url, query, user)) return;
     if (await guessless.handle(req, res, url, query, user)) return;
+    if (await wordy.handle(req, res, url, query, user)) return;
     if (await drinks.handle(req, res, url, query, user)) return;
     if (await plus.handle(req, res, url, query, user)) return;
     if (await account.handle(req, res, url, query, user)) return;

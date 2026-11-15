@@ -18,7 +18,7 @@
 // stops with a message.
 const fs = require('fs'), path = require('path');
 
-const PER_USER = ['geo', 'drinks', 'away', 'ml', 'gl'];        // db[kind][user] -> records
+const PER_USER = ['geo', 'drinks', 'away', 'ml', 'gl', 'wd'];  // db[kind][user] -> records
 const sorted = v => Array.isArray(v) ? v.map(sorted) : v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => (o[k] = sorted(v[k]), o), {}) : v;
 const same = (a, b) => JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));
 
