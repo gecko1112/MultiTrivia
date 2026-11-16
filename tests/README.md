@@ -13,6 +13,7 @@
 | `plus-api.js` | Streak rules, head-to-head |
 | `buy-api.js` | Plus: test checkout, payment notices, gifts |
 | `reports-api.js` | Reported pictures: friends only, once a day, nothing automatic, the admin's copy, remove and dismiss, account deletion |
+| `content-api.js` | The questions themselves: every pack well formed, no question asked twice (no server) |
 | `limits-api.js` | Free limits: practice games a day in each game, party games to try, who has them, kept across restarts |
 | `paddle-api.js` | The Paddle connection, with simulated Paddle messages |
 | `account-api.js` | Profile picture, password change, delete account |

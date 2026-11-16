@@ -1,0 +1,33 @@
+// Survival question pack "Food and drink". SERVER ONLY. Hand-written: edit here.
+// Nutrition figures are typical values from food tables (such as USDA FoodData Central); products and recipes vary,
+// so the notes give ranges. Prices and sales figures are left out on purpose because they change.
+module.exports = { name: 'Food and drink', order: 22, about: 'Hand-written from food tables (such as USDA FoodData Central) and well-known kitchen rules; ranges in the notes.', q: [
+ { q: 'How much ground coffee goes into a single espresso?', a: 7, u: 'grams', n: 'About 7–9 g; a double uses 14–18 g.' },
+ { q: 'How many calories are in a large chicken egg?', a: 72, u: 'kilocalories', n: 'About 72 kcal.' },
+ { q: 'How long is a standard strand of dried spaghetti?', a: 25, u: 'centimetres', n: 'About 25 cm (10 inches).' },
+ { q: 'How hot is a traditional Neapolitan pizza oven?', a: 450, u: '°C', n: 'About 430–480 °C on the oven floor.' },
+ { q: 'How long does a Neapolitan pizza bake?', a: 90, u: 'seconds', n: '60–90 seconds under the Neapolitan pizza association\'s rules.' },
+ { q: 'How much milk does it take to make 1 kg of hard cheese?', a: 10, u: 'litres', n: 'About 10 litres; some hard cheeses take 12 or more.' },
+ { q: 'How many bubbles rise from a glass of champagne?', a: 1000000, u: 'bubbles', n: 'About a million in a 100 ml flute, according to a 2014 study.' },
+ { q: 'What is the pressure inside a bottle of champagne?', a: 6, u: 'bar', n: 'About 5–6 bar, around three times a car tyre.' },
+ { q: 'How many grapes go into one bottle of wine?', a: 700, u: 'grapes', n: 'Roughly 600–800, about 1.2 kg of grapes.' },
+ { q: 'How hot is a jalapeño pepper on the Scoville scale?', a: 5000, u: 'Scoville heat units', n: 'About 2,500–8,000 SHU.' },
+ { q: 'How hot is pure capsaicin on the Scoville scale?', a: 16000000, u: 'Scoville heat units', n: '16 million SHU, the top of the scale.' },
+ { q: 'How many kilocalories are in one gram of alcohol?', a: 7, u: 'kilocalories', n: 'About 7 kcal.' },
+ { q: 'How many seeds are on the outside of a strawberry?', a: 200, u: 'seeds', n: 'About 200 on an average berry.' },
+ { q: 'How many kernels are on an ear of corn?', a: 800, u: 'kernels', n: 'About 800, usually in 16 rows; always an even number of rows.' },
+ { q: 'How much maple sap does it take to make 1 litre of maple syrup?', a: 40, u: 'litres', n: 'About 40 litres, boiled down.' },
+ { q: 'How many beans are in a cocoa pod?', a: 40, u: 'beans', n: 'Usually 20–60, about 40 on average.' },
+ { q: 'How many varieties of apples are grown around the world?', a: 7500, u: 'varieties', n: 'About 7,500 cultivated varieties.' },
+ { q: 'How much salt is in a litre of seawater?', a: 35, u: 'grams', n: 'About 35 g on average.' },
+ { q: 'At what temperature should a home fridge be kept?', a: 4, u: '°C', n: 'About 4 °C or a little below; 5 °C is the usual upper limit.' },
+ { q: 'How long should an egg boil for a firm, hard-boiled yolk?', a: 10, u: 'minutes', n: 'About 9–12 minutes for a large egg started in boiling water.' },
+ { q: 'How much alcohol is in a typical glass of red wine?', a: 13, u: 'percent', n: 'About 12–14.5 % by volume.' },
+ { q: 'How long does it take for a coffee plant to bear its first fruit?', a: 3, u: 'years', n: 'About 3–4 years after planting.' },
+ { q: 'How much does a large loaf of sliced bread typically weigh?', a: 800, u: 'grams', n: 'About 800 g for a large UK loaf; 400 g for a small one.' },
+ { q: 'How many kilograms of olives does it take to make one litre of olive oil?', a: 5, u: 'kilograms', n: 'About 4–6 kg, depending on the olives and the harvest.' },
+ { q: 'How many crocus flowers does it take to make 1 kg of saffron?', a: 150000, u: 'flowers', n: 'About 150,000–170,000, each giving three threads picked by hand.' },
+ { q: 'At what temperature does chocolate start to melt?', a: 34, u: '°C', n: 'About 34 °C, just under body temperature, which is why it melts in the mouth.' },
+ { q: 'What inside temperature makes cooked chicken safe to eat?', a: 74, u: '°C', n: '74 °C (165 °F) at the thickest part, the USDA\'s guideline.' },
+ { q: 'How much does a large chicken egg weigh without its shell?', a: 50, u: 'grams', n: 'About 50 g; the shell adds roughly another 6–7 g.' }
+] };
