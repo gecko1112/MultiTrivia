@@ -12,6 +12,7 @@
 | `away-api.js`, `away-all-api.js` | "Left the page" counts |
 | `plus-api.js` | Streak rules, head-to-head |
 | `buy-api.js` | Plus: test checkout, payment notices, gifts |
+| `bets-api.js` | Party "Bets": guesses, bets, odds and payouts, drinks (lost bets drunk, won bets handed out), no answer before the reveal |
 | `levels-api.js` | Levels and achievements on the server: XP from recorded results, announced once, cannot be written by the browser, friends' achievements, Fermi's, the streak rule matches the browser's |
 | `reports-api.js` | Reported pictures: friends only, once a day, nothing automatic, the admin's copy, remove and dismiss, account deletion |
 | `content-api.js` | The questions themselves: every pack well formed, no question asked twice (no server) |

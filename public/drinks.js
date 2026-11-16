@@ -35,7 +35,7 @@ function hub(){
   T = null; pending = null;
   if (kept('bp_drinks_ok') !== '1') return card('<h2 class="gh">Drinks</h2><p class="lead">Drinking games are for adults. Water counts just as well.</p><button type="button" data-act="adult">I am 18 or older</button>');
   card('<h2 class="gh">Drinks</h2><div class="modes at-modes">' +
-    '<div class="mode"><div class="mt">Lobby</div><div class="muted md">Everyone on their own phone. Closest guess wins, furthest off drinks.</div><div class="acts"><button type="button" data-act="lobby">Create lobby</button></div></div>' +
+    '<div class="mode"><div class="mt">Lobby</div><div class="muted md">Everyone on their own phone. Closest guess, or bet sips on the guesses.</div><div class="acts"><button type="button" data-act="lobby">Create lobby</button></div></div>' +
     Object.keys(GAMES).map(g => '<div class="mode"><div class="mt">' + GAMES[g].t + '</div><div class="muted md">' + GAMES[g].d + '</div><div class="acts"><button type="button" data-game="' + g + '">Play</button></div></div>').join('') +
     '</div><div class="parsed" id="dkMsg" role="status" style="color:var(--warn)"></div><div id="dkBadges"></div>');
   badges();

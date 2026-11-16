@@ -22,6 +22,12 @@ const CLOSEST_BONUS = 25;                 // on top of the 0-100 points for clos
 // Drinks rules (a lobby setting): who has to drink is decided here too, with the points.
 const SIPS_NO_GUESS = 2, SIPS_FURTHEST = 2, SIPS_BULLSEYE = 1;
 const BULLSEYE = Math.log10(1.1);         // a guess within 10% of the answer: everyone else drinks
+// "Bets" (a lobby setting next to "Closest guess"): everyone guesses, then sees all guesses and backs the one they
+// think is closest with a stake of 1 to 3. The closest guess wins. Backing it pays stake x odds, where the odds come
+// from the bets themselves: bettors / backers of the winner, at least 2. A lost bet costs the stake, and the owner of
+// the winning guess gets WIN_GUESS_BONUS. With drinks on, the stake is sips: a lost bet is drunk, a won bet is handed
+// out to other players one sip at a time, and not betting costs SIPS_NO_BET.
+const MODES = ['closest', 'bets'], BET_SECONDS = 20, STAKES = [1, 2, 3], WIN_GUESS_BONUS = 2, SIPS_NO_BET = 1;
 const HOST_AWAY_MS = 20 * 1000;           // host gone this long: the next player takes over
 const EMPTY_ROOM_MS = 10 * 60 * 1000;     // nobody connected this long: the lobby is removed
 const IDLE_ROOM_MS = 3 * 60 * 60 * 1000;
@@ -49,15 +55,18 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
 
   // ---- what one player is allowed to see right now
   function viewFor(room, me) {
-    const asking = room.phase === 'question', admin = isAdmin(me.id);   // only admin accounts are told who left the page
+    const asking = room.phase === 'question', betting = room.phase === 'bet', admin = isAdmin(me.id);   // only admin accounts are told who left the page
     return {
       code: room.code, phase: room.phase, you: me.id, host: room.host, isHost: room.host === me.id,
-      rounds: room.rounds, seconds: room.seconds, drinks: room.drinks, round: room.round,
+      rounds: room.rounds, seconds: room.seconds, drinks: room.drinks, round: room.round, mode: room.mode, betSeconds: BET_SECONDS,
+      // while betting: every guess, low to high, with whose it is (the answer is still only on the server)
+      options: betting ? [...room.guesses].map(([id, g]) => ({ id, name: (room.players.get(id) || {}).name || '', guess: g })).sort((a, b) => a.guess - b.guess) : null,
+      myBet: betting && room.bets.has(me.id) ? room.bets.get(me.id) : null,
       gamesLeft: room.host === me.id && room.phase === 'lobby' ? limits.gamesLeft(room.owner, me.id) : null,   // the host's free games; null = no limit here
-      players: [...room.players.values()].map(p => ({ id: p.id, name: p.name, score: p.score, sips: p.sips, on: connected(p), done: asking && room.guesses.has(p.id), away: admin && p.away ? p.away : undefined })),
+      players: [...room.players.values()].map(p => ({ id: p.id, name: p.name, score: p.score, sips: p.sips, on: connected(p), done: asking ? room.guesses.has(p.id) : betting && room.bets.has(p.id), away: admin && p.away ? p.away : undefined })),
       q: room.q && room.phase !== 'lobby' && room.phase !== 'final' ? { text: room.q.q, unit: room.q.u } : null,
-      left: asking ? Math.max(0, room.endsAt - Date.now()) : 0,
-      myGuess: asking && room.guesses.has(me.id) ? room.guesses.get(me.id) : null,
+      left: asking || betting ? Math.max(0, room.endsAt - Date.now()) : 0,
+      myGuess: (asking || betting) && room.guesses.has(me.id) ? room.guesses.get(me.id) : null,
       reveal: room.phase === 'reveal' ? room.reveal : null,          // the answer exists in here only after the round is closed
       chat: room.chat
     };
@@ -87,6 +96,12 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
   function closeRound(room) {
     if (room.phase !== 'question') return;
     clearTimeout(room.timer);
+    if (room.mode === 'bets') {                       // the guesses are in: now the bets (nobody guessed: straight to the answer)
+      if (!room.guesses.size) return closeBets(room);
+      room.phase = 'bet'; room.bets = new Map(); room.endsAt = Date.now() + BET_SECONDS * 1000;
+      room.timer = setTimeout(() => closeBets(room), BET_SECONDS * 1000 + 400);
+      push(room); return;
+    }
     const a = room.q.a;
     const rows = [...room.players.values()].map(p => {
       const g = room.guesses.has(p.id) ? room.guesses.get(p.id) : null;
@@ -115,10 +130,40 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
     room.phase = 'reveal';
     push(room);
   }
+  // the bets are in (or the time is up): the answer, the winning guess, and what every bet paid
+  function closeBets(room) {
+    if (room.phase !== 'bet' && room.phase !== 'question') return;
+    clearTimeout(room.timer);
+    const a = room.q.a, bets = room.bets || new Map();
+    const errOf = id => room.guesses.has(id) ? Math.abs(Math.log10(room.guesses.get(id) / a)) : null;
+    const guessed = [...room.guesses.keys()], best = guessed.length ? Math.min(...guessed.map(errOf)) : null;
+    const winners = new Set(guessed.filter(id => errOf(id) === best));
+    const backers = [...bets.values()].filter(b => winners.has(b.on)).length;
+    const odds = backers ? Math.max(2, Math.floor(bets.size / backers)) : 0;
+    room.give = new Map();
+    const rows = [...room.players.values()].map(p => {
+      const b = bets.get(p.id) || null, won = !!b && winners.has(b.on);
+      const pts = (b ? (won ? b.stake * odds : -b.stake) : 0) + (winners.has(p.id) ? WIN_GUESS_BONUS : 0);
+      p.score += pts;
+      const row = { id: p.id, name: p.name, guess: room.guesses.has(p.id) ? room.guesses.get(p.id) : null, err: errOf(p.id), winner: winners.has(p.id),
+        bet: b ? { on: b.on, onName: (room.players.get(b.on) || {}).name || '', stake: b.stake } : null, won, pts, sips: 0, give: 0 };
+      if (room.drinks && (b || connected(p))) {                                       // away from the table: nothing to drink
+        row.sips = b ? (won ? 0 : b.stake) : SIPS_NO_BET;
+        if (won) { row.give = b.stake; room.give.set(p.id, b.stake); }
+        p.sips += row.sips;
+        if (row.sips && hooks.sips) { try { hooks.sips(p.id, { sips: row.sips, noGuess: !b && !room.guesses.has(p.id), bull: false }); } catch (e) {} }
+      }
+      return row;
+    });
+    rows.sort((x, y) => (x.err == null) - (y.err == null) || x.err - y.err);
+    room.reveal = { mode: 'bets', answer: a, note: room.q.n || '', rows, odds, last: room.round >= room.rounds };
+    room.phase = 'reveal';
+    push(room);
+  }
   function maybeCloseEarly(room) {
-    if (room.phase !== 'question') return;
-    const waiting = [...room.players.values()].filter(p => connected(p) && !room.guesses.has(p.id));
-    if (!waiting.length && room.guesses.size) closeRound(room);
+    const waiting = [...room.players.values()].filter(p => connected(p) && !(room.phase === 'bet' ? room.bets : room.guesses).has(p.id));
+    if (room.phase === 'question' && !waiting.length && room.guesses.size) closeRound(room);
+    else if (room.phase === 'bet' && !waiting.length && room.bets.size) closeBets(room);
   }
 
   // ---- housekeeping: hand the host role on, drop dead lobbies
@@ -151,11 +196,11 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
       const code = newCode(); if (!code) { send(res, 503, { error: 'Could not open a lobby' }); return true; }
       lastCreate.set(user, now);
       rooms.set(code, { code, owner: user, host: user, phase: 'lobby', rounds: 5, seconds: 25, drinks: false, round: 0, deck: [], q: null, endsAt: 0, timer: null,
-        guesses: new Map(), reveal: null, chat: [], chatSeq: 0, players: new Map(), touched: now, lastOnline: now });
+        mode: 'closest', guesses: new Map(), bets: new Map(), give: new Map(), reveal: null, chat: [], chatSeq: 0, players: new Map(), touched: now, lastOnline: now });
       send(res, 200, { code }); return true;
     }
 
-    const m = url.match(/^\/api\/party\/([A-Za-z]{4})\/(join|events|settings|start|guess|next|again|chat|leave|away)$/);
+    const m = url.match(/^\/api\/party\/([A-Za-z]{4})\/(join|events|settings|start|guess|bet|give|next|again|chat|leave|away)$/);
     if (!m) { send(res, 404, { error: 'not found' }); return true; }
     const room = rooms.get(m[1].toUpperCase()), act = m[2];
     if (!room) { send(res, 404, { error: 'No lobby with that code' }); return true; }
@@ -196,6 +241,7 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
       if (hostOnly()) return true;
       if (room.phase !== 'lobby') { send(res, 409, { error: 'The game is already running' }); return true; }
       if (ROUNDS.includes(body.rounds)) room.rounds = body.rounds;
+      if (MODES.includes(body.mode)) room.mode = body.mode;
       if (SECONDS.includes(body.seconds)) room.seconds = body.seconds;
       if (typeof body.drinks === 'boolean') room.drinks = body.drinks;
       push(room); send(res, 200, { ok: true }); return true;
@@ -216,6 +262,28 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
       room.guesses.set(user, v);
       send(res, 200, { ok: true });
       push(room); maybeCloseEarly(room); return true;
+    }
+    // "Bets": back one of the guesses with a stake of 1 to 3 (any guess, your own too). One bet per round.
+    if (act === 'bet') {
+      if (room.phase !== 'bet' || Date.now() > room.endsAt + 400) { send(res, 409, { error: 'Betting is closed' }); return true; }
+      if (room.bets.has(user)) { send(res, 409, { error: 'You already bet' }); return true; }
+      const on = String(body.on || '');
+      if (!room.guesses.has(on)) { send(res, 400, { error: 'Pick one of the guesses' }); return true; }
+      if (!STAKES.includes(body.stake)) { send(res, 400, { error: 'Bet 1, 2 or 3' }); return true; }
+      room.bets.set(user, { on, stake: body.stake });
+      send(res, 200, { ok: true });
+      push(room); maybeCloseEarly(room); return true;
+    }
+    // "Bets" with drinks: a won bet is handed out, one sip per tap, to anybody else at the table
+    if (act === 'give') {
+      const left = room.give.get(user) || 0;
+      if (room.phase !== 'reveal' || !room.reveal || room.reveal.mode !== 'bets' || !left) { send(res, 409, { error: 'Nothing to hand out' }); return true; }
+      const to = String(body.to || ''), p = room.players.get(to);
+      if (!p || to === user) { send(res, 400, { error: 'Pick another player' }); return true; }
+      room.give.set(user, left - 1); p.sips++;
+      for (const r of room.reveal.rows) { if (r.id === to) r.sips++; if (r.id === user) r.give = left - 1; }
+      if (hooks.sips) { try { hooks.sips(to, { sips: 1, noGuess: false, bull: false }); } catch (e) {} }
+      send(res, 200, { ok: true }); push(room); return true;
     }
     if (act === 'next') {
       if (hostOnly()) return true;
@@ -241,7 +309,7 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
     }
     if (act === 'leave') {
       for (const s of me.streams) { try { s.end(); } catch (e) {} }
-      room.players.delete(user); room.guesses.delete(user);
+      room.players.delete(user); room.guesses.delete(user); if (room.bets) room.bets.delete(user);
       if (!room.players.size) closeRoom(room);
       else { if (room.host === user) room.host = ([...room.players.values()].find(connected) || [...room.players.values()][0]).id; maybeCloseEarly(room); push(room); }
       send(res, 200, { ok: true }); return true;
