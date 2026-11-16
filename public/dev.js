@@ -74,6 +74,14 @@ const css = `
 .devbar .sw{display:inline-flex}
 .devbar .sw i{width:12px;height:12px;border-radius:50%;display:block;box-shadow:0 0 0 1.5px #14161f}
 .devbar .sw i+i{margin-left:-4px}
+/* reported pictures (admins): the picture as reported, who reported it, and the two ways to deal with it */
+.devbar .dv-rep{display:grid;grid-template-columns:40px 1fr;gap:4px 10px;align-items:center;padding:8px 6px;border-top:1px solid #2a2e45}
+.devbar .dv-rep img{width:40px;height:40px;border-radius:50%;object-fit:cover;grid-row:span 2;background:#2a2e45}
+.devbar .dv-rep b{font-size:13px}
+.devbar .dv-rep small{display:block;font-weight:500;opacity:.7;margin-top:2px;line-height:1.35}
+.devbar .dv-rep .dv-row{grid-column:2}
+.devbar .dv-rep button{border-color:#4d5278}
+.devbar .dv-rep button.bad{border-color:#e5484d;color:#ff8f8f}
 `;
 const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
 
@@ -85,9 +93,10 @@ bar.innerHTML = '<button type="button" class="dv-hd" id="dvToggle" aria-expanded
     '<div class="dv-lbl">One accent</div><div class="dv-row">' + chips('one') + '</div>' +
     '<div class="dv-lbl">Mixed</div><div class="dv-row">' + chips('mix') + '</div>' +
     '<div class="dv-lbl">This account</div><div class="dv-row"><button type="button" data-plan="basic">Basic</button><button type="button" data-plan="plus">Plus</button></div>' +
-    '<div id="dvAdmin"></div><div class="dv-lbl" id="dvMsg" role="status" style="text-transform:none;letter-spacing:0"></div>' +
+    '<div id="dvReports"></div><div id="dvAdmin"></div><div class="dv-lbl" id="dvMsg" role="status" style="text-transform:none;letter-spacing:0"></div>' +
   '</div>';
 
+let openReports = 0;              // reported pictures waiting for an admin (see below)
 function paint(){
   const id = root.getAttribute('data-palette') || '', isPlus = plus().has();
   bar.querySelectorAll('[data-p]').forEach(b => { const on = b.dataset.p === id; b.classList.toggle('sel', on); b.setAttribute('aria-pressed', String(on)); });
@@ -95,7 +104,7 @@ function paint(){
   const shut = bar.classList.contains('shut');
   bar.querySelector('#dvToggle').setAttribute('aria-expanded', String(!shut));
   // closed, the panel still says what is switched on
-  bar.querySelector('#dvNow').textContent = shut ? (PALETTES.find(p => p[0] === id) || PALETTES[0])[1] + ', ' + (isPlus ? 'Plus' : 'Basic') : 'hide';
+  bar.querySelector('#dvNow').textContent = shut ? (PALETTES.find(p => p[0] === id) || PALETTES[0])[1] + ', ' + (isPlus ? 'Plus' : 'Basic') + (openReports ? ', ' + openReports + (openReports === 1 ? ' report' : ' reports') : '') : 'hide';
 }
 function apply(id){
   if (id) { root.setAttribute('data-palette', id); set('bp_palette', id); }
@@ -107,6 +116,7 @@ bar.addEventListener('click', e => {
   if (b.id === 'dvToggle') { const shut = bar.classList.toggle('shut'); set('bp_dev_shut', shut ? '1' : '0'); paint(); }
   else if (b.dataset.plan) plus().setPlan(b.dataset.plan === 'plus').then(() => { paint(); accounts(); }, say);     // reloads the page when it changed
   else if (b.dataset.give) give(b.dataset.give, b.getAttribute('aria-pressed') !== 'true');
+  else if (b.dataset.rep) resolve(b);
   else apply(b.dataset.p);
 });
 // Admin accounts: who has Plus, and a click gives it or takes it away. Everybody else gets no list (the server says no).
@@ -126,6 +136,31 @@ async function give(id, on){
   } catch (e) { say(e); }
 }
 accounts().catch(() => {});
+
+// Reported pictures (admins only; reports-server.js). Nothing happened to them automatically: remove or dismiss here.
+const day = t => new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+function drawReports(list){
+  openReports = list.length; paint();
+  bar.querySelector('#dvReports').innerHTML = !list.length ? '' : '<div class="dv-lbl">Reported pictures</div>' + list.map(r =>
+    '<div class="dv-rep"><img alt="" src="/api/admin/reports/picture/' + encodeURIComponent(r.user) + '/' + r.v + '">' +
+      '<div><b>' + E(r.name) + '</b><small>' + (r.count === 1 ? 'Reported by ' : r.count + ' reports by ') + E(r.by.join(', ')) + ', last ' + day(r.last) + (r.current ? '' : '. Changed since') + '</small></div>' +
+      '<div class="dv-row">' + (r.current ? '<button type="button" class="bad" data-rep="remove" data-u="' + E(r.user) + '" data-v="' + r.v + '">Remove picture</button>' : '') +
+        '<button type="button" data-rep="dismiss" data-u="' + E(r.user) + '" data-v="' + r.v + '">Dismiss</button></div></div>').join('');
+}
+async function reports(){
+  const r = await fetch('/api/admin/reports', { credentials: 'same-origin' }); if (!r.ok) return;
+  drawReports((await r.json()).reports);
+}
+async function resolve(b){
+  // removing asks first, like everywhere else on the site
+  if (b.dataset.rep === 'remove' && !b.dataset.sure) { b.dataset.sure = '1'; b.textContent = 'Remove for good?'; return; }
+  try {
+    const r = await fetch('/api/admin/reports/resolve', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: b.dataset.u, v: Number(b.dataset.v), action: b.dataset.rep }) });
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'That did not work.');
+    say(); drawReports(j.reports);
+  } catch (e) { say(e); }
+}
+reports().catch(() => {});
 document.body.appendChild(bar);
 // starts closed on phones, where it would cover the game
 const shutSaved = get('bp_dev_shut');

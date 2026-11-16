@@ -103,6 +103,10 @@ The limits only apply to accounts that could buy Plus right now. Without Paddle 
 
 To change the numbers, change `PRACTICE_PER_DAY` and `PARTY_TRIALS` in `limits-server.js` and `BP_FREE` in `public/site-info.js` together. `tests/limits-api.js` fails if they differ.
 
+### Reported pictures
+
+Players can report a friend's picture from the Friends list ("Manage", the flag next to the name), once a day per account. A report changes nothing by itself. It is printed in the server window and listed for admins in the developer panel (`?dev=1`), with a copy of the picture as it was reported. There you remove the picture or dismiss the report.
+
 ## Branches
 
 - `main` is the stable version, the one that gets deployed. It changes only when `dev` has been tried and is merged into it.
@@ -117,6 +121,7 @@ To change the numbers, change `PRACTICE_PER_DAY` and `PARTY_TRIALS` in `limits-s
 | `server.js` | The server (accounts, saving, leaderboard, serves the pages) |
 | `account-server.js` | Profile picture, password change, data download, delete account |
 | `plus-server.js` | Ballpark Plus: who has it, checkout, payment notices |
+| `reports-server.js` | Reported profile pictures: kept for the admin, nothing happens automatically |
 | `limits-server.js` | What a free account may do: practice games a day, party games to try. Counted on the server |
 | `moreless-server.js` | More/Less: deals the pairs, judges every call and stores the result. The browser never gets a number before its call |
 | `guessless-server.js` | Guessless: deals the five questions, scores every estimate and stores the result. The browser never gets an answer before its estimate |

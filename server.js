@@ -363,8 +363,12 @@ const drinks = require('./drinks-server.js')({ send, readBody, party, geo, recor
 const friends = require('./friends-server.js')({ db, save, send, readBody, avatarOf: u => account.avatarOf(u) });
 
 // ---------- account management (picture, password, data download, delete)
+// ---------- reported profile pictures: kept for the admin, nothing happens automatically
+const reports = require('./reports-server.js')({ db, save, send, readBody, dataDir: DATA_DIR, isAdmin, today: require('./games-common.js').today,
+  canSee: (viewer, owner) => friends.areFriends(viewer, owner), removePicture: u => account.dropAvatar(u) });
+
 const account = require('./account-server.js')({ db, save, send, readBody, dataDir: DATA_DIR, hashPassword, passwordProblem, plus, isAdmin,
-  canSee: (viewer, owner) => friends.areFriends(viewer, owner), onDelete: u => friends.forget(u),
+  canSee: (viewer, owner) => friends.areFriends(viewer, owner), onDelete: u => { friends.forget(u); reports.forget(u); }, reportsBy: u => reports.madeBy(u),
   sessionToken: req => cookies(req).bp_session,
   guard: { blocked: (req, u) => loginBlocked(u + '|' + clientIp(req)), failed: (req, u) => loginFailed(u + '|' + clientIp(req)), clear: (req, u) => FAILS.delete(u + '|' + clientIp(req)) } });
 
@@ -422,6 +426,7 @@ const server = http.createServer(async (req, res) => {
     if (await survival.handle(req, res, url, query, user)) return;
     if (await drinks.handle(req, res, url, query, user)) return;
     if (await plus.handle(req, res, url, query, user)) return;
+    if (await reports.handle(req, res, url, query, user)) return;
     if (await account.handle(req, res, url, query, user)) return;
     if (await friends.handle(req, res, url, query, user)) return;
     if (url === '/api/me') return send(res, 200, { username: db.users[user].display, id: user, plus: hasPlus(user), admin: isAdmin(user), avatar: account.avatarOf(user), created: db.users[user].created || null });

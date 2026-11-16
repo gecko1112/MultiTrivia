@@ -1,6 +1,7 @@
 // The friends box at the top of the Friends tab: your friend code, adding somebody by username or code,
 // answering requests, and the list of friends. The server decides who is a friend (friends-server.js); results and
-// pictures are only shown between friends.
+// pictures are only shown between friends. A friend's picture can be reported from the list (reports-server.js):
+// nothing happens to it automatically, the site owner looks at it.
 (function(){
 'use strict';
 const $ = id => document.getElementById(id);
@@ -38,7 +39,9 @@ function draw(){
         '<div class="fr-code">Your friend code <b class="mono">' + pretty(state.code) + '</b><button type="button" class="ghost sm" id="frCopy">Copy</button></div></div>' + msg +
       row('Waiting for an answer', state.outgoing.map(f => '<span class="fr-chip">' + E(f.name) + '<button type="button" class="ghost sm" data-fr="cancel" data-u="' + E(f.id) + '">Take back</button></span>')) +
       (state.friends.length
-        ? row('Friends', state.friends.map(f => '<span class="fr-chip">' + av(f) + E(f.name) + '<button type="button" class="fr-x" data-fr="remove" data-u="' + E(f.id) + '" data-n="' + E(f.name) + '" title="Remove" aria-label="Remove ' + E(f.name) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></span>'))
+        ? row('Friends', state.friends.map(f => '<span class="fr-chip">' + av(f) + E(f.name) +
+            (f.av ? '<button type="button" class="fr-x" data-fr="report" data-u="' + E(f.id) + '" title="Report picture" aria-label="Report the picture of ' + E(f.name) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2.5 4L16 12H5"/></svg></button>' : '') +
+            '<button type="button" class="fr-x" data-fr="remove" data-u="' + E(f.id) + '" data-n="' + E(f.name) + '" title="Remove" aria-label="Remove ' + E(f.name) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></span>'))
         : '<p class="muted fr-none">No friends yet. Results, leaderboards and pictures are shared between friends only: give somebody your code, or add them by username.</p>'));
   box.innerHTML = html ? '<div class="fr">' + html + '</div>' : '';
 }
@@ -71,8 +74,13 @@ document.addEventListener('click', async e => {
     setTimeout(() => { if (b.isConnected) b.textContent = 'Copy'; }, 1500); return;
   }
   const what = b.dataset.fr, user = b.dataset.u;
-  // removing a friend asks first
-  if (what === 'remove' && !b.dataset.sure) { b.dataset.sure = '1'; b.classList.add('sure'); b.textContent = 'Remove ' + b.dataset.n + '?'; return; }
+  // removing a friend and reporting a picture ask first
+  if ((what === 'remove' || what === 'report') && !b.dataset.sure) { b.dataset.sure = '1'; b.classList.add('sure'); b.textContent = what === 'remove' ? 'Remove ' + b.dataset.n + '?' : 'Report picture?'; return; }
+  if (what === 'report') {
+    try { await call('POST', '/api/report/picture', { user }); say("Reported. We'll take a look."); }
+    catch (err) { say(err.message, !/already reported/.test(err.message)); }
+    draw(); return;
+  }
   try {
     state = await call('POST', '/api/friends/' + what, { user });
     say(what === 'accept' ? 'Accepted.' : what === 'remove' ? 'Removed.' : '');
