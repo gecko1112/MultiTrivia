@@ -151,6 +151,12 @@ module.exports = function createGeo({ dir, send, readBody, secret, records, mayA
     for (const m of MODES) { const rec = mine[m + ':' + date]; if (rec && rec.t1) out[m] = Object.assign({}, rec.res || result({ mode: m, daily: true, puzzle: dailyPuzzle(m, date), rec }), rec.late ? { late: true } : null, admin && rec.away ? { away: rec.away } : null); }
     return Object.keys(out).length ? out : null;
   }
+  // every finished daily of a player, plus how many practice games (the history route and the levels)
+  function history(user) {
+    const mine = records(user), days = {};
+    for (const k of Object.keys(mine)) { const m = k.match(DAILY_KEY); if (m && mine[k].t1) (days[m[2]] = days[m[2]] || {})[m[1]] = dayOf(user, m[2])[m[1]]; }
+    return { days, played: mine.played || 0 };
+  }
   const datesOf = user => [...new Set(Object.keys(records(user)).map(k => DAILY_KEY.test(k) && records(user)[k].t1 ? k.match(DAILY_KEY)[2] : null).filter(Boolean))];
 
   // ---- Flags and Outlines
@@ -232,9 +238,7 @@ module.exports = function createGeo({ dir, send, readBody, secret, records, mayA
         send(res, 200, { date: day || today(), daily, practiceLeft }); return true;
       }
       if (act === 'history') {                                                                             // every finished daily of this player, plus how many practice games
-        const mine = records(user), days = {};
-        for (const k of Object.keys(mine)) { const m = k.match(DAILY_KEY); if (m && mine[k].t1) (days[m[2]] = days[m[2]] || {})[m[1]] = dayOf(user, m[2])[m[1]]; }
-        send(res, 200, { days, played: mine.played || 0 }); return true;
+        send(res, 200, history(user)); return true;
       }
       if (act === 'flag') {
         const isDaily = query.get('daily') === '1', day = isDaily ? pastDay(user, query.get('k')) : null;                // a daily flag address carries its day
@@ -306,5 +310,5 @@ module.exports = function createGeo({ dir, send, readBody, secret, records, mayA
     send(res, 404, { error: 'not found' }); return true;
   }
   const flagOf = id => { if (!flagCache.has(id)) flagCache.set(id, fs.readFileSync(path.join(dir, 'flags', id + '.svg'))); return flagCache.get(id); };
-  return { handle, dayOf, datesOf, nameFits, flagOf, randomCountry: () => C[crypto.randomInt(C.length)], countries: () => C.length };
+  return { handle, dayOf, datesOf, history, nameFits, flagOf, randomCountry: () => C[crypto.randomInt(C.length)], countries: () => C.length };
 };

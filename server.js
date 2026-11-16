@@ -166,7 +166,7 @@ const validDocId = id => typeof id === 'string' && /^[A-Za-z0-9_\-.:~@+]{1,100}$
 // Those parts belong to the server. Whatever the browser sends for them is replaced by what the server has, and
 // deleting the document keeps them.
 const SERVER_GAMES = ['ml', 'gl', 'wd', 'cl', 'sv'];
-const SERVER_DOCS = ['x_words', 'x_daily'];         // whole documents only the server writes (Wordy's and Survival's daily results)
+const SERVER_DOCS = ['x_words', 'x_daily', 'x_ach'];   // whole documents only the server writes (Wordy's and Survival's daily results, levels and achievements)
 // Survival's best runs are documents of their own (any id not starting with x_, holding a score): the server writes
 // them (survival-server.js), a browser can neither upload nor delete one.
 const isRunDoc = (id, d) => !String(id).startsWith('x_') && !!d && typeof d === 'object' && typeof d.score === 'number';
@@ -364,6 +364,10 @@ const friends = require('./friends-server.js')({ db, save, send, readBody, avata
 
 // ---------- account management (picture, password, data download, delete)
 // ---------- reported profile pictures: kept for the admin, nothing happens automatically
+// ---------- levels and achievements, worked out from the results the server recorded (levels-server.js)
+const levels = require('./levels-server.js')({ db, save, send, readBody, today: require('./games-common.js').today, hasPlus,
+  atlasOf: u => geo.history(u), dailyValues, circle: u => friends.circle(u) });
+
 const reports = require('./reports-server.js')({ db, save, send, readBody, dataDir: DATA_DIR, isAdmin, today: require('./games-common.js').today,
   canSee: (viewer, owner) => friends.areFriends(viewer, owner), removePicture: u => account.dropAvatar(u) });
 
@@ -426,6 +430,7 @@ const server = http.createServer(async (req, res) => {
     if (await survival.handle(req, res, url, query, user)) return;
     if (await drinks.handle(req, res, url, query, user)) return;
     if (await plus.handle(req, res, url, query, user)) return;
+    if (await levels.handle(req, res, url, query, user)) return;
     if (await reports.handle(req, res, url, query, user)) return;
     if (await account.handle(req, res, url, query, user)) return;
     if (await friends.handle(req, res, url, query, user)) return;
