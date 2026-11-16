@@ -10,7 +10,7 @@ window.BP_LEGAL = {
   countryDe: 'Deutschland',   // the same country, as the German pages show it
   email: '',         // an address people can write to; it is shown publicly
   host: '',          // the company the server is rented from, for example "Hetzner Online GmbH, Germany"
-  updated: '2026-11-15'       // year-month-day. Change this whenever one of the legal pages changes
+  updated: '2026-11-16'       // year-month-day. Change this whenever one of the legal pages changes
 };
 // PLACEHOLDER PRICES. They must be the same as the prices set up in Paddle.
 window.BP_PRICE = { month: '€2.99', year: '€24.99', yearNote: 'About 30% less than paying monthly' };

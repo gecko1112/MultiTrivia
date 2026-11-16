@@ -6,7 +6,7 @@
 // files in data/avatars, not in the database, and are only handed to the owner and the owner's friends.
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 
-module.exports = function createAccount({ db, save, send, readBody, dataDir, hashPassword, passwordProblem, sessionToken, guard, plus, isAdmin, canSee, onDelete }) {
+module.exports = function createAccount({ db, save, send, readBody, dataDir, hashPassword, passwordProblem, sessionToken, guard, plus, isAdmin, canSee, onDelete, reportsBy = () => [] }) {
   const DIR = path.join(dataDir, 'avatars'), MAX = 120 * 1024;
   const TYPES = { png: 'image/png', jpeg: 'image/jpeg', webp: 'image/webp' };
   const file = u => path.join(DIR, u + '.img');            // usernames are [a-z0-9_-] only, so this cannot leave the folder
@@ -75,7 +75,7 @@ module.exports = function createAccount({ db, save, send, readBody, dataDir, has
     if (url === '/api/account/export' && req.method === 'GET') {
       const u = db.users[user];
       const out = { exported: new Date().toISOString(), account: { username: u.display, created: u.created ? new Date(u.created).toISOString() : null, picture: !!u.avatar, plus: plus.status(user) },
-        saved: db.docs[user] || {}, atlas: (db.geo || {})[user] || {}, moreLess: (db.ml || {})[user] || {}, guessless: (db.gl || {})[user] || {}, wordy: (db.wd || {})[user] || {}, clueless: (db.cl || {})[user] || {}, survival: (db.sv || {})[user] || {}, drinks: (db.drinks || {})[user] || {}, leftThePage: (db.away || {})[user] || {}, freeLimits: (db.limits || {})[user] || {} };
+        saved: db.docs[user] || {}, atlas: (db.geo || {})[user] || {}, moreLess: (db.ml || {})[user] || {}, guessless: (db.gl || {})[user] || {}, wordy: (db.wd || {})[user] || {}, clueless: (db.cl || {})[user] || {}, survival: (db.sv || {})[user] || {}, drinks: (db.drinks || {})[user] || {}, leftThePage: (db.away || {})[user] || {}, freeLimits: (db.limits || {})[user] || {}, picturesYouReported: reportsBy(user) };
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': 'attachment; filename="ballpark-' + user + '.json"', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify(out, null, 1)); return true;
     }
@@ -94,5 +94,5 @@ module.exports = function createAccount({ db, save, send, readBody, dataDir, has
     }
     return false;
   }
-  return { handle, avatarOf };
+  return { handle, avatarOf, dropAvatar: u => { dropAvatar(u); save(); } };
 };
