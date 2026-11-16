@@ -121,6 +121,7 @@ Players can report a friend's picture from the Friends list ("Manage", the flag 
 | `server.js` | The server (accounts, saving, leaderboard, serves the pages) |
 | `account-server.js` | Profile picture, password change, data download, delete account |
 | `plus-server.js` | Ballpark Plus: who has it, checkout, payment notices |
+| `party-server.js` | Party lobbies, judged on the server: "Closest guess" and "Bets" (bet 1 to 3 on the guess you think is closest; with drinks on, the stake is sips) |
 | `levels-server.js` | Levels, XP and achievements, worked out from the results the server recorded. Only Fermi's four achievements are reported by the browser |
 | `reports-server.js` | Reported profile pictures: kept for the admin, nothing happens automatically |
 | `limits-server.js` | What a free account may do: practice games a day, party games to try. Counted on the server |

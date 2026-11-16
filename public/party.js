@@ -10,6 +10,7 @@ const $ = id => document.getElementById(id);
 const E = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ROUNDS = [5, 10, 15], SECONDS = [15, 25, 40];
 
+let betOn = null, betStake = 1, betRound = 0;   // the betting screen's choices, sent only with "Bet"
 let code = null, S = null, es = null, drawn = '', deadline = 0, clock = 0, clockRound = 0, before = null, chatSeen = 0, saveKey = 'bp_party';
 
 box.innerHTML =
@@ -75,13 +76,15 @@ function draw(){
   $('ptStart').style.display = 'none'; $('ptRoom').hidden = false;
   drawPlayers(); drawChat();
   // The middle is only rebuilt when the situation changes, so typing is never interrupted by other players' updates.
-  const key = [S.phase, S.round, S.myGuess != null, S.isHost, S.phase === 'lobby' ? S.rounds + '/' + S.seconds + '/' + S.drinks + '/' + S.host + '/' + S.gamesLeft : ''].join('|');
+  const key = [S.phase, S.round, S.myGuess != null, S.isHost, S.phase === 'lobby' ? S.rounds + '/' + S.seconds + '/' + S.drinks + '/' + S.host + '/' + S.gamesLeft + '/' + S.mode : '',
+    S.phase === 'bet' ? JSON.stringify(S.myBet) : '', S.phase === 'reveal' && S.reveal.mode === 'bets' ? S.reveal.rows.map(r => r.sips + ':' + r.give).join() : ''].join('|');
   if (key !== drawn) { drawn = key; drawMain(); }
-  if (S.phase === 'question') {
+  if (S.phase === 'question' || S.phase === 'bet') {
     // Every update says how much time is left. Network delay can only make that look later than it really is,
     // so within one question the earliest deadline is the true one and the bar never jumps back.
     const d = performance.now() + S.left;
-    deadline = clockRound === S.round ? Math.min(deadline, d) : d; clockRound = S.round;
+    const ck = S.phase + S.round;                   // guessing and betting are two clocks in one round
+    deadline = clockRound === ck ? Math.min(deadline, d) : d; clockRound = ck;
     cancelAnimationFrame(clock); tickClock();
   } else { cancelAnimationFrame(clock); clock = 0; clockRound = 0; }
   // the podium is shown once, at the moment the last question turns into the final result (not after a reload)
@@ -92,9 +95,9 @@ function draw(){
 // The bar is redrawn on every screen frame and only scaled, which the browser can do without re-laying out the page.
 function tickClock(){
   clock = 0;
-  if (!S || S.phase !== 'question') return;
+  if (!S || (S.phase !== 'question' && S.phase !== 'bet')) return;
   const ms = Math.max(0, deadline - performance.now()), bar = $('ptBar'), txt = $('ptLeft');
-  if (bar) bar.style.transform = 'scaleX(' + (ms / (S.seconds * 1000)).toFixed(4) + ')';
+  if (bar) bar.style.transform = 'scaleX(' + (ms / ((S.phase === 'bet' ? S.betSeconds : S.seconds) * 1000)).toFixed(4) + ')';
   const s = Math.ceil(ms / 1000) + 's';
   if (txt && txt.textContent !== s) txt.textContent = s;
   if (ms > 0) clock = requestAnimationFrame(tickClock);
@@ -128,6 +131,10 @@ const nameOf = id => { const p = S.players.find(x => x.id === id); return p ? p.
 const leaveBtn = '<button type="button" class="ghost sm" data-act="leave">Leave</button>';
 // Who drinks is worked out by the server with the points. This only explains it.
 const drinkRules = '<p class="pt-rule">Furthest off takes 2 sips. No guess takes 2. A guess within 10% makes everyone else take 1.<br>Adults only. Water counts.</p>';
+const betRule = '<p class="pt-rule">Guess, then bet 1 to 3 on the guess you think is closest. Fewer backers pay more.</p>';
+const betDrinkRules = '<p class="pt-rule">The stake is sips. Lose a bet: drink it. Win: hand it out. No bet: 1 sip.<br>Adults only. Water counts.</p>';
+const rules = () => (S.mode === 'bets' ? betRule : '') + (S.drinks ? (S.mode === 'bets' ? betDrinkRules : drinkRules) : '');
+const signed = n => (n > 0 ? '+' : n < 0 ? '\u2212' : '') + Math.abs(n);
 const head = () => '<div class="mlhead" style="margin-bottom:18px"><span>Question ' + S.round + ' of ' + S.rounds + '</span>' + leaveBtn + '</div>';
 
 function drawMain(){
@@ -137,11 +144,12 @@ function drawMain(){
     m.innerHTML = '<div class="navrow"><h2>Lobby</h2>' + leaveBtn + '</div>' +
       '<div class="pt-code"><span>Code</span><b>' + E(S.code) + '</b><button type="button" class="ghost sm" id="ptCopy">Copy invite link</button></div>' +
       (S.isHost
-        ? '<div class="pt-set"><span class="pt-lbl">Questions</span>' + opts(ROUNDS, S.rounds, 'data-rounds', '') + '<span class="pt-lbl">Time per question</span>' + opts(SECONDS, S.seconds, 'data-seconds', ' s') +
+        ? '<div class="pt-set"><span class="pt-lbl">Game</span><div class="opts">' + [['closest', 'Closest guess'], ['bets', 'Bets']].map(o => '<button type="button" class="ghost' + (S.mode === o[0] ? ' sel' : '') + '" data-mode="' + o[0] + '" aria-pressed="' + (S.mode === o[0]) + '">' + o[1] + '</button>').join('') + '</div>' +
+            '<span class="pt-lbl">Questions</span>' + opts(ROUNDS, S.rounds, 'data-rounds', '') + '<span class="pt-lbl">Time per question</span>' + opts(SECONDS, S.seconds, 'data-seconds', ' s') +
             '<span class="pt-lbl">Drinks</span><div class="opts">' + [[0, 'Off'], [1, 'On']].map(o => '<button type="button" class="ghost' + (!!o[0] === S.drinks ? ' sel' : '') + '" data-drinks="' + o[0] + '">' + o[1] + '</button>').join('') + '</div>' +
-            (S.drinks ? drinkRules : '') + '</div>' +
+            rules() + '</div>' +
           '<button type="button" data-act="start" id="ptGo">Start game</button>'
-        : '<p class="lead" style="margin:0">' + S.rounds + ' questions, ' + S.seconds + ' s each. Waiting for <b>' + E(nameOf(S.host)) + '</b> to start.</p>' + (S.drinks ? drinkRules : ''));
+        : '<p class="lead" style="margin:0">' + (S.mode === 'bets' ? 'Bets: ' : '') + S.rounds + ' questions, ' + S.seconds + ' s each. Waiting for <b>' + E(nameOf(S.host)) + '</b> to start.</p>' + rules());
     if (window.bpPlus) window.bpPlus.tag($('ptGo'), S.gamesLeft);           // the host's free party games (null: no limit)
   } else if (S.phase === 'question') {
     m.innerHTML = head() +
@@ -153,6 +161,33 @@ function drawMain(){
           '<div class="parsed muted mono" id="ptParsed"></div>'
         : '<div class="cbox" style="max-width:340px"><div class="cl">Your guess</div><div class="cv mono">' + E(fmt(S.myGuess)) + '</div></div><p class="muted" style="margin:14px 0 0">Waiting for the others.</p>');
     const inp = $('ptInp'); if (inp && location.hash === '#party') inp.focus();
+  } else if (S.phase === 'bet') {
+    if (betRound !== S.round) { betRound = S.round; betOn = null; betStake = 1; }
+    const mine = S.myBet, chosen = mine ? mine.on : betOn;
+    const opt = o => '<button type="button" class="pt-opt' + (chosen === o.id ? ' sel' : '') + '" data-on="' + E(o.id) + '" aria-pressed="' + (chosen === o.id) + '"' + (mine ? ' disabled' : '') + '>' +
+      '<b class="mono">' + E(fmt(o.guess)) + '</b><span>' + (o.id === S.you ? 'You' : E(o.name)) + '</span></button>';
+    m.innerHTML = head() + '<div class="timerrow"><div class="timer"><i id="ptBar"></i></div><span class="mono tleft" id="ptLeft"></span></div>' +
+      '<p class="q">' + E(S.q.text) + '</p>' +
+      '<p class="pt-lbl" style="margin:0 0 8px">Back the closest guess, in ' + E(S.q.unit) + '</p><div class="pt-opts">' + S.options.map(opt).join('') + '</div>' +
+      (mine ? '<p class="muted" style="margin:16px 0 0">You bet ' + mine.stake + ' on ' + (mine.on === S.you ? 'your own guess' : E(nameOf(mine.on)) + '\'s guess') + '. Waiting for the others.</p>'
+        : '<div class="pt-stake"><span class="pt-lbl">Stake</span><div class="opts">' + [1, 2, 3].map(n => '<button type="button" class="ghost' + (betStake === n ? ' sel' : '') + '" data-stake="' + n + '" aria-pressed="' + (betStake === n) + '">' + n + '</button>').join('') + '</div>' +
+          '<button type="button" data-act="bet"' + (betOn ? '' : ' disabled') + '>Bet ' + betStake + (S.drinks ? (betStake === 1 ? ' sip' : ' sips') : '') + '</button></div><div class="parsed muted" id="ptParsed"></div>');
+  } else if (S.phase === 'reveal' && S.reveal.mode === 'bets') {
+    const R = S.reveal, win = R.rows.filter(r => r.winner), me = R.rows.find(r => r.id === S.you);
+    const names = win.map(r => r.id === S.you ? 'you' : E(r.name)).join(', ');
+    const rows = R.rows.map(r => '<tr' + (r.id === S.you ? ' class="meRow"' : '') + '><td><b>' + E(r.name) + '</b>' + (r.winner ? ' <span class="pill">closest</span>' : '') +
+        (r.sips ? ' <span class="pill pt-sips">' + r.sips + (r.sips === 1 ? ' sip' : ' sips') + '</span>' : '') + (r.give ? ' <span class="pill">hands out ' + r.give + '</span>' : '') + '</td>' +
+      '<td>' + (r.guess == null ? '<span class="muted">No guess</span>' : E(fmt(r.guess))) + '</td>' +
+      '<td>' + (r.bet ? r.bet.stake + ' on ' + (r.bet.on === r.id ? 'own' : E(r.bet.onName)) : '<span class="muted">No bet</span>') + '</td>' +
+      '<td style="text-align:right"><b class="' + (r.pts > 0 ? 'pt-up' : r.pts < 0 ? 'pt-down' : '') + '">' + signed(r.pts) + '</b></td></tr>').join('');
+    const others = S.players.filter(p => p.id !== S.you);
+    m.innerHTML = head() + '<p class="q" style="min-height:0">' + E(S.q.text) + '</p>' +
+      '<div class="cmp"><div class="cbox ans"><div class="cl">Correct answer</div><div class="cv mono">' + E(fmt(R.answer)) + ' <span class="pt-unit">' + E(S.q.unit) + '</span></div></div>' +
+      '<div class="cbox"><div class="cl">Closest guess</div><div class="cv mono">' + (win.length ? E(fmt(win[0].guess)) : '<span class="muted">None</span>') + '</div><div class="muted pt-paid">' + (win.length ? names + (R.odds ? ', paid \u00d7' + R.odds : ', nobody backed it') : '') + '</div></div></div>' +
+      (S.drinks && me && me.give ? '<div class="pt-give"><span class="pt-lbl">Hand out ' + me.give + (me.give === 1 ? ' sip' : ' sips') + '</span><div class="opts">' + others.map(p => '<button type="button" class="ghost sm" data-give="' + E(p.id) + '">' + E(p.name) + '</button>').join('') + '</div></div>' : '') +
+      '<div style="overflow-x:auto;margin-top:14px"><table class="ft"><thead><tr><th>Player</th><th>Guess</th><th>Bet</th><th style="text-align:right">Points</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      (R.note ? '<div class="fact">' + E(R.note) + '</div>' : '') +
+      '<div class="nextrow"><span></span>' + (S.isHost ? '<button type="button" data-act="next">' + (R.last ? 'Final result' : 'Next question') + '</button>' : '<span class="muted">Waiting for ' + E(nameOf(S.host)) + '.</span>') + '</div>';
   } else if (S.phase === 'reveal') {
     const R = S.reveal, mine = R.rows.find(r => r.id === S.you);
     // the scale: the answer in the middle, every guess placed by how many times too high or too low it was
@@ -181,12 +216,12 @@ function drawMain(){
   }
 }
 function drawPlayers(){
-  const asking = S.phase === 'question', lobby = S.phase === 'lobby';
+  const asking = S.phase === 'question' || S.phase === 'bet', lobby = S.phase === 'lobby', betting = S.phase === 'bet';
   const list = lobby ? S.players : S.players.slice().sort((a, b) => b.score - a.score);
   const done = S.players.filter(p => p.done).length;
-  $('ptPlayers').innerHTML = '<div class="phd"><h2>Players</h2><span>' + (asking ? done + ' of ' + S.players.length + ' answered' : E(S.code)) + '</span></div>' +
+  $('ptPlayers').innerHTML = '<div class="phd"><h2>Players</h2><span>' + (asking ? done + ' of ' + S.players.length + (betting ? ' bet' : ' answered') : E(S.code)) + '</span></div>' +
     list.map((p, i) => '<div class="prow rk' + (p.id === S.you ? ' me' : '') + '"><span class="muted">' + (lobby ? '' : i + 1) + '</span>' +
-      '<span class="n">' + (asking ? '<i class="pt-in' + (p.done ? ' on' : '') + '" title="' + (p.done ? 'Answered' : 'Still thinking') + '"></i>' : '') + E(p.name) +
+      '<span class="n">' + (asking ? '<i class="pt-in' + (p.done ? ' on' : '') + '" title="' + (p.done ? (betting ? 'Bet placed' : 'Answered') : 'Still thinking') + '"></i>' : '') + E(p.name) +
       (p.id === S.host ? '<em class="pt-tag">host</em>' : '') + (p.on ? '' : '<em class="pt-tag">away</em>') + '</span><b>' + (lobby ? '' : p.score) + '</b></div>').join('');
 }
 function drawChat(){
@@ -210,6 +245,11 @@ box.addEventListener('click', async e => {
     else if (b.dataset.rounds) await post(code + '/settings', { rounds: +b.dataset.rounds });
     else if (b.dataset.seconds) await post(code + '/settings', { seconds: +b.dataset.seconds });
     else if (b.dataset.drinks) await post(code + '/settings', { drinks: b.dataset.drinks === '1' });
+    else if (b.dataset.mode) await post(code + '/settings', { mode: b.dataset.mode });
+    else if (b.dataset.on) { betOn = b.dataset.on; drawMain(); }
+    else if (b.dataset.stake) { betStake = +b.dataset.stake; drawMain(); }
+    else if (b.dataset.act === 'bet') { if (betOn) await post(code + '/bet', { on: betOn, stake: betStake }); }
+    else if (b.dataset.give) await post(code + '/give', { to: b.dataset.give });
     else if (b.dataset.act === 'leave') { const c = code; left(''); await post(c + '/leave').catch(() => {}); }
     else if (b.dataset.act) await post(code + '/' + b.dataset.act);
   } catch (err) { if (window.bpPlus && window.bpPlus.limited(err.j)) return; if (code) fail(err); else say(err.message); }
