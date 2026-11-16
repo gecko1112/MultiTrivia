@@ -13,6 +13,7 @@
 // The word of a day is picked the way the browser picked it, so every day keeps its word.
 'use strict';
 const crypto = require('crypto');
+const { NO_LIMITS } = require('./limits-server.js');
 const { today, pastDay, markLate } = require('./games-common.js');
 
 const TRIES = 6;
@@ -27,7 +28,7 @@ function score(guess,target){
 const dayNum = date => { const [y, m, d] = date.split('-').map(Number); return Math.floor((Date.UTC(y, m - 1, d) - Date.UTC(2026, 0, 1)) / 864e5); };
 const prevDay = date => new Date(Date.parse(date + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
 
-module.exports = function createWordy({ words, send, readBody, records, docsOf, save, mayArchive }) {
+module.exports = function createWordy({ words, send, readBody, records, docsOf, save, mayArchive, limits = NO_LIMITS }) {
   const ANS = words.answers, OK = new Set(words.allowed.split(' ')); ANS.forEach(w => OK.add(w));
   const ORDER = (() => { const a = ANS.slice(), r = rng('wordy-v1'); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; })();
   const dailyWord = date => ORDER[((dayNum(date) % ORDER.length) + ORDER.length) % ORDER.length];
@@ -101,7 +102,7 @@ module.exports = function createWordy({ words, send, readBody, records, docsOf, 
       if (act === 'home') {
         const day = pastDay(query.get('day'), mayArchive(user)); if (day === false) { send(res, 403, { error: 'That day is not available' }); return true; }
         const date = day || today(), done = !!finishedOn(user, date), going = !done && !!(records(user)[date] || carried(user, date).length);
-        send(res, 200, { date, done, going, practice: practice.has(user) }); return true;
+        send(res, 200, { date, done, going, practice: practice.has(user), practiceLeft: limits.practiceLeft(user, 'wd') }); return true;
       }
       send(res, 404, { error: 'not found' }); return true;
     }
@@ -111,14 +112,17 @@ module.exports = function createWordy({ words, send, readBody, records, docsOf, 
     if (day === false) { send(res, 403, { error: 'That day is not available' }); return true; }
 
     if (act === 'start') {                           // today's word continues where it was; a practice word is new each time
+      let t = null;
       if (!daily && !body.resume) {
+        t = limits.takePractice(user, 'wd');                      // a new practice word counts for a free account
+        if (!t.ok) { send(res, 403, t.refusal); return true; }
         if (practice.size > 5000) practice.clear();
         const not = dailyWord(today()); let w; do { w = ANS[crypto.randomInt(ANS.length)]; } while (w === not);
         practice.set(user, { user, daily: false, target: w, rec: { moves: [] } });
       }
       const run = getRun(user, daily, day, false);
       if (!run) { send(res, 404, { error: 'No game to continue' }); return true; }
-      send(res, 200, view(run)); return true;
+      send(res, 200, t ? Object.assign(view(run), { practiceLeft: t.left }) : view(run)); return true;
     }
     if (act === 'guess') {
       const run = getRun(user, daily, day, true);

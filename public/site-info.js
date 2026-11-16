@@ -14,6 +14,9 @@ window.BP_LEGAL = {
 };
 // PLACEHOLDER PRICES. They must be the same as the prices set up in Paddle.
 window.BP_PRICE = { month: '€2.99', year: '€24.99', yearNote: 'About 30% less than paying monthly' };
+// What a free account gets, for the pages. The server counts with PRACTICE_PER_DAY and PARTY_TRIALS in
+// limits-server.js; change both together (tests/limits-api.js checks that they match).
+window.BP_FREE = { practicePerDay: 3, partyGames: 3 };
 
 // ---- Language. The game is English. Only the four legal pages (terms, privacy, refunds, Impressum) also exist in
 // German, under /de/. A reader's choice is kept in the browser (bp_lang); without one, a German browser gets German.
@@ -66,4 +69,5 @@ document.querySelectorAll('[data-op]').forEach(function(el){
   else el.textContent = k === 'updated' ? day(v) : k === 'country' && de && L.countryDe ? L.countryDe : v;
 });
 document.querySelectorAll('[data-price]').forEach(function(el){ el.textContent = P[el.getAttribute('data-price')] || ''; });
+document.querySelectorAll('[data-free]').forEach(function(el){ el.textContent = (window.BP_FREE || {})[el.getAttribute('data-free')]; });
 })();

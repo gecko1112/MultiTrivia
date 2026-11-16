@@ -12,6 +12,7 @@
 | `away-api.js`, `away-all-api.js` | "Left the page" counts |
 | `plus-api.js` | Streak rules, head-to-head |
 | `buy-api.js` | Plus: test checkout, payment notices, gifts |
+| `limits-api.js` | Free limits: practice games a day in each game, party games to try, who has them, kept across restarts |
 | `paddle-api.js` | The Paddle connection, with simulated Paddle messages |
 | `account-api.js` | Profile picture, password change, delete account |
 | `security-api.js` | Sign-up limit, logins ending after idle time, the move from db.json to SQLite |

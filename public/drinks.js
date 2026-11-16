@@ -112,10 +112,10 @@ box.addEventListener('click', async e => {
   if (a === 'lobby' && !busy) {                       // the Party lobby, with its drinks rules already on
     busy = true;
     try {
-      const post = async (p, body) => { const r = await fetch('/api/party/' + p, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Could not open a lobby.'); return j; };
+      const post = async (p, body) => { const r = await fetch('/api/party/' + p, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }); const j = await r.json().catch(() => ({})); if (!r.ok) throw Object.assign(new Error(j.error || 'Could not open a lobby.'), { j }); return j; };
       const { code } = await post('create'); await post(code + '/join'); await post(code + '/settings', { drinks: true });
       location.hash = 'party'; await window.bpParty.join(code);
-    } catch (err) { note(err.message); }
+    } catch (err) { if (!(window.bpPlus && window.bpPlus.limited(err.j))) note(err.message); }
     busy = false;
   }
 });

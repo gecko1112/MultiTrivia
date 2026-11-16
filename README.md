@@ -92,6 +92,17 @@ Who has Plus is decided on the server (`plus-server.js`) and stored with the acc
   - `"env": "live"` takes real money from everybody. Do not set it before the legal pages exist and Paddle has verified the account.
 - **In Paddle:** one product with a monthly and a yearly price, and a notification destination `https://<your address>/api/plus/webhook/paddle` with all `subscription` events ticked. The API key needs the permission to write subscriptions (for "Cancel subscription").
 
+### What a free account gets
+
+Counted on the server (`limits-server.js`):
+
+- **Practice:** 3 practice games a day in each game. Continuing a game that is already going is free. Daily games are never limited.
+- **Party:** anyone can open or join a lobby. Starting a game in a lobby uses one of the host's 3 free party games, once and for all. A lobby opened by a Plus account has no limit, even after someone else becomes host.
+
+The limits only apply to accounts that could buy Plus right now. Without Paddle that means admin accounts without Plus, which is how you try the limits: switch yourself to Basic in the developer panel. With Paddle `live`, every account without Plus has them.
+
+To change the numbers, change `PRACTICE_PER_DAY` and `PARTY_TRIALS` in `limits-server.js` and `BP_FREE` in `public/site-info.js` together. `tests/limits-api.js` fails if they differ.
+
 ## Branches
 
 - `main` is the stable version, the one that gets deployed. It changes only when `dev` has been tried and is merged into it.
@@ -106,6 +117,7 @@ Who has Plus is decided on the server (`plus-server.js`) and stored with the acc
 | `server.js` | The server (accounts, saving, leaderboard, serves the pages) |
 | `account-server.js` | Profile picture, password change, data download, delete account |
 | `plus-server.js` | Ballpark Plus: who has it, checkout, payment notices |
+| `limits-server.js` | What a free account may do: practice games a day, party games to try. Counted on the server |
 | `moreless-server.js` | More/Less: deals the pairs, judges every call and stores the result. The browser never gets a number before its call |
 | `guessless-server.js` | Guessless: deals the five questions, scores every estimate and stores the result. The browser never gets an answer before its estimate |
 | `wordy-server.js` | Wordy: picks the word, checks and colours every guess, stores the result. The browser learns the word only at the end |

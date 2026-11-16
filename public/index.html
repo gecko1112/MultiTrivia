@@ -195,6 +195,9 @@
   .pluslink{font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
   .pluslink:hover{color:var(--text)}
   .ptag{display:inline-block;font:700 13px/1 var(--head);letter-spacing:.1em;text-transform:uppercase;background:var(--accent);color:var(--on-accent);padding:3px 7px;border-radius:5px}
+  /* a free account's allowance on a button: "2 left", or the Plus tag once none are left (bpPlus.tag in plus.js) */
+  .left-tag{display:inline-block;margin-left:8px;font-size:11px;font-weight:600;line-height:1;opacity:.75;white-space:nowrap;vertical-align:1px}
+  .left-tag.ptag{opacity:1;font-size:11px;padding:2px 5px;color:var(--on-accent)}
 
   /* ---- Survival ---- */
   .modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}   /* minmax(0,…): a code field never pushes a box out of the card */
@@ -733,6 +736,7 @@
   .plus-cmp td:first-child{width:auto}
   .plus-cmp td small{display:block;color:var(--muted);font-size:13px;font-weight:400}
   .plus-cmp .y{font-weight:700;color:var(--good)} .plus-cmp .n{color:var(--muted)}
+  .plus-cmp .part,.plus-cmp .lim{font-size:13px;white-space:nowrap} .plus-cmp .part{color:var(--muted);font-weight:600}
   .plus-cmp tr.only td:first-child{font-weight:600}
   .plus-bill{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 14px}
   .plus-opt{display:block;text-align:left;text-transform:none;letter-spacing:0;font:14px/1.4 var(--body);background:var(--inset);color:var(--text);border:1px solid var(--line);padding:12px 14px}
@@ -1222,8 +1226,10 @@ function svDailyStat(){
   const done=!!(t&&t.score!=null)||!!(svHome&&svHome.done), blocked=!!(svHome&&svHome.blocked), going=!done&&!blocked&&!!(svHome&&svHome.going);
   $('goDaily').disabled=done||blocked; $('goDaily').textContent=done||blocked?'Done for today':going?"Continue today's run":"Play today's run";
   $('dailyStat').textContent=blocked?'Started but not finished: counts as today\'s try':done?'Resets at midnight':'';
-  svStatStrip();
+  svStatStrip(); svTags();
 }
+// a free account's practice runs left today, on both practice buttons (null: no limit, no tag)
+function svTags(){ if(!window.bpPlus) return; const n=svHome?svHome.practiceLeft:null; bpPlus.tag($('go'),n); bpPlus.tag($('again'),n); }
 async function svDailySave(){}                       // the day results are written by the server now (x_daily)
 async function svDailyLoad(){
   try{const l=JSON.parse(localStorage.getItem('bp_svdaily')||'null'); if(l&&l.days) svDaily=l;}catch(e){}
@@ -1236,6 +1242,7 @@ async function startRun(mode){
   try{
     const r=await svPost('start', daily?{daily:true,day:svDayArg()}:{daily:false,timer:userTimer,pack:svPack||undefined});
     if(!r.ok){
+      if(window.bpPlus&&bpPlus.limited(r.j)){ svHome=Object.assign({},svHome,{practiceLeft:0}); svTags(); return; }
       if(r.j.blocked){ svHome=Object.assign({},svHome,{blocked:true}); svDailyStat(); }
       else $('dailyStat').textContent=r.j.error||'Something went wrong. Try again.';
       return;
@@ -1246,6 +1253,7 @@ async function startRun(mode){
 }
 // a run from the server: show where it stands
 function svTake(v,fresh){
+  if(v.practiceLeft!==undefined){ svHome=Object.assign({},svHome,{practiceLeft:v.practiceLeft}); svTags(); }
   sv=v; svNext=null; runMode=v.daily?'daily':'practice'; timeLimit=v.timer||0; life=v.life; score=v.score;
   if(v.done){ gameOver(v,fresh); return; }
   $('score').textContent=score; drawLife(); screen('game'); showQ();
@@ -1453,6 +1461,7 @@ function gameOver(v,fresh){
     if(fresh) window.dispatchEvent(new Event('bp-saved'));
   }
   else { $('again').textContent='Play again'; if(svHome) svHome.practice=false; }
+  svTags();                                           // the button's text was just replaced
   $('hist').innerHTML = histHTML(history);
   $('again').focus();
   if(fresh&&res.placed!=null) cloudSync();           // the best runs as the server keeps them now

@@ -17,6 +17,7 @@
 // The questions of a day are dealt the way the browser dealt them, so every day keeps its questions.
 'use strict';
 const crypto = require('crypto');
+const { NO_LIMITS } = require('./limits-server.js');
 const { today, pastDay, markLate } = require('./games-common.js');
 
 const MAX = 10, TIMEOUT_DMG = 2, HEAL = 0.2, HEAL_WITHIN = Math.log10(1.05);
@@ -49,7 +50,7 @@ const avgErrOf = h => { const real = h.filter(r => r.g !== null); return real.le
 const rankRuns = r => r.sort((a, b) => b.score - a.score || ((a.avg ?? 99) - (b.avg ?? 99)) || a.t - b.t);
 const isRunDoc = (id, d) => !String(id).startsWith('x_') && d && typeof d.score === 'number';
 
-module.exports = function createSurvival({ questions, packs, send, readBody, records, docsOf, save, mayArchive, hasPlus }) {
+module.exports = function createSurvival({ questions, packs, send, readBody, records, docsOf, save, mayArchive, hasPlus, limits = NO_LIMITS }) {
   const Q = Array.isArray(questions) ? questions : [], PACKS = packs || {};
   // the questions of a daily run in the order they come: the day's deck, then the day's second deck, as the browser popped them
   const dailySeqs = new Map();
@@ -159,7 +160,7 @@ module.exports = function createSurvival({ questions, packs, send, readBody, rec
         const day = pastDay(query.get('day'), mayArchive(user)); if (day === false) { send(res, 403, { error: 'That day is not available' }); return true; }
         const date = day || today(), done = !!finishedOn(user, date), blocked = !done && !records(user)[date] && startedOn(user, date) && !carried(user, date);
         const going = !done && !blocked && !!(records(user)[date] || (carried(user, date) || []).length);
-        send(res, 200, { date, done, going, blocked, practice: practice.has(user), packs: Object.keys(PACKS).map(id => ({ id, name: PACKS[id].name })), plus: !!hasPlus(user) }); return true;
+        send(res, 200, { date, done, going, blocked, practice: practice.has(user), practiceLeft: limits.practiceLeft(user, 'sv'), packs: Object.keys(PACKS).map(id => ({ id, name: PACKS[id].name })), plus: !!hasPlus(user) }); return true;
       }
       send(res, 404, { error: 'not found' }); return true;
     }
@@ -178,11 +179,13 @@ module.exports = function createSurvival({ questions, packs, send, readBody, rec
       const pack = typeof body.pack === 'string' && body.pack ? body.pack : '';
       if (pack && !PACKS[pack]) { send(res, 400, { error: 'Unknown question pack' }); return true; }
       if (pack && !hasPlus(user)) { send(res, 403, { error: 'Question packs are part of Plus' }); return true; }
+      const t = limits.takePractice(user, 'sv');                 // a new practice run counts for a free account (packs are Plus anyway)
+      if (!t.ok) { send(res, 403, t.refusal); return true; }
       const timer = TIMERS.includes(body.timer) ? body.timer : 15;
       if (practice.size > 5000) practice.clear();
       const run = { user, daily: false, timer, pack, pool: pack ? PACKS[pack].q : Q, seq: [], rec: { moves: [], shownAt: Date.now() } };
       practice.set(user, run);
-      send(res, 200, view(run)); return true;
+      send(res, 200, Object.assign(view(run), { practiceLeft: t.left })); return true;
     }
     if (act === 'clear-runs') {                      // "Clear saved runs": the account's best runs go
       const docs = docsOf(user); for (const k of Object.keys(docs)) if (isRunDoc(k, docs[k])) delete docs[k];

@@ -17,10 +17,13 @@ const root = document.documentElement;
 // The prices are written down once, in site-info.js, for this window and the public pricing page.
 const PRICE = window.BP_PRICE || { month: '', year: '', yearNote: '' };
 
-// [feature, explanation, in the free version?, already built?]
+// What a free account gets: the numbers are in site-info.js, the server counts with the same (limits-server.js).
+const FREE = window.BP_FREE || { practicePerDay: 3, partyGames: 3 };
+// [feature, explanation, in the free version? (true, false, or what a free account gets), already built?]
 const FEATURES = [
   ["Today's five daily games", '', true, true],
-  ['Practice games', '', true, true],
+  ['Practice games', 'In each game.', FREE.practicePerDay + ' a day', true],
+  ['Hosting party games', 'Joining is always free.', FREE.partyGames + ' to try', true],
   ['Friends and leaderboards', '', true, true],
   ['Levels and achievements', '', true, true],
   ['Archive', 'Play any past day.', false, true],
@@ -34,8 +37,11 @@ const LEADS = {
   archive: 'Past days are part of Plus.',
   stats: 'Detailed statistics are part of Plus.',
   h2h: 'Head-to-head is part of Plus.',
-  packs: 'Question packs are part of Plus.'
+  packs: 'Question packs are part of Plus.',
+  practice: 'Unlimited practice is part of Plus.',
+  party: 'Hosting party games is part of Plus.'
 };
+const E = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // The server's answer. Until it arrives, the answer from the last visit is used so the page does not flicker.
 const cached = () => { try { return localStorage.getItem('bp_plus') === '1'; } catch (e) { return false; } };
@@ -75,14 +81,16 @@ function paint(){
 }
 
 // ---------------------------------------------------------------- Basic: the offer
-function open(reason){
+// `lead`: the server's own words when it refused something (a limit), shown instead of the usual first line.
+function open(reason, lead){
   if (!window.bpModal) return;
   const rows = FEATURES.map(([name, note, free]) =>
     '<tr class="' + (free ? '' : 'only') + '"><td>' + name + (note ? '<small>' + note + '</small>' : '') + '</td>' +
-    '<td>' + (free ? '<span class="y" aria-label="included">✓</span>' : '<span class="n" aria-label="not included">–</span>') + '</td><td><span class="y" aria-label="included">✓</span></td></tr>').join('');
+    '<td>' + (free === true ? '<span class="y" aria-label="included">✓</span>' : free ? '<span class="part">' + E(free) + '</span>' : '<span class="n" aria-label="not included">–</span>') + '</td>' +
+    '<td>' + (typeof free === 'string' ? '<span class="y lim">No limit</span>' : '<span class="y" aria-label="included">✓</span>') + '</td></tr>').join('');
   const sale = !!state.onSale;
   const body = window.bpModal.open({ title: 'Ballpark Plus' + (sale ? '' : ' <span class="ptag">Preview</span>'), html:
-    '<p class="plus-lead">' + (LEADS[reason] || LEADS.top) + '</p>' +
+    '<p class="plus-lead">' + (lead ? E(lead) : LEADS[reason] || LEADS.top) + '</p>' +
     '<table class="plus-cmp"><thead><tr><th>What you get</th><th>Free</th><th>Plus</th></tr></thead><tbody>' + rows + '</tbody></table>' +
     '<div class="plus-bill" role="radiogroup" aria-label="Billing">' +
       '<button type="button" class="plus-opt" role="radio" aria-checked="false" data-bill="month"><b>' + PRICE.month + '</b>per month<br><span>Cancel any time</span></button>' +
@@ -248,7 +256,25 @@ document.addEventListener('click', e => {
   else openMember();
 });
 window.addEventListener('bp-level', e => renderArchive(e.detail && e.detail.perDay));
-window.bpPlus = { open, has, setPlan, refresh };
+
+// ---------------------------------------------------------------- free limits (counted on the server, limits-server.js)
+// How many a free account has left, drawn on the button that uses one: "2 left", or the Plus tag once none are left.
+// null means no limit (Plus, or Plus not on sale for this account): no tag at all. Call it again after the button's
+// text was replaced.
+function tag(btn, left){
+  if (!btn) return;
+  let t = btn.querySelector('.left-tag');
+  if (left == null) { if (t) t.remove(); return; }
+  if (!t) { t = document.createElement('span'); btn.appendChild(t); }
+  t.className = left > 0 ? 'left-tag' : 'left-tag ptag';
+  t.textContent = left > 0 ? left + ' left' : 'Plus';
+}
+// The server refused something because of a limit: show the offer with its reason. True when that was the case.
+function limited(j){
+  if (!j || (j.limit !== 'practice' && j.limit !== 'party')) return false;
+  open(j.limit, j.error); return true;
+}
+window.bpPlus = { open, has, setPlan, refresh, tag, limited };
 paint();
 // ask the server once the account is known
 if (window.claude && window.claude.use) window.claude.use('user').then(u => u.id()).then(refresh).then(afterCheckout).catch(e => console.error('Plus:', e));
