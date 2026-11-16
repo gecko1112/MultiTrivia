@@ -253,9 +253,6 @@ function serveStatic(req, res, urlPath) {
   });
 }
 
-// ---------- party mode (lobbies, judged entirely on the server) ----------
-const party = require('./party-server.js')({ questions: require('./content/survival.js'), send, readBody, displayName: u => (db.users[u] && db.users[u].display) || u, isAdmin });
-
 // ---------- admin accounts: one username per line in data/admins.txt (or BP_ADMINS=name,name). Read on every use, no restart needed.
 // Admins see what other players are not shown, such as how often somebody left the page during an Atlas game.
 function isAdmin(u) {
@@ -268,6 +265,14 @@ function isAdmin(u) {
 if (!db.secret) { db.secret = crypto.randomBytes(24).toString('hex'); save(); }   // signs the test checkout, makes the daily puzzles unpredictable
 const plus = require('./plus-server.js')({ db, save, send, isAdmin, secret: db.secret, dataDir: DATA_DIR });
 const hasPlus = user => plus.has(user);
+
+// ---------- what a free account may do (practice games a day, party games to try), counted here, never in the browser
+if (!db.limits) db.limits = {};
+const limits = require('./limits-server.js')({ hasPlus, onSale: u => plus.onSale(u), today: require('./games-common.js').today,
+  records: Object.assign(u => (db.limits[u] = db.limits[u] || {}), { save, peek: u => db.limits[u] || null }) });
+
+// ---------- party mode (lobbies, judged entirely on the server) ----------
+const party = require('./party-server.js')({ questions: require('./content/survival.js'), send, readBody, displayName: u => (db.users[u] && db.users[u].display) || u, isAdmin, limits });
 
 // ---------- Head-to-head (Plus): the asker's record against every other player.
 // One point of comparison is one daily game that both finished on the day itself. Games played later through the
@@ -318,37 +323,37 @@ function finishedOn(user, date) {
 if (!db.geo) db.geo = {};
 const geo = require('./geo-server.js')({ dir: path.join(ROOT, 'geo'), send, readBody, secret: db.secret,
   records: Object.assign(u => (db.geo[u] = db.geo[u] || {}), { save }),
-  mayArchive: u => hasPlus(u), isAdmin });   // past days are a Plus feature
+  mayArchive: u => hasPlus(u), isAdmin, limits });   // past days are a Plus feature
 
 // ---------- More/Less (dealt and judged on the server; daily calls in db.ml, results in the account's x_stats.ml) ----------
 if (!db.ml) db.ml = {};
 const moreless = require('./moreless-server.js')({ cats: require('./content/moreless.js'), questions: require('./content/survival.js'), send, readBody, save,
   records: u => (db.ml[u] = db.ml[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
-  mayArchive: u => hasPlus(u) });                   // past days are a Plus feature
+  mayArchive: u => hasPlus(u), limits });           // past days are a Plus feature
 
 // ---------- Guessless (dealt and scored on the server; daily estimates in db.gl, results in the account's x_stats.gl) ----------
 if (!db.gl) db.gl = {};
 const guessless = require('./guessless-server.js')({ cats: require('./content/guessless.js'), send, readBody, save,
   records: u => (db.gl[u] = db.gl[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
-  mayArchive: u => hasPlus(u) });
+  mayArchive: u => hasPlus(u), limits });
 
 // ---------- Wordy (picked and judged on the server; daily guesses in db.wd, results in the account's x_words) ----------
 if (!db.wd) db.wd = {};
 const wordy = require('./wordy-server.js')({ words: require('./content/wordy.js'), send, readBody, save,
   records: u => (db.wd[u] = db.wd[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
-  mayArchive: u => hasPlus(u) });
+  mayArchive: u => hasPlus(u), limits });
 
 // ---------- Clueless (picked and judged on the server; daily guesses in db.cl, results in the account's x_stats.cl) ----------
 if (!db.cl) db.cl = {};
 const clueless = require('./clueless-server.js')({ data: require('./content/clueless.js'), send, readBody, save,
   records: u => (db.cl[u] = db.cl[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
-  mayArchive: u => hasPlus(u) });
+  mayArchive: u => hasPlus(u), limits });
 
 // ---------- Survival (dealt, timed and judged on the server; daily estimates in db.sv, results in x_daily and best runs) ----------
 if (!db.sv) db.sv = {};
 const survival = require('./survival-server.js')({ questions: require('./content/survival.js'), packs: require('./content/packs.js'), send, readBody, save,
   records: u => (db.sv[u] = db.sv[u] || {}), docsOf: u => (db.docs[u] = db.docs[u] || {}),
-  mayArchive: u => hasPlus(u), hasPlus: u => hasPlus(u) });    // past days and question packs are Plus features
+  mayArchive: u => hasPlus(u), hasPlus: u => hasPlus(u), limits });    // past days and question packs are Plus features
 
 // ---------- Drinks (one-phone drinking games, dealt and judged on the server) ----------
 if (!db.drinks) db.drinks = {};                     // per account: counters and earned badges of the drinking games

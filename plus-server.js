@@ -247,5 +247,7 @@ module.exports = function createPlus({ db, save, send, isAdmin, secret, dataDir 
     const p = rec(user);
     if (has(user) && p.renews && PROVIDERS[p.source]) { await PROVIDERS[p.source].cancel(user, p); if (rec(user).renews) throw new Error('still renewing'); }
   }
-  return { has, status, handle, handlePublic, stopRenewal };
+  // Could this account buy Plus right now? Free limits only apply to accounts that can (limits-server.js).
+  const onSale = u => !!providerFor(u);
+  return { has, status, onSale, handle, handlePublic, stopRenewal };
 };

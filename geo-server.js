@@ -11,6 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { NO_LIMITS } = require('./limits-server.js');
 const zlib = require('zlib');
 
 const OUTLINE_CHOICES = 6;               // names to choose from in Outlines: six, so a lucky guess is rarer
@@ -23,7 +24,7 @@ const TZ = process.env.BP_TZ || 'Europe/Berlin';   // the day changes at midnigh
 const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
 const today = () => dayFmt.format(new Date());
 
-module.exports = function createGeo({ dir, send, readBody, secret, records, mayArchive, isAdmin }) {
+module.exports = function createGeo({ dir, send, readBody, secret, records, mayArchive, isAdmin, limits = NO_LIMITS }) {
   const seesAway = user => !!(isAdmin && user && isAdmin(user));
   let C = [];
   try { C = JSON.parse(fs.readFileSync(path.join(dir, 'countries.json'), 'utf8')).countries; }
@@ -227,7 +228,8 @@ module.exports = function createGeo({ dir, send, readBody, secret, records, mayA
       if (act === 'names') { sendBig(req, res, namesList, 'private, max-age=3600'); return true; }          // every country there is: not a secret
       if (act === 'home') {
         const day = pastDay(user, query.get('day')); if (day === false) { send(res, 403, { error: 'That day is not available' }); return true; }
-        const daily = {}; for (const m of MODES) daily[m] = summary(user, m, day); send(res, 200, { date: day || today(), daily }); return true;
+        const daily = {}, practiceLeft = {}; for (const m of MODES) { daily[m] = summary(user, m, day); practiceLeft[m] = limits.practiceLeft(user, m); }
+        send(res, 200, { date: day || today(), daily, practiceLeft }); return true;
       }
       if (act === 'history') {                                                                             // every finished daily of this player, plus how many practice games
         const mine = records(user), days = {};
@@ -252,7 +254,11 @@ module.exports = function createGeo({ dir, send, readBody, secret, records, mayA
     const day = daily ? pastDay(user, body.day) : null;
     if (day === false) { send(res, 403, { error: 'That day is not available' }); return true; }
 
-    if (act === 'start') { sendBig(req, res, view(getRun(user, mode, daily, true, day))); return true; }       // a daily that exists is continued, never restarted
+    if (act === 'start') {                                                                                   // a daily that exists is continued, never restarted
+      const t = daily ? null : limits.takePractice(user, mode);                                              // every practice game is new and counts for a free account
+      if (t && !t.ok) { send(res, 403, t.refusal); return true; }
+      const v = view(getRun(user, mode, daily, true, day)); sendBig(req, res, t ? Object.assign(v, { practiceLeft: t.left }) : v); return true;
+    }
     const run = getRun(user, mode, daily, false, day);
     if (!run) { send(res, 409, { error: 'Start a game first' }); return true; }
 

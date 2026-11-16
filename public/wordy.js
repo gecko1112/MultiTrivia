@@ -28,6 +28,9 @@ root.innerHTML=`<div class="card wordy">
 </div>`;
 const KB=['qwertyuiop','asdfghjkl','⏎zxcvbnm⌫'];
 const dayArg=()=>window.bpDay||undefined;      // a past day in the archive, otherwise today (the server knows which day that is)
+// a free account's practice words left today, on the practice buttons (null: no limit, no tag)
+let left=null;
+const tags=()=>{ if(!window.bpPlus) return; bpPlus.tag(document.getElementById('wdPractice'),left); bpPlus.tag(document.getElementById('wdNext'),left); };
 async function post(act,body){
   const r=await fetch('/api/wd/'+act,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   return { ok:r.ok, status:r.status, j:await r.json().catch(()=>({})) };
@@ -111,14 +114,15 @@ function finish(fresh){
       <button id="wdCopy">Copy result</button><button class="ghost" id="wdNext">Practice word</button></div>`;
   document.getElementById('wdCopy').addEventListener('click',async e=>{ const t=`Wordy ${g.daily?(day||todayKey()):'(practice)'} ${g.won?g.rows.length:'X'}/6\n`+grid(g.rows);
     try{await navigator.clipboard.writeText(t); e.target.textContent='Copied!';}catch(_){e.target.textContent='Copy failed';} setTimeout(()=>e.target.textContent='Copy result',1500); });
-  document.getElementById('wdNext').addEventListener('click',()=>start(false));
+  document.getElementById('wdNext').addEventListener('click',()=>start(false)); tags();
 }
 // Today's word continues where it was (from any browser); a practice word is a new one each time.
 async function start(daily){
-  document.getElementById('wdEnd').style.display='none';
   let r; try{ r=await post('start',{daily,day:daily?dayArg():undefined}); }catch(e){ msg('Could not reach the server. Try again.',0); return; }
   if(r.status===401) return;                       // not logged in yet: the login box is showing
-  if(!r.ok){ msg(r.j.error||'Try again',0); return; }
+  if(!r.ok){ if(window.bpPlus&&bpPlus.limited(r.j)){ left=0; tags(); return; } msg(r.j.error||'Try again',0); return; }
+  document.getElementById('wdEnd').style.display='none';
+  if(r.j.practiceLeft!==undefined){ left=r.j.practiceLeft; tags(); }
   g={daily,rows:[],cur:'',done:false,won:false};
   take(r.j,false);
 }
@@ -136,5 +140,6 @@ document.getElementById('wdPractice').addEventListener('click',()=>start(false))
     try{localStorage.setItem('bp_words',JSON.stringify(st));}catch(e){}
   }catch(e){}
   if(!g.rows.length&&!g.cur) start(true);
+  try{ const h=await fetch('/api/wd/home'+(window.bpDay?'?day='+window.bpDay:''),{credentials:'same-origin'}).then(r=>r.json()); left=h.practiceLeft??null; tags(); }catch(e){}
 })();
 })();

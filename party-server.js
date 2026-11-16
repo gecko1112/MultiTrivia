@@ -7,10 +7,14 @@
 //
 // The questions come from content/survival.js, which is never sent to the browser.
 //
+// Hosting: anybody can open a lobby and join one. Starting a game in a lobby opened without Plus uses one of the
+// host's free party games (limits-server.js decides, and counts).
+//
 // Lobbies live in memory only: restarting the server ends all running parties. Chat is never stored.
 // Updates reach the players over Server-Sent Events (one long-lived GET per player), so no extra
 // packages are needed and it works through ngrok and a reverse proxy.
 const crypto = require('crypto');
+const { NO_LIMITS } = require('./limits-server.js');
 
 const MAX_PLAYERS = 12, MAX_ROOMS = 200, MAX_CHAT = 40, CHAT_LEN = 200;
 const ROUNDS = [5, 10, 15], SECONDS = [15, 25, 40];
@@ -27,7 +31,7 @@ function usable(list) {
   return list.filter(q => q && typeof q.q === 'string' && typeof q.a === 'number' && q.a > 0 && isFinite(q.a));
 }
 
-module.exports = function createParty({ questions, send, readBody, displayName, isAdmin = () => false }) {
+module.exports = function createParty({ questions, send, readBody, displayName, isAdmin = () => false, limits = NO_LIMITS }) {
   const QUESTIONS = usable(Array.isArray(questions) ? questions : []);
   if (!QUESTIONS.length) console.error('Party mode is off: no questions');
   const rooms = new Map();
@@ -49,6 +53,7 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
     return {
       code: room.code, phase: room.phase, you: me.id, host: room.host, isHost: room.host === me.id,
       rounds: room.rounds, seconds: room.seconds, drinks: room.drinks, round: room.round,
+      gamesLeft: room.host === me.id && room.phase === 'lobby' ? limits.gamesLeft(room.owner, me.id) : null,   // the host's free games; null = no limit here
       players: [...room.players.values()].map(p => ({ id: p.id, name: p.name, score: p.score, sips: p.sips, on: connected(p), done: asking && room.guesses.has(p.id), away: admin && p.away ? p.away : undefined })),
       q: room.q && room.phase !== 'lobby' && room.phase !== 'final' ? { text: room.q.q, unit: room.q.u } : null,
       left: asking ? Math.max(0, room.endsAt - Date.now()) : 0,
@@ -141,10 +146,11 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
     if (url === '/api/party/create' && req.method === 'POST') {
       const now = Date.now();
       if (now - (lastCreate.get(user) || 0) < 3000) { send(res, 429, { error: 'One moment, then try again' }); return true; }
+      const may = limits.mayOpen(user); if (!may.ok) { send(res, 403, may.refusal); return true; }
       if (rooms.size >= MAX_ROOMS) { send(res, 503, { error: 'Too many lobbies are open right now' }); return true; }
       const code = newCode(); if (!code) { send(res, 503, { error: 'Could not open a lobby' }); return true; }
       lastCreate.set(user, now);
-      rooms.set(code, { code, host: user, phase: 'lobby', rounds: 5, seconds: 25, drinks: false, round: 0, deck: [], q: null, endsAt: 0, timer: null,
+      rooms.set(code, { code, owner: user, host: user, phase: 'lobby', rounds: 5, seconds: 25, drinks: false, round: 0, deck: [], q: null, endsAt: 0, timer: null,
         guesses: new Map(), reveal: null, chat: [], chatSeq: 0, players: new Map(), touched: now, lastOnline: now });
       send(res, 200, { code }); return true;
     }
@@ -197,6 +203,7 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
     if (act === 'start') {
       if (hostOnly()) return true;
       if (room.phase !== 'lobby') { send(res, 409, { error: 'The game is already running' }); return true; }
+      const t = limits.takeGame(room.owner, user); if (!t.ok) { send(res, 403, t.refusal); return true; }
       room.deck = shuffled(QUESTIONS).slice(0, room.rounds); room.round = 0;
       for (const p of room.players.values()) { p.score = 0; p.sips = 0; p.away = 0; }
       ask(room); send(res, 200, { ok: true }); return true;

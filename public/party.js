@@ -35,7 +35,7 @@ box.innerHTML =
 async function post(path, body){
   const r = await fetch('/api/party/' + path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
   let j = {}; try { j = await r.json(); } catch (e) {}
-  if (!r.ok) throw new Error(j.error || 'Something went wrong. Try again.');
+  if (!r.ok) throw Object.assign(new Error(j.error || 'Something went wrong. Try again.'), { j });
   return j;
 }
 const remember = c => { try { if (c) localStorage.setItem(saveKey, c); else localStorage.removeItem(saveKey); } catch (e) {} };
@@ -75,7 +75,7 @@ function draw(){
   $('ptStart').style.display = 'none'; $('ptRoom').hidden = false;
   drawPlayers(); drawChat();
   // The middle is only rebuilt when the situation changes, so typing is never interrupted by other players' updates.
-  const key = [S.phase, S.round, S.myGuess != null, S.isHost, S.phase === 'lobby' ? S.rounds + '/' + S.seconds + '/' + S.drinks + '/' + S.host : ''].join('|');
+  const key = [S.phase, S.round, S.myGuess != null, S.isHost, S.phase === 'lobby' ? S.rounds + '/' + S.seconds + '/' + S.drinks + '/' + S.host + '/' + S.gamesLeft : ''].join('|');
   if (key !== drawn) { drawn = key; drawMain(); }
   if (S.phase === 'question') {
     // Every update says how much time is left. Network delay can only make that look later than it really is,
@@ -140,8 +140,9 @@ function drawMain(){
         ? '<div class="pt-set"><span class="pt-lbl">Questions</span>' + opts(ROUNDS, S.rounds, 'data-rounds', '') + '<span class="pt-lbl">Time per question</span>' + opts(SECONDS, S.seconds, 'data-seconds', ' s') +
             '<span class="pt-lbl">Drinks</span><div class="opts">' + [[0, 'Off'], [1, 'On']].map(o => '<button type="button" class="ghost' + (!!o[0] === S.drinks ? ' sel' : '') + '" data-drinks="' + o[0] + '">' + o[1] + '</button>').join('') + '</div>' +
             (S.drinks ? drinkRules : '') + '</div>' +
-          '<button type="button" data-act="start">Start game</button>'
+          '<button type="button" data-act="start" id="ptGo">Start game</button>'
         : '<p class="lead" style="margin:0">' + S.rounds + ' questions, ' + S.seconds + ' s each. Waiting for <b>' + E(nameOf(S.host)) + '</b> to start.</p>' + (S.drinks ? drinkRules : ''));
+    if (window.bpPlus) window.bpPlus.tag($('ptGo'), S.gamesLeft);           // the host's free party games (null: no limit)
   } else if (S.phase === 'question') {
     m.innerHTML = head() +
       '<div class="timerrow"><div class="timer"><i id="ptBar"></i></div><span class="mono tleft" id="ptLeft"></span></div>' +
@@ -211,7 +212,7 @@ box.addEventListener('click', async e => {
     else if (b.dataset.drinks) await post(code + '/settings', { drinks: b.dataset.drinks === '1' });
     else if (b.dataset.act === 'leave') { const c = code; left(''); await post(c + '/leave').catch(() => {}); }
     else if (b.dataset.act) await post(code + '/' + b.dataset.act);
-  } catch (err) { if (code) fail(err); else say(err.message); }
+  } catch (err) { if (window.bpPlus && window.bpPlus.limited(err.j)) return; if (code) fail(err); else say(err.message); }
 });
 box.addEventListener('submit', async e => {
   e.preventDefault();

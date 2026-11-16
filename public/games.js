@@ -79,14 +79,17 @@ function dayAvg(days,f,dp){const v=Object.values(days||{}).map(d=>d&&d[f]).filte
 const mlDayArg=()=>window.bpDay||undefined;      // a past day in the archive, otherwise today (the server knows which day that is)
 async function mlPost(act,body){
   const r=await fetch('/api/ml/'+act,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error||'Something went wrong. Try again.'); return j;
+  const j=await r.json().catch(()=>({})); if(!r.ok) throw Object.assign(new Error(j.error||'Something went wrong. Try again.'),{j}); return j;
 }
+// a free account's practice games left today, on both practice buttons (null: no limit, no tag)
+function mlTags(){ if(!window.bpPlus) return; const n=mlHome?mlHome.practiceLeft:null; bpPlus.tag($('mlPractice'),n); bpPlus.tag($('mlAgain'),n); }
 async function mlLoadHome(){ try{ const r=await fetch('/api/ml/home'+(window.bpDay?'?day='+window.bpDay:''),{credentials:'same-origin'}); if(r.ok) mlHome=await r.json(); }catch(e){} }
 function mlStatLine(){
   const day=(mlHome&&mlHome.date)||todayKey(), t=stats.ml.days[day];
   $('mlStat').innerHTML=statCells([['Today',t?t.score+' / 25':'–'],['Best',stats.ml.best?stats.ml.best+' / 25':'–'],['Average',dayAvg(stats.ml.days,'score')],['Played',stats.ml.played||0]]);
   const done=!!t||!!(mlHome&&mlHome.done), going=!done&&!!(mlHome&&mlHome.going);
   $('mlDaily').textContent=done?"See today's result":going?"Continue today's game":"Play today's game";
+  mlTags();
 }
 // the server's numbers after a finished game: best, games played, and the day's result
 function mlTakeStats(s){
@@ -94,6 +97,7 @@ function mlTakeStats(s){
   try{localStorage.setItem('bp_stats',JSON.stringify(stats));}catch(e){}
 }
 function mlShow(v){
+  if(v.practiceLeft!==undefined){ mlHome=Object.assign({},mlHome,{practiceLeft:v.practiceLeft}); mlTags(); }
   if(v.done){ ml=null; mlEnd(v.rec,v.daily); return; }
   ml=v; show('ml','Play'); mlRender(true);
 }
@@ -108,7 +112,10 @@ function mlShowIntro(){ if(ml&&$('mlPlay').style.display!=='none') return; show(
 async function mlStart(daily){
   if(mlBusy) return; mlBusy=true;
   try{ mlShow(await mlPost('start',{daily,day:daily?mlDayArg():undefined})); }
-  catch(e){ $('mlDaily').textContent=e.message; setTimeout(mlStatLine,2500); }
+  catch(e){
+    if(window.bpPlus&&bpPlus.limited(e.j)){ mlHome=Object.assign({},mlHome,{practiceLeft:0}); mlTags(); }
+    else { $('mlDaily').textContent=e.message; setTimeout(mlStatLine,2500); }
+  }
   finally{ mlBusy=false; }
 }
 function mlCard(item,revealed,cls){
@@ -162,7 +169,7 @@ async function mlAnswer(choice){
 let mlLastRec=null,mlLastDaily=false;
 function mlEnd(rec,daily){
   mlLastRec=rec; mlLastDaily=daily; show('ml','End');
-  $('mlEndLbl').textContent=daily?"Today's score":'Practice score';
+  $('mlEndLbl').textContent=daily?"Today's score":'Practice score'; mlTags();
   $('mlFinal').textContent=rec.score;
   $('mlGrid').innerHTML=(rec.grid||[]).map((row,i)=>`<div>${row.map(x=>x?'🟩':'🟥').join('')}<span>${esc((rec.cats||[])[i]||'')}</span></div>`).join('');
   $('mlHist').innerHTML=(rec.log||[]).map(l=>`<div class="hrow"><div><div class="hq">${esc(l.b)} vs ${esc(l.a)}</div><div class="hsub mono">${esc(l.bv)} vs ${esc(l.av)}, you said ${l.ch}</div></div><div class="hd mono" style="color:${l.ok?'var(--good)':'var(--bad)'}">${l.ok?'✓':'✗'}</div></div>`).join('');
@@ -194,14 +201,17 @@ let glAfter=null;     // the server's reply to the last estimate, waiting behind
 let glBusy=false;
 async function glPost(act,body){
   const r=await fetch('/api/gl/'+act,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error||'Something went wrong. Try again.'); return j;
+  const j=await r.json().catch(()=>({})); if(!r.ok) throw Object.assign(new Error(j.error||'Something went wrong. Try again.'),{j}); return j;
 }
+// a free account's practice games left today, on both practice buttons (null: no limit, no tag)
+function glTags(){ if(!window.bpPlus) return; const n=glHome?glHome.practiceLeft:null; bpPlus.tag($('glPractice'),n); bpPlus.tag($('glAgain'),n); }
 async function glLoadHome(){ try{ const r=await fetch('/api/gl/home'+(window.bpDay?'?day='+window.bpDay:''),{credentials:'same-origin'}); if(r.ok) glHome=await r.json(); }catch(e){} }
 function glStatLine(){
   const day=(glHome&&glHome.date)||todayKey(), t=stats.gl.days[day];
   $('glStat').innerHTML=statCells([['Today',t?t.total+' / 500':'–'],['Best',stats.gl.best?stats.gl.best+' / 500':'–'],['Average',dayAvg(stats.gl.days,'total',0)],['Played',stats.gl.played||0]]);
   const done=!!t||!!(glHome&&glHome.done), going=!done&&!!(glHome&&glHome.going);
   $('glDaily').textContent=done?"See today's result":going?"Continue today's 5":"Play today's 5";
+  glTags();
 }
 function glTakeStats(s){
   stats.gl.best=s.best; stats.gl.played=s.played; if(s.day&&s.rec) stats.gl.days[s.day]=s.rec;
@@ -209,6 +219,7 @@ function glTakeStats(s){
 }
 function glShow(v){
   glAfter=null;
+  if(v.practiceLeft!==undefined){ glHome=Object.assign({},glHome,{practiceLeft:v.practiceLeft}); glTags(); }
   if(v.done){ gl=null; glEnd(v.rec,v.daily); return; }
   gl=v; show('gl','Play'); glQ();
 }
@@ -223,7 +234,10 @@ function glShowIntro(){ if(gl&&$('glPlay').style.display!=='none') return; show(
 async function glStart(daily){
   if(glBusy) return; glBusy=true;
   try{ glShow(await glPost('start',{daily,day:daily?window.bpDay||undefined:undefined})); }
-  catch(e){ $('glDaily').textContent=e.message; setTimeout(glStatLine,2500); }
+  catch(e){
+    if(window.bpPlus&&bpPlus.limited(e.j)){ glHome=Object.assign({},glHome,{practiceLeft:0}); glTags(); }
+    else { $('glDaily').textContent=e.message; setTimeout(glStatLine,2500); }
+  }
   finally{ glBusy=false; }
 }
 function glQ(){
@@ -265,7 +279,7 @@ $('glNext').addEventListener('click',glNext);
 let glLast=null,glLastDaily=false;
 function glEnd(rec,daily){
   glLast=rec; glLastDaily=daily; show('gl','End');
-  $('glEndLbl').textContent=daily?"Today's score":'Practice score'; $('glFinal').textContent=rec.total;
+  $('glEndLbl').textContent=daily?"Today's score":'Practice score'; $('glFinal').textContent=rec.total; glTags();
   $('glHist').innerHTML=(rec.res||[]).map(r=>`<div class="hrow"><div><div class="hq">${esc(r.cat)}: ${esc(r.q)}</div><div class="hsub mono">You said ${esc(fmt(r.g))}, answer ${esc(fmt(r.a))} ${esc(r.u)}</div></div><div class="hd mono" style="color:${r.pts>=70?'var(--good)':r.pts>=30?'var(--warn)':'var(--bad)'}">${r.pts}</div></div>`).join('');
 }
 $('glDaily').addEventListener('click',()=>glStart(true));
@@ -285,6 +299,8 @@ async function clPost(act,body){
   const j=await r.json().catch(()=>({})); return { ok:r.ok, status:r.status, j };
 }
 const clDayArg=()=>window.bpDay||undefined;
+// a free account's practice games left today, on the practice buttons (null: no limit, no tag)
+function clTags(){ if(!window.bpPlus) return; const n=clHome?clHome.practiceLeft:null; bpPlus.tag($('clPractice'),n); bpPlus.tag($('clMore'),n); }
 async function clLoadHome(){ try{ const r=await fetch('/api/cl/home'+(window.bpDay?'?day='+window.bpDay:''),{credentials:'same-origin'}); if(r.ok) clHome=await r.json(); }catch(e){} }
 function clStatLine(){
   const t=stats.cl.days[(clHome&&clHome.date)||todayKey()];
@@ -292,6 +308,7 @@ function clStatLine(){
   $('clStat').innerHTML=statCells([['Today',t?(t.solved?t.guesses+' guesses':'Gave up'):'–'],['Solved',`${stats.cl.solved||0} of ${stats.cl.played||0}`],['Fewest guesses',clSolvedIn.length?Math.min(...clSolvedIn):'–']]);
   const done=!!t||!!(clHome&&clHome.done), going=!done&&!!(clHome&&clHome.going);
   $('clDaily').textContent=done?"See today's word":going?"Continue today's word":"Play today's word";
+  clTags();
 }
 function clShowIntro(){ if(cl&&$('clPlay').style.display!=='none') return; show('cl','Intro'); clStatLine(); }
 function clTakeStats(s){
@@ -299,6 +316,7 @@ function clTakeStats(s){
   try{localStorage.setItem('bp_stats',JSON.stringify(stats));}catch(e){}
 }
 function clShow(v){
+  if(v.practiceLeft!==undefined) clHome=Object.assign({},clHome,{practiceLeft:v.practiceLeft});
   cl=v; show('cl','Play'); $('clWin').style.display='none'; $('clWin').innerHTML=''; $('clMsg').textContent='';
   $('clLbl').textContent=v.daily?"Today's word":'Random word (practice)';
   clRender();
@@ -308,7 +326,10 @@ async function clStart(daily){
   if(clBusy) return; clBusy=true;
   try{
     const r=await clPost('start',{daily,day:daily?clDayArg():undefined});
-    if(!r.ok){ $('clStat').textContent=r.j.error||'Something went wrong. Try again.'; return; }
+    if(!r.ok){
+      if(window.bpPlus&&bpPlus.limited(r.j)){ clHome=Object.assign({},clHome,{practiceLeft:0}); clTags(); return; }
+      $('clStat').textContent=r.j.error||'Something went wrong. Try again.'; return;
+    }
     clShow(r.j);
   }catch(e){ $('clStat').textContent='Could not reach the server. Try again.'; }
   finally{ clBusy=false; }
@@ -382,7 +403,7 @@ function clFinish(fresh){
     <div class="muted" style="font-size:13px;margin:16px 0 6px">The 30 closest words:</div>
     <div class="mono" style="font-size:13px;line-height:1.7;color:var(--text)">${(cl.closest||[]).map((w,i)=>`<span class="pill">#${i+2} ${esc(w)}</span>`).join(' ')}</div>`;
   $('clCopy').addEventListener('click',()=>copyText($('clCopy'),`Ballpark Clueless ${cl.daily?(cl.day||todayKey()):'(practice)'}: ${won?`solved in ${n} guesses`:'gave up'}`,'Copy result'));
-  $('clMore').addEventListener('click',()=>clStart(false));
+  $('clMore').addEventListener('click',()=>clStart(false)); clTags();
   clRender();
 }
 $('clDaily').addEventListener('click',()=>clStart(true));

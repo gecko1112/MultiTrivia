@@ -12,12 +12,13 @@
 // The questions are picked the way the browser picked them, so a day's game is the game it always was.
 'use strict';
 const crypto = require('crypto');
+const { NO_LIMITS } = require('./limits-server.js');
 const { today, rngFrom, pick, pastDay, resultsOf, resultOn, markLate } = require('./games-common.js');
 
 const N = 5;                                         // one question per category
 const points = (g, a) => Math.round(100 * Math.max(0, 1 - Math.abs(Math.log10(g / a))));   // 100 when spot on, 0 from ten times off
 
-module.exports = function createGuessless({ cats, send, readBody, records, docsOf, save, mayArchive }) {
+module.exports = function createGuessless({ cats, send, readBody, records, docsOf, save, mayArchive, limits = NO_LIMITS }) {
   const deal = seed => { const r = rngFrom(seed); return cats.map(c => Object.assign({ cat: c.name }, pick(c.qs, r))); };   // the browser's pick, unchanged
   const dailyDeals = new Map();
   function dailyDeal(date) {
@@ -84,7 +85,7 @@ module.exports = function createGuessless({ cats, send, readBody, records, docsO
       if (act === 'home') {
         const day = pastDay(query.get('day'), mayArchive(user)); if (day === false) { send(res, 403, { error: 'That day is not available' }); return true; }
         const date = day || today(), done = !!finishedOn(user, date), going = !done && !!(records(user)[date] || carried(user, date).length);
-        send(res, 200, { date, done, going, practice: practice.has(user) }); return true;
+        send(res, 200, { date, done, going, practice: practice.has(user), practiceLeft: limits.practiceLeft(user, 'gl') }); return true;
       }
       send(res, 404, { error: 'not found' }); return true;
     }
@@ -94,9 +95,11 @@ module.exports = function createGuessless({ cats, send, readBody, records, docsO
     if (day === false) { send(res, 403, { error: 'That day is not available' }); return true; }
 
     if (act === 'start') {                           // a daily game that exists is continued, never dealt again
+      const t = !daily && !body.resume ? limits.takePractice(user, 'gl') : null;   // a new practice game counts for a free account
+      if (t && !t.ok) { send(res, 403, t.refusal); return true; }
       const run = daily || !body.resume ? getRun(user, daily, true, day) : getRun(user, false, false);
       if (!run) { send(res, 404, { error: 'No game to continue' }); return true; }
-      send(res, 200, view(run)); return true;
+      send(res, 200, t ? Object.assign(view(run), { practiceLeft: t.left }) : view(run)); return true;
     }
     if (act === 'quit') { if (!daily) practice.delete(user); send(res, 200, { ok: true }); return true; }
     if (act === 'answer') {

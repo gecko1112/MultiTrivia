@@ -12,12 +12,13 @@
 // The hidden word of a day is picked the way the browser picked it, so every day keeps its word.
 'use strict';
 const crypto = require('crypto');
+const { NO_LIMITS } = require('./limits-server.js');
 const { today, rngFrom, shuffleR, pastDay, resultsOf, resultOn, markLate } = require('./games-common.js');
 
 const CLOSEST = 30;                                  // the closest words shown at the end (ranks 2 to 31)
 const dayNum = date => { const [y, m, d] = date.split('-').map(Number); return Math.floor((Date.UTC(y, m - 1, d) - Date.UTC(2026, 0, 1)) / 864e5); };
 
-module.exports = function createClueless({ data, send, readBody, records, docsOf, save, mayArchive }) {
+module.exports = function createClueless({ data, send, readBody, records, docsOf, save, mayArchive, limits = NO_LIMITS }) {
   const WORDS = data.words, index = new Map(WORDS.map((w, i) => [w, i]));
   const ORDER = shuffleR(data.targets, rngFrom('clueless-order-v1'));                         // the browser's order, unchanged
   const dailyTarget = date => ORDER[((dayNum(date) % ORDER.length) + ORDER.length) % ORDER.length];
@@ -97,7 +98,7 @@ module.exports = function createClueless({ data, send, readBody, records, docsOf
       if (act === 'home') {
         const day = pastDay(query.get('day'), mayArchive(user)); if (day === false) { send(res, 403, { error: 'That day is not available' }); return true; }
         const date = day || today(), done = !!finishedOn(user, date), going = !done && !!(records(user)[date] || carried(user, date));
-        send(res, 200, { date, done, going, practice: practice.has(user) }); return true;
+        send(res, 200, { date, done, going, practice: practice.has(user), practiceLeft: limits.practiceLeft(user, 'cl') }); return true;
       }
       send(res, 404, { error: 'not found' }); return true;
     }
@@ -107,9 +108,11 @@ module.exports = function createClueless({ data, send, readBody, records, docsOf
     if (day === false) { send(res, 403, { error: 'That day is not available' }); return true; }
 
     if (act === 'start') {
+      const t = !daily && !body.resume ? limits.takePractice(user, 'cl') : null;   // a new practice game counts for a free account
+      if (t && !t.ok) { send(res, 403, t.refusal); return true; }
       const run = daily || !body.resume ? getRun(user, daily, true, day) : getRun(user, false, false);
       if (!run) { send(res, 404, { error: 'No game to continue' }); return true; }
-      send(res, 200, view(run)); return true;
+      send(res, 200, t ? Object.assign(view(run), { practiceLeft: t.left }) : view(run)); return true;
     }
     if (act === 'quit') { if (!daily) practice.delete(user); send(res, 200, { ok: true }); return true; }
     const run = getRun(user, daily, false, day);

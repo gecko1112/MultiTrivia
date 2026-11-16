@@ -14,6 +14,7 @@
 // game in progress, a past day in the archive) comes out the same.
 'use strict';
 const crypto = require('crypto');
+const { NO_LIMITS } = require('./limits-server.js');
 const { today, rngFrom, pick, shuffleR, fmt, pastDay, resultsOf, resultOn, markLate } = require('./games-common.js');
 
 const ROUNDS = 5, CALLS = 5;                         // five categories, up to five calls each
@@ -51,7 +52,7 @@ function deal(CATS, Q, seed, legacy){
 }
 // `questions`: the Survival questions (content/survival.js), which the trivia round compares. The whole list, as the
 // browser had it, so every day's trivia round stays the same.
-module.exports = function createMoreLess({ cats, questions, send, readBody, records, docsOf, save, mayArchive }) {
+module.exports = function createMoreLess({ cats, questions, send, readBody, records, docsOf, save, mayArchive, limits = NO_LIMITS }) {
   const Q = Array.isArray(questions) ? questions : [];
   const dailyDeals = new Map();
   function dailyDeal(date) {
@@ -133,7 +134,7 @@ module.exports = function createMoreLess({ cats, questions, send, readBody, reco
       if (act === 'home') {                          // what the menu needs: is today's game finished, going, or not started
         const day = pastDay(query.get('day'), mayArchive(user)); if (day === false) { send(res, 403, { error: 'That day is not available' }); return true; }
         const date = day || today(), done = !!finishedOn(user, date), going = !done && !!(records(user)[date] || carried(user, date).length);
-        send(res, 200, { date, done, going, practice: practice.has(user) }); return true;
+        send(res, 200, { date, done, going, practice: practice.has(user), practiceLeft: limits.practiceLeft(user, 'ml') }); return true;
       }
       send(res, 404, { error: 'not found' }); return true;
     }
@@ -143,9 +144,11 @@ module.exports = function createMoreLess({ cats, questions, send, readBody, reco
     if (day === false) { send(res, 403, { error: 'That day is not available' }); return true; }
 
     if (act === 'start') {                           // a daily game that exists is continued, never dealt again
+      const t = !daily && !body.resume ? limits.takePractice(user, 'ml') : null;   // a new practice game counts for a free account
+      if (t && !t.ok) { send(res, 403, t.refusal); return true; }
       const run = daily || !body.resume ? getRun(user, daily, true, day) : getRun(user, false, false);
       if (!run) { send(res, 404, { error: 'No game to continue' }); return true; }
-      send(res, 200, view(run)); return true;
+      send(res, 200, t ? Object.assign(view(run), { practiceLeft: t.left }) : view(run)); return true;
     }
     if (act === 'quit') {                            // a practice game is thrown away; a daily game cannot be
       if (!daily) practice.delete(user);

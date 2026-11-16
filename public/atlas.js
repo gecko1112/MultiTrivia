@@ -27,9 +27,12 @@ async function api(path, body){
   if (window.bpDay) { if (body) body = Object.assign({ day: window.bpDay }, body); else if (path === 'home') path += '?day=' + window.bpDay; }
   const r = await fetch('/api/geo/' + path, body ? { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : { credentials: 'same-origin' });
   let j = {}; try { j = await r.json(); } catch (e) {}
-  if (!r.ok) throw new Error(j.error || 'Something went wrong. Try again.');
+  if (!r.ok) throw Object.assign(new Error(j.error || 'Something went wrong. Try again.'), { j });
   return j;
 }
+// A free account's practice games left today in each mode, on every practice button (null: no limit, no tag).
+let practiceLeft = {};
+const tags = () => { if (window.bpPlus) box.querySelectorAll('button[data-start]:not([data-daily])').forEach(b => window.bpPlus.tag(b, practiceLeft[b.dataset.start] ?? null)); };
 const clock = ms => { const s = Math.round(ms / 1000); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 // Leaving the page in the middle of a game (another tab, app or window) is reported to the server and noted next to the result.
 let gone = false;
@@ -56,7 +59,7 @@ function finished(){
 async function hub(){
   V = null; clearTimeout(wait); cancelAnimationFrame(mapAnim); mapNow = null;
   let home = { daily: {} }, err = '';
-  try { home = await api('home'); status(home); } catch (e) { err = e.message; }
+  try { home = await api('home'); status(home); practiceLeft = home.practiceLeft || {}; } catch (e) { err = e.message; }
   const today = m => {
     const s = home.daily[m];
     if (!s) return '<button type="button" data-start="' + m + '" data-daily="1">Daily</button>';
@@ -69,18 +72,23 @@ async function hub(){
       '<div class="mode"><svg class="at-ico" viewBox="0 0 24 24" aria-hidden="true">' + ICON[m] + '</svg><div class="mt">' + MODES[m].t + '</div><div class="muted md">' + MODES[m].d + '</div>' +
       '<div class="acts">' + today(m) + '<button type="button" class="ghost" data-start="' + m + '">Practice</button></div></div>').join('') +
     '</div><div class="parsed" id="atMsg" role="status" style="color:var(--warn)">' + E(err) + '</div></div>';
+  tags();
 }
 async function start(mode, daily){
   if (busy) return; busy = true;
   try {
     if (mode === 'route' && !NAMES) NAMES = (await api('names')).names.map(([id, name, ...alt]) => ({ id, name, keys: [name, ...alt].map(norm) }));
     V = await api('start', { mode, daily }); fresh = null; mapNow = null;
+    if (V.practiceLeft !== undefined) practiceLeft[mode] = V.practiceLeft;
     box.innerHTML = '<div class="card" id="atMain"></div>';
     draw();
-  } catch (e) { const m = $('atMsg'); if (m) m.textContent = e.message; }
+  } catch (e) {
+    if (window.bpPlus && window.bpPlus.limited(e.j)) { practiceLeft[mode] = 0; tags(); }
+    else { const m = $('atMsg'); if (m) m.textContent = e.message; }
+  }
   busy = false;
 }
-const draw = () => (V.mode === 'route' ? drawRoute() : V.done ? drawQuizEnd() : drawQuiz());
+const draw = () => { if (V.mode === 'route') drawRoute(); else if (V.done) drawQuizEnd(); else drawQuiz(); tags(); };
 
 // ---------------------------------------------------------------- Flags and Outlines
 const picture = (o, cls) => (o.img ? '<img class="at-flag ' + cls + '" src="' + E(o.img) + '" alt="">' : '<svg class="at-shape ' + cls + '" viewBox="-5 -5 110 110" aria-hidden="true"><path d="' + o.shape + '"/></svg>');

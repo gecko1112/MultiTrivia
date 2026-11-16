@@ -27,7 +27,7 @@ Being roughly right wins. Most answers are estimates, scored by how close they l
 
 ## Capabilities and Constraints
 
-- Playing is free. Ballpark Plus is an optional subscription: archive of past days, detailed statistics, streak saver, head-to-head record, extra question packs.
+- Playing is free. Ballpark Plus is an optional subscription: archive of past days, detailed statistics, streak saver, head-to-head record, extra question packs, unlimited practice and hosting party games. Free accounts get 3 practice games a day in each game and 3 party games to host as a trial; joining a lobby is always free. The numbers are a first proposal the owner has not confirmed.
 - Prices shown on the site (€2.99 a month, €24.99 a year) are placeholders the owner has not confirmed. Plus is not on sale yet.
 - Results are decided on the server, never in the browser. A demonstration on a public page may not be presented as a real, counted result.
 - The site is in English. A German version is planned, not built.

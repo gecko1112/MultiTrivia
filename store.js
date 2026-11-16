@@ -9,7 +9,7 @@
 //   users(name, data)            one row per account (password hash, picture, Plus, friends ...)
 //   sessions(token, user, seen)  one row per login; seen = last use, logins end after two idle weeks
 //   docs(user, id, data)         what the games save: results, statistics, achievements ...
-//   records(kind, user, data)    per-account records kept by the server: geo, drinks, away
+//   records(kind, user, data)    per-account records kept by the server: geo, drinks, away, game records, free limits
 //   meta(key, value)             everything else: the secret, open orders, seen payment notices
 //
 // MOVING FROM data/db.json. On the first start with this file, an existing db.json is copied into SQLite, read back
@@ -18,7 +18,7 @@
 // stops with a message.
 const fs = require('fs'), path = require('path');
 
-const PER_USER = ['geo', 'drinks', 'away', 'ml', 'gl', 'wd', 'cl', 'sv'];   // db[kind][user] -> records
+const PER_USER = ['geo', 'drinks', 'away', 'ml', 'gl', 'wd', 'cl', 'sv', 'limits'];   // db[kind][user] -> records
 const sorted = v => Array.isArray(v) ? v.map(sorted) : v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => (o[k] = sorted(v[k]), o), {}) : v;
 const same = (a, b) => JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));
 
