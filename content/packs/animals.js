@@ -1,0 +1,38 @@
+// Survival question pack "Animals". SERVER ONLY. Hand-written: edit here.
+// Facts chosen because they are widely documented (zoological references, encyclopaedias). Where sources give a
+// range, the answer is a typical value and the note gives the range.
+module.exports = { name: 'Animals', order: 20, about: 'Hand-written from widely documented zoological figures; ranges in the notes.', q: [
+ { q: 'How much does a newborn giant panda weigh?', a: 100, u: 'grams', n: 'About 90–130 g, roughly 1/900 of its mother\'s weight.' },
+ { q: 'How much bamboo does an adult giant panda eat in a day?', a: 20, u: 'kilograms', n: 'Typically 12–38 kg, eaten over 10–16 hours.' },
+ { q: 'How many teeth does a great white shark have at any one time?', a: 300, u: 'teeth', n: 'About 300, in several rows that keep moving forward as teeth are lost.' },
+ { q: 'How long is a giraffe\'s tongue?', a: 50, u: 'centimetres', n: 'About 45–50 cm, dark to protect it from sunburn.' },
+ { q: 'How long can a sperm whale hold its breath?', a: 90, u: 'minutes', n: 'Up to about 90 minutes on deep dives.' },
+ { q: 'How deep can a sperm whale dive?', a: 2000, u: 'metres', n: 'Around 2,000 m, with tagged dives beyond 2,200 m.' },
+ { q: 'How many eggs can a queen honeybee lay in one day?', a: 1500, u: 'eggs', n: 'Up to about 1,500 at the height of summer, more than her own body weight.' },
+ { q: 'How long can a Komodo dragon grow?', a: 3, u: 'metres', n: 'Up to about 3 m, making it the largest living lizard.' },
+ { q: 'How far can a red kangaroo jump in a single bound?', a: 8, u: 'metres', n: 'About 8 m, and up to about 3 m high.' },
+ { q: 'How many species of mammals are known?', a: 6500, u: 'species', n: 'About 6,500 (Mammal Diversity Database), a quarter of them bats.' },
+ { q: 'How many eyes do most spiders have?', a: 8, u: 'eyes', n: 'Eight, though some species have six, four, two or none.' },
+ { q: 'How much does an adult African elephant eat in a day?', a: 150, u: 'kilograms', n: 'Up to about 150 kg of plants, eaten over 12–18 hours.' },
+ { q: 'How long is a giraffe\'s pregnancy?', a: 15, u: 'months', n: 'About 15 months (450–460 days). The calf drops about 2 m at birth.' },
+ { q: 'How long is a pig\'s pregnancy?', a: 114, u: 'days', n: 'About 114 days: "three months, three weeks and three days".' },
+ { q: 'How long is a cat\'s pregnancy?', a: 64, u: 'days', n: 'About 63–65 days.' },
+ { q: 'How long is a rabbit\'s pregnancy?', a: 31, u: 'days', n: 'About 31 days, which is why rabbits breed so quickly.' },
+ { q: 'How long is an orca\'s pregnancy?', a: 17, u: 'months', n: 'About 15–18 months, one of the longest of any mammal.' },
+ { q: 'How old can a bowhead whale get?', a: 200, u: 'years', n: 'Over 200 years, estimated from proteins in their eyes; the longest-lived mammal known.' },
+ { q: 'How far does a monarch butterfly migrate?', a: 4500, u: 'kilometres', n: 'Up to about 4,500–4,800 km, from Canada to central Mexico.' },
+ { q: 'How long does an African elephant live in the wild?', a: 65, u: 'years', n: 'About 60–70 years.' },
+ { q: 'How tall is an adult emperor penguin?', a: 115, u: 'centimetres', n: 'About 110–120 cm, the tallest penguin.' },
+ { q: 'How deep can an emperor penguin dive?', a: 500, u: 'metres', n: 'Often around 500 m; the deepest recorded dive was 564 m.' },
+ { q: 'How many teeth does an adult dog have?', a: 42, u: 'teeth', n: '42, against 28 milk teeth as a puppy.' },
+ { q: 'How many teeth does an adult cat have?', a: 30, u: 'teeth', n: '30, against 26 milk teeth as a kitten.' },
+ { q: 'How many chambers does a cow\'s stomach have?', a: 4, u: 'chambers', n: 'Four: rumen, reticulum, omasum and abomasum.' },
+ { q: 'What is the wingspan of an Andean condor?', a: 3, u: 'metres', n: 'Up to about 3.3 m, one of the largest of any land bird.' },
+ { q: 'How many neurons does a common octopus have?', a: 500000000, u: 'neurons', n: 'About 500 million, two thirds of them in its arms.' },
+ { q: 'How long can a giant squid grow?', a: 12, u: 'metres', n: 'Females up to about 12–13 m including the long feeding tentacles.' },
+ { q: 'How fast can a hippopotamus run on land?', a: 30, u: 'km per hour', n: 'About 30 km/h over short distances.' },
+ { q: 'How long is a blue whale calf at birth?', a: 7, u: 'metres', n: 'About 7 m, and it gains around 90 kg a day while nursing.' },
+ { q: 'How many quills does a North American porcupine have?', a: 30000, u: 'quills', n: 'About 30,000.' },
+ { q: 'How long can a capybara stay underwater?', a: 5, u: 'minutes', n: 'Up to about 5 minutes, to hide from predators.' },
+ { q: 'How many times a minute does a resting mouse\'s heart beat?', a: 600, u: 'beats per minute', n: 'About 500–700 beats per minute.' }
+] };

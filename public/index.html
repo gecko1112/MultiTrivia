@@ -207,6 +207,18 @@
   .mode .md:empty{display:none}
   .mode button{align-self:flex-start}
   .mode .opts{justify-content:flex-start;margin:0;flex-wrap:wrap}
+  /* a choice from a list that grows (Survival's question packs): a native select drawn like the option buttons */
+  .pick{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .pick-lbl{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .pick-lbl .ptag{font-size:11px;padding:2px 5px}
+  :root[data-plan=plus] .pick-lbl .ptag{display:none}
+  .pick-sel{position:relative;display:inline-flex;max-width:100%}
+  .pick-sel::after{content:"";position:absolute;right:14px;top:50%;width:6px;height:6px;border:solid var(--muted);border-width:0 2px 2px 0;transform:translateY(-70%) rotate(45deg);pointer-events:none}
+  .pick select{appearance:none;-webkit-appearance:none;max-width:100%;background:transparent;color:var(--text);border:1px solid var(--bd);border-radius:var(--r2);font:700 16px/1.1 var(--head);letter-spacing:.06em;text-transform:uppercase;padding:7px 36px 7px 14px;cursor:pointer;transition:border-color .15s,background .15s}
+  .pick select:hover{background:var(--hover)}
+  .pick select.on{border-color:var(--accent)}
+  .pick select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .pick select option{font:500 15px var(--body);letter-spacing:0;text-transform:none;background:var(--panel);color:var(--text)}
   @media (max-width:560px){ .modes{grid-template-columns:minmax(0,1fr)} }
   .hud{display:grid;grid-template-columns:1fr auto;align-items:stretch;margin-bottom:16px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
   .hud>div{padding:16px 20px}
@@ -893,7 +905,7 @@
           <button class="ghost sel" data-t="15">15 s</button>
           <button class="ghost" data-t="0">No timer</button>
         </div>
-        <div class="opts" id="packOpts" aria-label="Questions"></div>
+        <label class="pick" id="packPick" style="display:none"><span class="pick-lbl">Questions<span class="ptag">Plus</span></span><span class="pick-sel"><select id="packSel"></select></span></label>
         <button class="ghost" id="go">Start practice run</button></div>
     </div>
     <div class="statstrip"><div class="cells" id="svStat"></div><div class="act"><a href="#" class="pluslink" data-plus="stats">Detailed statistics <span class="ptag">Plus</span></a><button class="ghost sm" id="runsFromStart">Best runs</button></div></div>
@@ -1187,16 +1199,19 @@ $('timeOpts').addEventListener('click',e=>{
 // ---- question packs (Plus): a practice run can use an extra set of questions instead of the standard ones. The
 // questions are on the server (content/packs.js); the browser only knows their names, from /api/sv/home.
 let svPacks=[], svPack='';                                          // '' = the standard questions
+// A list that keeps growing, so it is one select rather than a button per pack. Without Plus the names are shown
+// and picking one opens the Plus window.
 function paintPacks(){
-  const box=$('packOpts'); if(!box) return;
-  if(!svPacks.length){ box.style.display='none'; return; } box.style.display='';
-  const member=!!(window.bpPlus&&window.bpPlus.has());
-  if(svPack&&!member) svPack='';
-  box.innerHTML='<button class="ghost'+(svPack?'':' sel')+'" data-pack="">Standard</button>'+svPacks.map(p=>'<button class="ghost'+(svPack===p.id?' sel':'')+'" data-pack="'+esc(p.id)+'">'+esc(p.name)+(member?'':' <span class="ptag">Plus</span>')+'</button>').join('');
+  const pick=$('packPick'), sel=$('packSel'); if(!pick) return;
+  pick.style.display=svPacks.length?'':'none'; if(!svPacks.length) return;
+  if(svPack&&!(window.bpPlus&&window.bpPlus.has())) svPack='';
+  sel.innerHTML='<option value="">Standard</option>'+svPacks.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join('');
+  sel.value=svPack; sel.classList.toggle('on',!!svPack);
 }
-$('packOpts').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
-  if(b.dataset.pack&&!(window.bpPlus&&window.bpPlus.has())){ if(window.bpPlus) window.bpPlus.open('packs'); return; }
-  svPack=b.dataset.pack; paintPacks(); });
+$('packSel').addEventListener('change',e=>{
+  const v=e.target.value;
+  if(v&&!(window.bpPlus&&window.bpPlus.has())){ e.target.value=svPack=''; if(window.bpPlus) window.bpPlus.open('packs'); return; }
+  svPack=v; paintPacks(); });
 paintPacks(); window.addEventListener('load',paintPacks); new MutationObserver(paintPacks).observe(document.documentElement,{attributes:true,attributeFilter:['data-plan']});
 
 function screen(id){['start','game','over','runsScreen'].forEach(s=>$(s).classList.toggle('on',s===id));}
