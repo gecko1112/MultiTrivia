@@ -5,7 +5,8 @@ Everything in this folder stays on the server and is never sent to the browser a
 | File | What it is | Where it comes from |
 |---|---|---|
 | `survival.js` | Survival's 319 standard questions, also used by Party and More/Less's trivia round | Written by hand (by Claude) from well-known facts. Each note gives the exact figure, a range, or the source. |
-| `guessless.js` | Guessless questions by category | Written by hand the same way |
+| `guessless.js` | Guessless questions: 287 in five categories, none repeating Survival or a pack (`node tests/run.js content` checks) | Written by hand the same way |
+| `guessless-old.js` | The first Guessless list, frozen: days before 2026-11-18 are still dealt from it | Never edit it |
 | `moreless.js` | More/Less cards | Read from public lists on the date in the file header: IMDb charts, Wikipedia's box-office and Spotify lists |
 | `packs/*.js` | Survival question packs (Plus) | See below |
 | `clueless.js`, `wordy.js` | Word lists | Not questions; word and similarity data |
