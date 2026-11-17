@@ -10,7 +10,7 @@ Everything in this folder stays on the server and is never sent to the browser a
 | `packs/*.js` | Survival question packs (Plus) | See below |
 | `clueless.js`, `wordy.js` | Word lists | Not questions; word and similarity data |
 | `oddball-fame.js` | How well known each country is, for Oddball's points | Estimated by hand; to be replaced by what players actually answer |
-| `hunch.js`, `hunch/*.js` | Hunch characters: Dota 2 (30), World of Warcraft (25), League of Legends (22), Overwatch (24), Valorant (18), five hints each | Written by hand (by Claude) from each game's lore. The rules for hints are in `hunch.js`; `node tests/run.js hunch` checks them |
+| `hunch.js`, `hunch/*.js` | Hunch characters, five hints each: every Dota 2 hero but Kez (125), every League of Legends champion (170), every Overwatch hero (43), World of Warcraft (25), Valorant (18) | Written by hand (by Claude) from each game's lore. The rules for hints are in `hunch.js`; `node tests/run.js hunch` checks them |
 
 ## Question packs
 
