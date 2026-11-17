@@ -540,12 +540,23 @@
   .at-map circle{fill:none;stroke:var(--c);stroke-width:2;vector-effect:non-scaling-stroke}
   @keyframes atIn{from{opacity:0}}
   .at-map text{font-family:var(--body);font-weight:600;text-anchor:middle;dominant-baseline:central;fill:var(--text);stroke:var(--inset);paint-order:stroke;stroke-linejoin:round;pointer-events:none}
-  #atGuess,#odForm{display:flex;gap:10px}
+  #atGuess,#odForm,#huForm{display:flex;gap:10px}
   .at-ac{position:relative;flex:1;min-width:0;display:flex}
-  #atList,#odList{position:absolute;left:0;right:0;bottom:calc(100% + 6px);z-index:30;margin:0;padding:6px;list-style:none;background:var(--panel);border:1px solid var(--bd);border-radius:var(--r2);box-shadow:0 10px 30px rgba(0,0,0,.24)}
-  #atList li,#odList li{padding:9px 12px;border-radius:var(--r3);font-size:16px;cursor:pointer}
-  #atList li.sel,#atList li:hover,#odList li.sel,#odList li:hover{background:var(--hl)}
-  #odList{top:calc(100% + 6px);bottom:auto}          /* Oddball asks above the field, so its list opens below it */
+  #atList,#odList,#huList{position:absolute;left:0;right:0;bottom:calc(100% + 6px);z-index:30;margin:0;padding:6px;list-style:none;background:var(--panel);border:1px solid var(--bd);border-radius:var(--r2);box-shadow:0 10px 30px rgba(0,0,0,.24)}
+  #atList li,#odList li,#huList li{padding:9px 12px;border-radius:var(--r3);font-size:16px;cursor:pointer}
+  #atList li.sel,#atList li:hover,#odList li.sel,#odList li:hover,#huList li.sel,#huList li:hover{background:var(--hl)}
+  #odList,#huList{top:calc(100% + 6px);bottom:auto}          /* Oddball asks above the field, so its list opens below it */
+  /* Hunch: five places for hints, the newest marked, the ones still to come locked */
+  .hu-hints{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:8px}
+  .hu-hints li{display:flex;gap:12px;align-items:baseline;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r2);background:var(--inset);font-size:16px;line-height:1.4}
+  .hu-hints li.new{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+  .hu-hints li.locked{color:var(--muted);background:transparent;border-style:dashed}
+  .hu-hints li.late{color:var(--muted)}
+  .hu-n{font:700 13px/1 var(--head);color:var(--muted);min-width:14px}
+  .hu-worth{color:var(--text)}
+  .hu-wrong{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+  .hu-wrong s{padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-size:14px}
+  .hu-answer{font:700 clamp(32px,4vw,48px)/1.1 var(--head);text-transform:uppercase;letter-spacing:.03em;margin:6px 0 4px}
   /* Oddball: what an answer was worth, where it sits between obvious and rare, the rarest right answers */
   .od-res{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 18px;border:1px solid var(--good);border-radius:var(--r2);background:var(--inset);margin-top:6px}
   .od-res.no{border-color:var(--bad)}
@@ -873,7 +884,7 @@
   .mode .opts button{padding:6px 10px;font-size:14px}
   .statstrip{margin-top:16px;padding-top:14px}
   /* a game's name is already the highlighted tab right above it: kept for screen readers only */
-  #g-survival .gh,#g-moreless .gh,#g-guessless .gh,#g-clueless .gh,#g-atlas .gh,#g-oddball .gh,#g-party .gh,#g-drinks .gh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  #g-survival .gh,#g-moreless .gh,#g-guessless .gh,#g-clueless .gh,#g-atlas .gh,#g-oddball .gh,#g-hunch .gh,#g-party .gh,#g-drinks .gh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   #g-atlas .at-modes .mode{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px 12px;align-items:center}
   #g-atlas .at-modes .mode > :not(.at-ico):not(.mt){grid-column:1/-1}
   #g-atlas .at-ico{width:28px;height:28px}
@@ -912,6 +923,7 @@
    <div class="navhd"><span>More</span></div>
    <a href="#atlas" data-g="atlas"><span class="tl">Atlas</span><span class="ts" id="st-at"></span></a>
    <a href="#oddball" data-g="oddball"><span class="tl">Oddball</span><span class="ts" id="st-od"></span></a>
+   <a href="#hunch" data-g="hunch"><span class="tl">Hunch</span><span class="ts" id="st-hu"></span></a>
    <a href="#party" data-g="party"><span class="tl">Party</span></a>
    <a href="#drinks" data-g="drinks"><span class="tl">Drinks</span></a>
    <a href="#archive" data-g="archive"><span class="tl">Archive</span></a>
@@ -1100,6 +1112,8 @@
   <section class="game" id="g-atlas"></section>
   <!-- Oddball: the rarest right answer wins, filled in by oddball.js and judged by the server (oddball-server.js) -->
   <section class="game" id="g-oddball"></section>
+  <!-- Hunch: guess who it is from hints that get more specific, filled in by hunch.js and judged by the server (hunch-server.js) -->
+  <section class="game" id="g-hunch"></section>
 
   <!-- Party: private lobbies, filled in by party.js and judged by the server (party-server.js) -->
   <section class="game" id="g-party"></section>
@@ -1548,6 +1562,7 @@ $('copy').addEventListener('click',async()=>{
 <script src="party.js"></script>
 <script src="atlas.js"></script>
 <script src="oddball.js"></script>
+<script src="hunch.js"></script>
 <script src="drinks.js"></script>
 <script src="ui.js"></script>
 <script src="levels.js"></script>
