@@ -233,6 +233,7 @@ function leaderboard(date, players) {
 // ---------- static files ----------
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
 const zlib = require('zlib');
+const security = require('./security.js');          // security headers, page policies and the same-site check
 const gzCache = new Map(); // file -> {etag, raw, gz}
 function serveStatic(req, res, urlPath) {
   let p = decodeURIComponent(urlPath.split('?')[0]);
@@ -247,7 +248,8 @@ function serveStatic(req, res, urlPath) {
     const headers = { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache', 'ETag': etag };
     if (req.headers['if-none-match'] === etag) { res.writeHead(304, headers); return res.end(); }
     let c = gzCache.get(file);
-    if (!c || c.etag !== etag) { const raw = fs.readFileSync(file); c = { etag, raw, gz: zlib.gzipSync(raw, { level: 9 }) }; gzCache.set(file, c); }
+    if (!c || c.etag !== etag) { const raw = fs.readFileSync(file); c = { etag, raw, gz: zlib.gzipSync(raw, { level: 9 }), csp: /\.html$/.test(file) ? security.cspFor(raw.toString('utf8')) : null }; gzCache.set(file, c); }
+    if (c.csp) headers['Content-Security-Policy'] = c.csp;              // pages only: see security.js
     if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) { headers['Content-Encoding'] = 'gzip'; headers['Vary'] = 'Accept-Encoding'; res.writeHead(200, headers); return res.end(c.gz); }
     res.writeHead(200, headers); res.end(c.raw);
   });
@@ -381,7 +383,10 @@ const server = http.createServer(async (req, res) => {
   const url = req.url.split('?')[0];
   const query = new URLSearchParams(req.url.split('?')[1] || '');
   try {
+    for (const [k, v] of Object.entries(security.headers(req))) res.setHeader(k, v);   // on every response (security.js)
     if (!url.startsWith('/api/')) return serveStatic(req, res, req.url);
+    // a change requested from another site is refused (payment webhooks come from Paddle's servers, not a browser)
+    if (security.changes(req) && !url.startsWith('/api/plus/webhook/') && !security.sameSite(req)) return send(res, 403, { error: 'Refused: this request came from another site.' });
 
     if (url === '/api/health') return send(res, 200, { ok: true, users: Object.keys(db.users).length });
 
