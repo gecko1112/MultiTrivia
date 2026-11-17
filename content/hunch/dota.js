@@ -7,12 +7,13 @@
 // changed theirs when "Universal" heroes came in (2023). Heroes whose abilities were reworked recently are not used.
 // Players who know Dota well should check them: a wrong hint is a bug, report it and it gets fixed here.
 //
-// `heroes` is every hero name a player may guess (shown as suggestions), so the suggestions do not give away which
+// `names` is every hero name a player may guess (shown as suggestions), so the suggestions do not give away which
 // heroes can come up. `cards` are the heroes that can come up, each with five hints and other names players use.
+// See content/hunch.js for the rules every game's file follows.
 // Dota 2 and its heroes are trademarks of Valve. Ballpark uses the names only, never Valve's artwork.
 module.exports = {
-  name: 'Dota 2',
-  heroes: ['Abaddon', 'Alchemist', 'Ancient Apparition', 'Anti-Mage', 'Arc Warden', 'Axe', 'Bane', 'Batrider', 'Beastmaster', 'Bloodseeker', 'Bounty Hunter', 'Brewmaster',
+  id: 'dota', name: 'Dota 2', short: 'Dota 2',
+  names: ['Abaddon', 'Alchemist', 'Ancient Apparition', 'Anti-Mage', 'Arc Warden', 'Axe', 'Bane', 'Batrider', 'Beastmaster', 'Bloodseeker', 'Bounty Hunter', 'Brewmaster',
     'Bristleback', 'Broodmother', 'Centaur Warrunner', 'Chaos Knight', 'Chen', 'Clinkz', 'Clockwerk', 'Crystal Maiden', 'Dark Seer', 'Dark Willow', 'Dawnbreaker', 'Dazzle',
     'Death Prophet', 'Disruptor', 'Doom', 'Dragon Knight', 'Drow Ranger', 'Earth Spirit', 'Earthshaker', 'Elder Titan', 'Ember Spirit', 'Enchantress', 'Enigma',
     'Faceless Void', 'Grimstroke', 'Gyrocopter', 'Hoodwink', 'Huskar', 'Invoker', 'Io', 'Jakiro', 'Juggernaut', 'Keeper of the Light', 'Kez', 'Kunkka', 'Legion Commander',

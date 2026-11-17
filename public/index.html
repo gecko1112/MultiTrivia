@@ -557,6 +557,17 @@
   .hu-wrong{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
   .hu-wrong s{padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-size:14px}
   .hu-answer{font:700 clamp(32px,4vw,48px)/1.1 var(--head);text-transform:uppercase;letter-spacing:.03em;margin:6px 0 4px}
+  .hu-game{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+  /* the games on the start card: on has a tick and a solid line, off is dashed (like a locked hint) */
+  .hu-games{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 20px}
+  .hu-chips{display:flex;flex-wrap:wrap;gap:6px}
+  .hu-chips button{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:15px;background:transparent;color:var(--muted);border:1px dashed var(--bd);box-shadow:none}
+  .hu-chips button:hover{background:var(--hover);color:var(--text);transform:none;box-shadow:none}
+  .hu-chips button svg{display:none;width:13px;height:13px;flex:none}
+  .hu-chips button[aria-pressed=true]{color:var(--text);border-style:solid}
+  .hu-chips button[aria-pressed=true] svg{display:block}
+  #huList li{display:flex;align-items:baseline;gap:12px}
+  #huList li small{margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap}
   /* Oddball: what an answer was worth, where it sits between obvious and rare, the rarest right answers */
   .od-res{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 18px;border:1px solid var(--good);border-radius:var(--r2);background:var(--inset);margin-top:6px}
   .od-res.no{border-color:var(--bad)}
