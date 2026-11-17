@@ -327,6 +327,12 @@ const geo = require('./geo-server.js')({ dir: path.join(ROOT, 'geo'), send, read
   records: Object.assign(u => (db.geo[u] = db.geo[u] || {}), { save }),
   mayArchive: u => hasPlus(u), isAdmin, limits });   // past days are a Plus feature
 
+// ---------- Oddball (the rarest right answer wins; dealt and judged on the server; games in db.od, what players answer in db.oddStats)
+if (!db.od) db.od = {};
+if (!db.oddStats) db.oddStats = {};
+const oddball = require('./oddball-server.js')({ geo, fame: require('./content/oddball-fame.js'), send, readBody, save, secret: db.secret, stats: db.oddStats,
+  records: u => (db.od[u] = db.od[u] || {}), mayArchive: u => hasPlus(u), limits });
+
 // ---------- More/Less (dealt and judged on the server; daily calls in db.ml, results in the account's x_stats.ml) ----------
 if (!db.ml) db.ml = {};
 const moreless = require('./moreless-server.js')({ cats: require('./content/moreless.js'), questions: require('./content/survival.js'), send, readBody, save,
@@ -428,6 +434,7 @@ const server = http.createServer(async (req, res) => {
 
     if (await party.handle(req, res, url, user)) return;
     if (await geo.handle(req, res, url, query, user)) return;
+    if (await oddball.handle(req, res, url, query, user)) return;
     if (await moreless.handle(req, res, url, query, user)) return;
     if (await guessless.handle(req, res, url, query, user)) return;
     if (await wordy.handle(req, res, url, query, user)) return;

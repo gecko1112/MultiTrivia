@@ -121,6 +121,7 @@ Players can report a friend's picture from the Friends list ("Manage", the flag 
 | `server.js` | The server (accounts, saving, leaderboard, serves the pages) |
 | `account-server.js` | Profile picture, password change, data download, delete account |
 | `plus-server.js` | Ballpark Plus: who has it, checkout, payment notices |
+| `oddball-server.js` | Oddball: questions with many right answers, the rarer your right answer the more points. Rarity is estimated for now (`content/oddball-fame.js`); what players answer is counted for later |
 | `security.js` | Security headers on every response, a content security policy per page (inline scripts allowed by fingerprint), and refusing changes requested from other sites |
 | `party-server.js` | Party lobbies, judged on the server: "Closest guess" and "Bets" (bet 1 to 3 on the guess you think is closest; with drinks on, the stake is sips) |
 | `levels-server.js` | Levels, XP and achievements, worked out from the results the server recorded. Only Fermi's four achievements are reported by the browser |

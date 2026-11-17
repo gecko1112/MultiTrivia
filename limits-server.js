@@ -16,7 +16,7 @@
 'use strict';
 const PRACTICE_PER_DAY = 3;
 const PARTY_TRIALS = 3;
-const GAMES = ['sv', 'ml', 'gl', 'cl', 'wd', 'flags', 'shapes', 'route'];
+const GAMES = ['sv', 'ml', 'gl', 'cl', 'wd', 'flags', 'shapes', 'route', 'od'];
 
 // For a module that was built without limits (the tests build the game modules directly): everything is allowed.
 const NO_LIMITS = { limited: () => false, practiceLeft: () => null, takePractice: () => ({ ok: true, left: null }),

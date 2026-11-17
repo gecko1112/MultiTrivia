@@ -540,11 +540,24 @@
   .at-map circle{fill:none;stroke:var(--c);stroke-width:2;vector-effect:non-scaling-stroke}
   @keyframes atIn{from{opacity:0}}
   .at-map text{font-family:var(--body);font-weight:600;text-anchor:middle;dominant-baseline:central;fill:var(--text);stroke:var(--inset);paint-order:stroke;stroke-linejoin:round;pointer-events:none}
-  #atGuess{display:flex;gap:10px}
+  #atGuess,#odForm{display:flex;gap:10px}
   .at-ac{position:relative;flex:1;min-width:0;display:flex}
-  #atList{position:absolute;left:0;right:0;bottom:calc(100% + 6px);z-index:30;margin:0;padding:6px;list-style:none;background:var(--panel);border:1px solid var(--bd);border-radius:var(--r2);box-shadow:0 10px 30px rgba(0,0,0,.24)}
-  #atList li{padding:9px 12px;border-radius:var(--r3);font-size:16px;cursor:pointer}
-  #atList li.sel,#atList li:hover{background:var(--hl)}
+  #atList,#odList{position:absolute;left:0;right:0;bottom:calc(100% + 6px);z-index:30;margin:0;padding:6px;list-style:none;background:var(--panel);border:1px solid var(--bd);border-radius:var(--r2);box-shadow:0 10px 30px rgba(0,0,0,.24)}
+  #atList li,#odList li{padding:9px 12px;border-radius:var(--r3);font-size:16px;cursor:pointer}
+  #atList li.sel,#atList li:hover,#odList li.sel,#odList li:hover{background:var(--hl)}
+  #odList{top:calc(100% + 6px);bottom:auto}          /* Oddball asks above the field, so its list opens below it */
+  /* Oddball: what an answer was worth, where it sits between obvious and rare, the rarest right answers */
+  .od-res{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 18px;border:1px solid var(--good);border-radius:var(--r2);background:var(--inset);margin-top:6px}
+  .od-res.no{border-color:var(--bad)}
+  .od-res b{display:block;font-size:24px;font-weight:600;margin-top:4px}
+  .od-pts{font:700 44px/1 var(--head);color:var(--good)}
+  .od-res.no .od-pts{color:var(--bad)}
+  .od-scale{position:relative;height:6px;margin:20px 0 6px;border-radius:999px;background:linear-gradient(90deg,var(--line),var(--good))}
+  .od-scale i{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;background:var(--text);border:2px solid var(--panel);transform:translate(-50%,-50%)}
+  .od-ends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+  .od-rare{margin:18px 0 0;font-size:15px}
+  .od-rare .pt-lbl{display:block;margin-bottom:4px}
+  .od-count{font-size:13px;margin:6px 0 0}
   .at-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
   .at-chip{padding:5px 12px;border-radius:999px;font-size:14px;font-weight:600;border:1px solid var(--c);background:color-mix(in srgb,var(--c) 18%,transparent)}
   .at-legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:16px;font-size:12.5px;color:var(--muted)}
@@ -860,7 +873,7 @@
   .mode .opts button{padding:6px 10px;font-size:14px}
   .statstrip{margin-top:16px;padding-top:14px}
   /* a game's name is already the highlighted tab right above it: kept for screen readers only */
-  #g-survival .gh,#g-moreless .gh,#g-guessless .gh,#g-clueless .gh,#g-atlas .gh,#g-party .gh,#g-drinks .gh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  #g-survival .gh,#g-moreless .gh,#g-guessless .gh,#g-clueless .gh,#g-atlas .gh,#g-oddball .gh,#g-party .gh,#g-drinks .gh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   #g-atlas .at-modes .mode{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px 12px;align-items:center}
   #g-atlas .at-modes .mode > :not(.at-ico):not(.mt){grid-column:1/-1}
   #g-atlas .at-ico{width:28px;height:28px}
@@ -898,6 +911,7 @@
    <div class="navnote" id="navNote"></div>
    <div class="navhd"><span>More</span></div>
    <a href="#atlas" data-g="atlas"><span class="tl">Atlas</span><span class="ts" id="st-at"></span></a>
+   <a href="#oddball" data-g="oddball"><span class="tl">Oddball</span><span class="ts" id="st-od"></span></a>
    <a href="#party" data-g="party"><span class="tl">Party</span></a>
    <a href="#drinks" data-g="drinks"><span class="tl">Drinks</span></a>
    <a href="#archive" data-g="archive"><span class="tl">Archive</span></a>
@@ -1084,6 +1098,8 @@
 
   <!-- Atlas: geography games, filled in by atlas.js and judged by the server (geo-server.js) -->
   <section class="game" id="g-atlas"></section>
+  <!-- Oddball: the rarest right answer wins, filled in by oddball.js and judged by the server (oddball-server.js) -->
+  <section class="game" id="g-oddball"></section>
 
   <!-- Party: private lobbies, filled in by party.js and judged by the server (party-server.js) -->
   <section class="game" id="g-party"></section>
@@ -1531,6 +1547,7 @@ $('copy').addEventListener('click',async()=>{
 <script src="wordy.js"></script>
 <script src="party.js"></script>
 <script src="atlas.js"></script>
+<script src="oddball.js"></script>
 <script src="drinks.js"></script>
 <script src="ui.js"></script>
 <script src="levels.js"></script>
