@@ -310,5 +310,7 @@ module.exports = function createGeo({ dir, send, readBody, secret, records, mayA
     send(res, 404, { error: 'not found' }); return true;
   }
   const flagOf = id => { if (!flagCache.has(id)) flagCache.set(id, fs.readFileSync(path.join(dir, 'flags', id + '.svg'))); return flagCache.get(id); };
-  return { handle, dayOf, datesOf, history, nameFits, flagOf, randomCountry: () => C[crypto.randomInt(C.length)], countries: () => C.length };
+  // the country a typed name means, with the same slack for typos as Flags, or null (Oddball uses this)
+  const identify = text => { for (const c of C) if (nameFits(text, c.id)) return c.id; return null; };
+  return { handle, dayOf, datesOf, history, identify, list: () => C, nameFits, flagOf, randomCountry: () => C[crypto.randomInt(C.length)], countries: () => C.length };
 };

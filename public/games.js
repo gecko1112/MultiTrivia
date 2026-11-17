@@ -7,6 +7,7 @@ if(document.getElementById('g-wordy')) TITLES.wordy='Wordy';
 if(document.getElementById('g-howto')) TITLES.howto='How to play';
 if(document.getElementById('g-party')) TITLES.party='Party';
 if(document.getElementById('g-atlas')) TITLES.atlas='Atlas';
+if(document.getElementById('g-oddball')) TITLES.oddball='Oddball';
 if(document.getElementById('g-drinks')) TITLES.drinks='Drinks';
 if(document.getElementById('g-archive')) TITLES.archive='Archive';
 
