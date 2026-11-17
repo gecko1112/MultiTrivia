@@ -333,9 +333,9 @@ if (!db.oddStats) db.oddStats = {};
 const oddball = require('./oddball-server.js')({ geo, fame: require('./content/oddball-fame.js'), send, readBody, save, secret: db.secret, stats: db.oddStats,
   records: u => (db.od[u] = db.od[u] || {}), mayArchive: u => hasPlus(u), limits });
 
-// ---------- Hunch (guess who it is from hints that get more specific; picked and judged on the server; rounds in db.hu)
+// ---------- Hunch (guess the game character from hints that get more specific; picked and judged on the server; rounds in db.hu)
 if (!db.hu) db.hu = {};
-const hunch = require('./hunch-server.js')({ theme: require('./content/hunch-dota.js'), send, readBody, save, secret: db.secret,
+const hunch = require('./hunch-server.js')({ games: require('./content/hunch.js'), send, readBody, save, secret: db.secret, hasPlus,
   records: u => (db.hu[u] = db.hu[u] || {}), mayArchive: u => hasPlus(u), limits });
 
 // ---------- More/Less (dealt and judged on the server; daily calls in db.ml, results in the account's x_stats.ml) ----------

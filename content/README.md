@@ -9,6 +9,8 @@ Everything in this folder stays on the server and is never sent to the browser a
 | `moreless.js` | More/Less cards | Read from public lists on the date in the file header: IMDb charts, Wikipedia's box-office and Spotify lists |
 | `packs/*.js` | Survival question packs (Plus) | See below |
 | `clueless.js`, `wordy.js` | Word lists | Not questions; word and similarity data |
+| `oddball-fame.js` | How well known each country is, for Oddball's points | Estimated by hand; to be replaced by what players actually answer |
+| `hunch.js`, `hunch/*.js` | Hunch characters: Dota 2 (30), World of Warcraft (25), League of Legends (22), Overwatch (24), Valorant (18), five hints each | Written by hand (by Claude) from each game's lore. The rules for hints are in `hunch.js`; `node tests/run.js hunch` checks them |
 
 ## Question packs
 

@@ -30,7 +30,8 @@ const FEATURES = [
   ['Detailed statistics', 'Trends, accuracy by category, best and worst topics.', false, true],
   ['Streak saver', 'One missed day a week is forgiven.', false, true],
   ['Head-to-head', 'Your record against each friend.', false, true],
-  ['Extra question packs', '', false, true]
+  ['Extra question packs', '', false, true],
+  ['Pick the games in Hunch', '', false, true]
 ];
 const LEADS = {
   top: "Today's games stay free.",
@@ -39,7 +40,8 @@ const LEADS = {
   h2h: 'Head-to-head is part of Plus.',
   packs: 'Question packs are part of Plus.',
   practice: 'Unlimited practice is part of Plus.',
-  party: 'Hosting party games is part of Plus.'
+  party: 'Hosting party games is part of Plus.',
+  hunch: 'Picking the games in Hunch is part of Plus.'
 };
 const E = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
