@@ -333,6 +333,11 @@ if (!db.oddStats) db.oddStats = {};
 const oddball = require('./oddball-server.js')({ geo, fame: require('./content/oddball-fame.js'), send, readBody, save, secret: db.secret, stats: db.oddStats,
   records: u => (db.od[u] = db.od[u] || {}), mayArchive: u => hasPlus(u), limits });
 
+// ---------- Hunch (guess who it is from hints that get more specific; picked and judged on the server; rounds in db.hu)
+if (!db.hu) db.hu = {};
+const hunch = require('./hunch-server.js')({ theme: require('./content/hunch-dota.js'), send, readBody, save, secret: db.secret,
+  records: u => (db.hu[u] = db.hu[u] || {}), mayArchive: u => hasPlus(u), limits });
+
 // ---------- More/Less (dealt and judged on the server; daily calls in db.ml, results in the account's x_stats.ml) ----------
 if (!db.ml) db.ml = {};
 const moreless = require('./moreless-server.js')({ cats: require('./content/moreless.js'), questions: require('./content/survival.js'), send, readBody, save,
@@ -435,6 +440,7 @@ const server = http.createServer(async (req, res) => {
     if (await party.handle(req, res, url, user)) return;
     if (await geo.handle(req, res, url, query, user)) return;
     if (await oddball.handle(req, res, url, query, user)) return;
+    if (await hunch.handle(req, res, url, query, user)) return;
     if (await moreless.handle(req, res, url, query, user)) return;
     if (await guessless.handle(req, res, url, query, user)) return;
     if (await wordy.handle(req, res, url, query, user)) return;

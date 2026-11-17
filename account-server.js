@@ -75,7 +75,7 @@ module.exports = function createAccount({ db, save, send, readBody, dataDir, has
     if (url === '/api/account/export' && req.method === 'GET') {
       const u = db.users[user];
       const out = { exported: new Date().toISOString(), account: { username: u.display, created: u.created ? new Date(u.created).toISOString() : null, picture: !!u.avatar, plus: plus.status(user) },
-        saved: db.docs[user] || {}, atlas: (db.geo || {})[user] || {}, moreLess: (db.ml || {})[user] || {}, guessless: (db.gl || {})[user] || {}, wordy: (db.wd || {})[user] || {}, clueless: (db.cl || {})[user] || {}, survival: (db.sv || {})[user] || {}, drinks: (db.drinks || {})[user] || {}, leftThePage: (db.away || {})[user] || {}, freeLimits: (db.limits || {})[user] || {}, oddball: (db.od || {})[user] || {}, picturesYouReported: reportsBy(user) };
+        saved: db.docs[user] || {}, atlas: (db.geo || {})[user] || {}, moreLess: (db.ml || {})[user] || {}, guessless: (db.gl || {})[user] || {}, wordy: (db.wd || {})[user] || {}, clueless: (db.cl || {})[user] || {}, survival: (db.sv || {})[user] || {}, drinks: (db.drinks || {})[user] || {}, leftThePage: (db.away || {})[user] || {}, freeLimits: (db.limits || {})[user] || {}, oddball: (db.od || {})[user] || {}, hunch: (db.hu || {})[user] || {}, picturesYouReported: reportsBy(user) };
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': 'attachment; filename="ballpark-' + user + '.json"', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify(out, null, 1)); return true;
     }
@@ -88,7 +88,7 @@ module.exports = function createAccount({ db, save, send, readBody, dataDir, has
       try { await plus.stopRenewal(user); }
       catch (e) { console.error('Delete: could not stop the subscription of ' + user + ': ' + e.message); send(res, 502, { error: 'Your subscription could not be cancelled just now, so nothing was deleted. Try again in a moment.' }); return true; }
       dropAvatar(user);
-      for (const part of ['docs', 'geo', 'ml', 'gl', 'wd', 'cl', 'sv', 'drinks', 'away', 'limits', 'od']) if (db[part]) delete db[part][user];
+      for (const part of ['docs', 'geo', 'ml', 'gl', 'wd', 'cl', 'sv', 'drinks', 'away', 'limits', 'od', 'hu']) if (db[part]) delete db[part][user];
       dropSessions(user, null); delete db.users[user]; onDelete(user); save();
       send(res, 200, { ok: true }, { 'Set-Cookie': 'bp_session=; Path=/; Max-Age=0' }); return true;
     }

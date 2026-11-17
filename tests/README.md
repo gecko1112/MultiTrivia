@@ -13,6 +13,7 @@
 | `plus-api.js` | Streak rules, head-to-head |
 | `buy-api.js` | Plus: test checkout, payment notices, gifts |
 | `oddball-api.js` | Oddball: questions, rarity points, judging typed countries, the daily game, answer counts |
+| `hunch-api.js` | Hunch: the hint ladders (no hint gives the name away), recognising names, hints, points, the daily round |
 | `headers-api.js` | Security headers, each page's policy, refusing changes from other sites, and party steps outside a request failing without stopping the server |
 | `bets-api.js` | Party "Bets": guesses, bets, odds and payouts, drinks (lost bets drunk, won bets handed out), no answer before the reveal |
 | `levels-api.js` | Levels and achievements on the server: XP from recorded results, announced once, cannot be written by the browser, friends' achievements, Fermi's, the streak rule matches the browser's |

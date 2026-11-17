@@ -76,8 +76,11 @@ function player() {
   const listen = p => { fetch(B + '/api/party/' + code + '/events', { headers: { cookie: p.cookie() } }).then(async res => { for await (const c of res.body) {} }).catch(() => {}); };
   listen(A); listen(Z); await wait(300);
   await P(A, code + '/settings', { drinks: true, seconds: 15 }); await P(A, code + '/start');
-  await P(A, code + '/guess', { value: 1000 }); await wait(16300);        // Zoe sits there and does not guess
-  const zb = (await Z.get('badges')).j.badges, ab = (await A.get('badges')).j.badges;
+  await P(A, code + '/guess', { value: 1000 });                          // Zoe sits there and does not guess
+  // the round closes on its 15 s timer; wait for the result instead of a fixed time, which was too tight on a busy machine
+  let zb = [];
+  for (const end = Date.now() + 25000; Date.now() < end; await wait(250)) { zb = (await Z.get('badges')).j.badges; if (zb.find(b => b.id === 'asleep').have) break; }
+  const ab = (await A.get('badges')).j.badges;
   ok('lobby: the no-guess penalty counts for that player only', zb.find(b => b.id === 'asleep').have === 1 && zb.find(b => b.id === 'tab').have === 2 && ab.find(b => b.id === 'asleep').have === 0 && ab.find(b => b.id === 'tab').have === 0);
   await wait(400);
   const saved = readDb(project, data);
