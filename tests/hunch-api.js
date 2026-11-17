@@ -12,10 +12,14 @@ const out = [], ok = (n, c) => out.push([n, !!c]);
   const names = new Set(theme.heroes);
   ok('every hero that can come up is also a name players can guess', theme.cards.every(c => names.has(c.name)));
   ok('every hero has five hints', theme.cards.every(c => c.hints.length === 5 && c.hints.every(h => typeof h === 'string' && h.length > 8)));
-  // the two vague hints name neither the hero nor a nickname; the specific ones (ability names) never the hero's name
+  // hints 1 to 4 (lore, looks, what the hero does) name neither the hero nor a nickname; the last one never the hero's name
   const has = (h, n) => h.toLowerCase().includes(n.toLowerCase());
-  const leaks = theme.cards.filter(c => c.hints.some((h, i) => (i < 2 ? [c.name, ...c.alt.filter(a => a.length >= 4)] : [c.name]).some(n => has(h, n))));
+  const leaks = theme.cards.filter(c => c.hints.some((h, i) => (i < 4 ? [c.name, ...c.alt.filter(a => a.length >= 4)] : [c.name]).some(n => has(h, n))));
   ok('no hint gives away the name or a nickname' + (leaks.length ? ' (' + leaks.map(c => c.name).join(', ') + ')' : ''), !leaks.length);
+  // only the last hint names an ability, so the first four have to be worked out from lore and looks
+  const ability = /^One of (his|her|its) (abilities|spells) is /;
+  const early = theme.cards.filter(c => c.hints.slice(0, 4).some(h => ability.test(h)) || !ability.test(c.hints[4]));
+  ok('only the last hint names an ability' + (early.length ? ' (' + early.map(c => c.name).join(', ') + ')' : ''), !early.length);
   ok('no hero comes up twice', new Set(theme.cards.map(c => c.name)).size === theme.cards.length);
   const h = create({ theme, send() {}, readBody() {}, records: () => ({}), save() {}, secret: 'x', mayArchive: () => false });
   ok('names are recognised with small typos and nicknames', h.identify('pudge') === 'Pudge' && h.identify('Pudgee') === 'Pudge' && h.identify('sf') === 'Shadow Fiend' && h.identify('anti mage') === 'Anti-Mage' && h.identify('Nature\'s prophet') === "Nature's Prophet");
