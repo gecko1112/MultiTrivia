@@ -52,6 +52,9 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
   }
   function shuffled(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
   const connected = p => p.streams.size > 0;
+  // Timers and stream events run outside any request. There, an error would stop the whole server and end every
+  // lobby at once; wrapped in this, it is written to the log and only that one step is lost.
+  const guard = (what, fn) => (...a) => { try { return fn(...a); } catch (e) { console.error(new Date().toISOString() + ' Party, ' + what + ': ' + ((e && e.stack) || e)); } };
 
   // ---- what one player is allowed to see right now
   function viewFor(room, me) {
@@ -90,7 +93,7 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
     room.round++; room.q = room.deck.pop(); room.guesses = new Map(); room.reveal = null;
     room.phase = 'question'; room.endsAt = Date.now() + room.seconds * 1000;
     clearTimeout(room.timer);
-    room.timer = setTimeout(() => closeRound(room), room.seconds * 1000 + 400);   // a little slack for slow connections
+    room.timer = setTimeout(guard('closing a question', () => closeRound(room)), room.seconds * 1000 + 400);   // a little slack for slow connections
     push(room);
   }
   function closeRound(room) {
@@ -99,7 +102,7 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
     if (room.mode === 'bets') {                       // the guesses are in: now the bets (nobody guessed: straight to the answer)
       if (!room.guesses.size) return closeBets(room);
       room.phase = 'bet'; room.bets = new Map(); room.endsAt = Date.now() + BET_SECONDS * 1000;
-      room.timer = setTimeout(() => closeBets(room), BET_SECONDS * 1000 + 400);
+      room.timer = setTimeout(guard('closing the bets', () => closeBets(room)), BET_SECONDS * 1000 + 400);
       push(room); return;
     }
     const a = room.q.a;
@@ -167,7 +170,7 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
   }
 
   // ---- housekeeping: hand the host role on, drop dead lobbies
-  setInterval(() => {
+  setInterval(guard('housekeeping', () => {
     const now = Date.now();
     for (const room of [...rooms.values()]) {
       const online = [...room.players.values()].filter(connected);
@@ -176,7 +179,7 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
       const host = room.players.get(room.host);
       if ((!host || (!connected(host) && now - host.goneAt > HOST_AWAY_MS)) && online.length) { room.host = online[0].id; push(room); }
     }
-  }, 5000).unref();
+  }), 5000).unref();
   setInterval(() => {                       // keeps proxies from closing a quiet connection
     for (const room of rooms.values()) for (const p of room.players.values()) for (const res of p.streams) { try { res.write(': hb\n\n'); } catch (e) {} }
   }, 15000).unref();
@@ -221,11 +224,11 @@ module.exports = function createParty({ questions, send, readBody, displayName, 
       res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store, no-transform', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
       res.write('retry: 2000\n\n');
       me.streams.add(res);
-      req.on('close', () => {
+      req.on('close', guard('a player went away', () => {
         me.streams.delete(res);
         if (!me.streams.size) me.goneAt = Date.now();
         if (rooms.get(room.code) === room) { maybeCloseEarly(room); push(room); }
-      });
+      }));
       push(room); return true;
     }
     if (req.method !== 'POST') { send(res, 405, { error: 'not allowed' }); return true; }
