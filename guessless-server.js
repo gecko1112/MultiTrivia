@@ -10,20 +10,31 @@
 // server.js keeps out of the browser's reach. Practice games live in memory.
 //
 // The questions are picked the way the browser picked them, so a day's game is the game it always was.
+//
+// TWO LISTS. The day's questions are not stored, they are picked again from the list each time, so changing the list
+// would change days people already played. The first list (content/guessless-old.js) is therefore frozen, and still
+// used for every day before NEW_FROM and for every game that was started from it (its record has no `v`). Days from
+// NEW_FROM on, and games started under this version (v: 2), use the new list (content/guessless.js). Practice uses
+// the new list.
 'use strict';
 const crypto = require('crypto');
 const { NO_LIMITS } = require('./limits-server.js');
 const { today, rngFrom, pick, pastDay, resultsOf, resultOn, markLate } = require('./games-common.js');
 
 const N = 5;                                         // one question per category
+const NEW_FROM = '2026-11-18';                       // the first day dealt from the new list
 const points = (g, a) => Math.round(100 * Math.max(0, 1 - Math.abs(Math.log10(g / a))));   // 100 when spot on, 0 from ten times off
 
-module.exports = function createGuessless({ cats, send, readBody, records, docsOf, save, mayArchive, limits = NO_LIMITS }) {
-  const deal = seed => { const r = rngFrom(seed); return cats.map(c => Object.assign({ cat: c.name }, pick(c.qs, r))); };   // the browser's pick, unchanged
+module.exports = function createGuessless({ cats, oldCats = require('./content/guessless-old.js'), send, readBody, records, docsOf, save, mayArchive, limits = NO_LIMITS }) {
+  const dealFrom = (list, seed) => { const r = rngFrom(seed); return list.map(c => Object.assign({ cat: c.name }, pick(c.qs, r))); };   // the browser's pick, unchanged
+  const deal = seed => dealFrom(cats, seed);
+  // which list a day uses: a game already started keeps its list; otherwise the date decides
+  const versionOf = (date, rec) => (rec ? (rec.v === 2 ? 2 : 1) : date < NEW_FROM ? 1 : 2);
   const dailyDeals = new Map();
-  function dailyDeal(date) {
-    if (!dailyDeals.has(date)) { if (dailyDeals.size > 12) dailyDeals.clear(); dailyDeals.set(date, deal('gl-' + date)); }
-    return dailyDeals.get(date);
+  function dailyDeal(date, rec) {
+    const v = versionOf(date, rec), key = v + ':' + date;
+    if (!dailyDeals.has(key)) { if (dailyDeals.size > 24) dailyDeals.clear(); dailyDeals.set(key, dealFrom(v === 2 ? cats : oldCats, 'gl-' + date)); }
+    return dailyDeals.get(key);
   }
   const finishedOn = (user, date) => resultOn(docsOf(user), 'gl', date);
   // the result in the form the browser always stored it
@@ -54,10 +65,11 @@ module.exports = function createGuessless({ cats, send, readBody, records, docsO
       if (before) return { user, daily: true, day: date, before };          // finished in the browser before the server judged Guessless
       if (!create) return null;
       mine[date] = { t0: Date.now(), t1: 0, moves: carried(user, date) };
+      if (versionOf(date) === 2) mine[date].v = 2;
       if (date !== today()) mine[date].late = true;
       save();
     }
-    return { user, daily: true, day: date, qs: dailyDeal(date), rec: mine[date] };
+    return { user, daily: true, day: date, qs: dailyDeal(date, mine[date]), rec: mine[date] };
   }
   function finish(run) {
     const rec = record(run), gl = resultsOf(docsOf(run.user), 'gl');
@@ -116,5 +128,5 @@ module.exports = function createGuessless({ cats, send, readBody, records, docsO
     }
     send(res, 404, { error: 'not found' }); return true;
   }
-  return { handle, deal, dailyDeal };
+  return { handle, deal, dailyDeal, NEW_FROM };
 };

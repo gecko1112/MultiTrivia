@@ -17,6 +17,15 @@ const dealer = require(path.join(project, 'guessless-server.js'))({ cats: requir
   try {
     for (const n of ['anna', 'ben', 'cleo']) await call(n, 'POST', '/api/signup', { username: n, password: 'kiwi-lamp-55' + n.length });
     const D = today(), qs = dealer.dailyDeal(D);
+    // two lists: days before NEW_FROM keep the first (frozen) list, later days get the new one; a started game keeps its list
+    const OLD = require(path.join(project, 'content/guessless-old.js')), NEW = require(path.join(project, 'content/guessless.js'));
+    const from = (list, deal) => deal.every((q, i) => list[i].qs.some(x => x.q === q.q && x.a === q.a));
+    const before = '2026-11-10', after = '2026-12-01';
+    ok('the switch to the new questions is ' + dealer.NEW_FROM, dealer.NEW_FROM > before && dealer.NEW_FROM < after);
+    ok('a day before the switch is dealt from the first list, as it always was', from(OLD, dealer.dailyDeal(before)) && JSON.stringify(dealer.dailyDeal(before)) === JSON.stringify(dealer.dailyDeal(before, { moves: [] })));
+    ok('a day after the switch is dealt from the new list', from(NEW, dealer.dailyDeal(after)) && from(NEW, dealer.dailyDeal(after, { v: 2, moves: [] })));
+    ok('a game started from the first list keeps it, whatever the date', from(OLD, dealer.dailyDeal(after, { moves: [1] })));
+    ok('practice games use the new list', from(NEW, dealer.deal('glp-test')));
 
     ok('the questions and answers are no longer a public file', (await call('anna', 'GET', '/games-data.js')).s === 404 && (await call('anna', 'GET', '/content/guessless.js')).s === 404);
     let r = await call('anna', 'POST', '/api/gl/start', { daily: true }), v = r.j;
