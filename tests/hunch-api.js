@@ -18,6 +18,10 @@ const list = xs => (xs.length ? ' (' + xs.slice(0, 6).join(', ') + ')' : '');
   ok('every character that can come up is also a name players can guess' + list(cards.filter(c => !games.find(g => g.id === c.game).names.includes(c.name)).map(c => c.name)), cards.every(c => games.find(g => g.id === c.game).names.includes(c.name)));
   ok('no name twice in one game', games.every(g => new Set(g.names).size === g.names.length));
   ok('at least 15 characters in each game', games.every(g => g.cards.length >= 15));
+  // Dota 2, League and Overwatch: every character can come up (the owner asked for all of them, 2026-11-17)
+  const NOT_YET = ['Kez'];                               // not enough known about him for fair hints
+  const missing = games.filter(g => ['dota', 'lol', 'overwatch'].includes(g.id)).flatMap(g => g.names.filter(n => !NOT_YET.includes(n) && !g.cards.some(c => c.name === n)));
+  ok('every Dota 2, League and Overwatch character can come up' + list(missing), !missing.length);
   ok('every character has five hints', cards.every(c => c.hints.length === 5 && c.hints.every(h => typeof h === 'string' && h.length > 8)));
   // hints 1 to 4 (lore, looks, what the character does) name neither the character nor a nickname; the last one never the name
   const has = (h, n) => h.toLowerCase().includes(n.toLowerCase());
