@@ -1,0 +1,40 @@
+// Drinks, Flag round said out loud: choose "Say it", the flag, "Show answer", the country, Correct or Wrong.
+const { start, wait } = require('./lib');
+const path = require('path');
+const W = Number(process.argv[3]) || 1280, H = Number(process.argv[4]) || 900, TAG = 'wv36' + (W < 600 ? 'm' : ''), THEME = process.argv[5] || 'dark';
+const project = process.argv[2] || path.join(__dirname, '..', '..');
+(async () => { const t = await start(project, W, H, TAG); const { ev, cdp, shot } = t;
+  const txt = sel => ev(`(document.querySelector('${sel}')||{textContent:''}).textContent.replace(/\\s+/g,' ').trim()`);
+  const click = sel => ev(`document.querySelector('${sel}').click()`);
+  const out = [], ok = (n, c) => out.push([n, !!c]);
+  try {
+    await ev(`localStorage.setItem('bp_theme','${THEME}'); localStorage.setItem('bp_drinks_ok','1'); localStorage.setItem('bp_drinks_names', JSON.stringify(['Tom','Ida']))`);
+    await cdp('Page.navigate', { url: 'http://localhost:3977/#drinks' }); await wait(300); await cdp('Page.reload'); await wait(3000);
+    await ev(`document.querySelectorAll('.bpt').forEach(x=>x.remove())`);
+    await click('[data-game=flags]'); await wait(400);
+    ok('the Flag round asks how players answer; typing is the default', /How players answer/.test(await txt('#g-drinks')) && await ev(`document.querySelector('[data-say="0"]').getAttribute('aria-pressed')==='true'`));
+    await click('[data-say="1"]'); await wait(200);
+    ok('"Say it" can be picked', await ev(`document.querySelector('[data-say="1"]').getAttribute('aria-pressed')==='true' && document.querySelector('[data-say="0"]').getAttribute('aria-pressed')==='false'`));
+    await shot('setup-' + THEME);
+    await click('[data-act=start]'); await wait(900);
+    ok('the flag and "Show answer", no typing', await ev(`!!document.querySelector('.at-flag') && !!document.querySelector('[data-act=reveal]') && !document.getElementById('dkText')`) && !(await txt('.dk-verdict')));
+    await shot('ask-' + THEME);
+    await click('[data-act=reveal]'); await wait(700);
+    const country = await txt('.dk-shown b');
+    ok('"Show answer" shows the country, with Wrong and Correct', country.length > 2 && await ev(`!!document.querySelector('[data-right="0"]') && !!document.querySelector('[data-right="1"]') && !document.querySelector('[data-act=next]')`));
+    await shot('judge-' + THEME);
+    await click('[data-right="0"]'); await wait(700);
+    ok('Wrong: the player on turn drinks, and Next appears', /Tom drinks 2/i.test(await txt('.dk-verdict')) && /Next: Ida/.test(await txt('[data-act=next]')));
+    await click('[data-act=next]'); await wait(700); await click('[data-act=reveal]'); await wait(600); await click('[data-right="1"]'); await wait(700);
+    ok('Correct: safe', /Safe/i.test(await txt('.dk-verdict')));
+    await shot('result-' + THEME);
+    await cdp('Page.reload'); await wait(3000);
+    ok('after a reload the table continues, still said out loud', await ev(`!!document.querySelector('[data-act=next]')`) && /Safe/i.test(await txt('.dk-verdict')));
+    await click('[data-act=end]'); await wait(700); await click('[data-game=flags]'); await wait(400);
+    ok('the choice is remembered on this phone', await ev(`document.querySelector('[data-say="1"]').getAttribute('aria-pressed')==='true'`));
+    ok('no script errors', !t.errors.length);
+    if (t.errors.length) console.log(t.errors.join('\n'));
+  } catch (e) { console.log('FAIL  stopped: ' + (e.stack || e)); out.push(['ran to the end', false]); }
+  out.forEach(([n, good]) => console.log((good ? 'ok    ' : 'FAIL  ') + n));
+  t.done(out.every(o => o[1]) ? 0 : 1);
+})();
