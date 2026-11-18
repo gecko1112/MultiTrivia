@@ -4,6 +4,12 @@
 // keeps the answer until the player on turn has answered, and says who drinks how much.
 // The browser sends "start with these names", "more", "less", a typed country, or "next".
 //
+// The Flag round can also be played out loud ("say": true at the start): the player says the country, the phone
+// asks the server to reveal it ("reveal"), and the table taps Correct or Wrong ("answer" with right: true/false).
+// The server still keeps the country until the reveal and applies the sips, but whether the spoken answer was right
+// is the table's word, not something the server can check. So those rounds count for the badges that only count
+// rounds, and not for the ones that depend on being right or wrong.
+//
 // A table belongs to the account that is logged in on that phone. The names at the table are just
 // names typed in, not accounts. Tables live in memory only and nothing here counts for levels.
 //
@@ -67,11 +73,13 @@ module.exports = function createDrinks({ send, readBody, party, geo, records }) 
     }
   }
   function view(t, user) {
+    const q = t.game === 'overunder' ? { text: t.q.text, unit: t.q.unit, shown: t.q.shown } : { img: '/api/drinks/flag?k=' + t.q.key };
+    if (t.phase === 'judge') q.name = t.q.name;   // said out loud: the country, once "Show answer" was tapped
     return {
       fresh: takeNews(user),             // badges earned just now, told once
-      game: t.game, phase: t.phase, round: t.round, turn: t.turn,
+      game: t.game, say: !!t.say, phase: t.phase, round: t.round, turn: t.turn,
       players: t.players.map(p => ({ name: p.name, sips: p.sips, streak: p.streak })),
-      q: t.game === 'overunder' ? { text: t.q.text, unit: t.q.unit, shown: t.q.shown } : { img: '/api/drinks/flag?k=' + t.q.key },
+      q,
       last: t.last                       // holds the answer, and exists only after the player has answered
     };
   }
@@ -103,7 +111,7 @@ module.exports = function createDrinks({ send, readBody, party, geo, records }) 
       if (names.length > MAX_PLAYERS) { send(res, 400, { error: 'At most ' + MAX_PLAYERS + ' players' }); return true; }
       if (new Set(names.map(n => n.toLowerCase())).size !== names.length) { send(res, 400, { error: 'Two players have the same name' }); return true; }
       if (tables.size > 3000) tables.clear();
-      const table = { game: body.game, players: names.map(name => ({ name, sips: 0, streak: 0 })), turn: 0, round: 0, phase: 'ask', q: null, last: null, touched: Date.now(), wrongRun: 0, dry: false };
+      const table = { game: body.game, say: body.game === 'flags' && body.say === true, players: names.map(name => ({ name, sips: 0, streak: 0 })), turn: 0, round: 0, phase: 'ask', q: null, last: null, touched: Date.now(), wrongRun: 0, dry: false };
       deal(table); tables.set(user, table);
       if (names.length >= 6) { mine(user).n.big = 1; award(user); }
       send(res, 200, view(table, user)); return true;
@@ -111,10 +119,19 @@ module.exports = function createDrinks({ send, readBody, party, geo, records }) 
     if (act === 'end') { tables.delete(user); send(res, 200, { none: true }); return true; }
     if (!t) { send(res, 409, { error: 'Start a game first' }); return true; }
 
+    if (act === 'reveal') {                      // said out loud: show the country, then the table judges
+      if (!t.say) { send(res, 400, { error: 'Type the answer in this game' }); return true; }
+      if (t.phase !== 'ask') { send(res, 409, { error: 'Already shown' }); return true; }
+      t.phase = 'judge';
+      send(res, 200, view(t, user)); return true;
+    }
     if (act === 'answer') {
-      if (t.phase !== 'ask') { send(res, 409, { error: 'Already answered' }); return true; }
+      if (t.say ? t.phase !== 'judge' : t.phase !== 'ask') { send(res, 409, { error: t.say && t.phase === 'ask' ? 'Show the answer first' : 'Already answered' }); return true; }
       let ok, said;
-      if (t.game === 'overunder') {
+      if (t.say) {
+        if (typeof body.right !== 'boolean') { send(res, 400, { error: 'Correct or wrong?' }); return true; }
+        ok = body.right; said = null;
+      } else if (t.game === 'overunder') {
         if (body.choice !== 'more' && body.choice !== 'less') { send(res, 400, { error: 'More or less?' }); return true; }
         said = body.choice; ok = (t.q.a > t.q.shown) === (said === 'more');
       } else {
@@ -127,9 +144,11 @@ module.exports = function createDrinks({ send, readBody, party, geo, records }) 
       else if (++p.streak >= STREAK) { kind = 'streak'; p.streak = 0; for (const o of t.players) if (o !== p) { o.sips += SIPS_STREAK; drinks.push({ name: o.name, sips: SIPS_STREAK }); } }
       t.last = Object.assign({ ok, kind, said, drinks }, t.game === 'overunder' ? { answer: t.q.a, note: t.q.note } : { name: t.q.name });
       t.phase = 'result';
-      // what this round means for the badges of the account whose table this is
+      // what this round means for the badges of the account whose table this is (said out loud: only that it was played)
       const s = mine(user).n;
-      s.rounds++; s.dealt += drinks.reduce((n, d) => n + d.sips, 0);
+      s.rounds++;
+      if (t.say) { award(user); send(res, 200, view(t, user)); return true; }
+      s.dealt += drinks.reduce((n, d) => n + d.sips, 0);
       if (kind === 'streak') s.treats++;
       t.wrongRun = ok ? 0 : t.wrongRun + 1;
       if (t.wrongRun === Math.max(3, t.players.length)) s.lap++;

@@ -70,6 +70,26 @@ function player() {
   ok('a player cannot set sips', (await A.post('start', { game: 'flags', players: [{ name: 'Tom', sips: -5 }, 'Ida'] })).s === 400);
   ok('ending removes the table', (await A.post('end')).j.none === true && (await A.get('state')).j.none === true && (await A.post('next')).s === 409);
   ok('first flag had a real country name', firstName.length > 2);
+
+  // ---- Flag round said out loud: the server shows the country on "Show answer", the table says right or wrong
+  t = (await A.post('start', { game: 'flags', players: ['Tom', 'Ida'], say: true })).j;
+  ok('said out loud: the flag, no country yet', t.say === true && t.phase === 'ask' && !('name' in t.q) && !/"name":"(?!Tom|Ida)/.test(JSON.stringify(t)));
+  ok('said out loud: no verdict before "Show answer"', (await A.post('answer', { right: true })).s === 409);
+  await wait(400); const n0 = readDb(project, data).drinks.anna.n;
+  r = (await A.post('reveal')).j;
+  ok('"Show answer" shows the country', r.phase === 'judge' && typeof r.q.name === 'string' && r.q.name.length > 2 && r.last === null);
+  ok('it is shown once', (await A.post('reveal')).s === 409);
+  ok('a typed country does not count here', (await A.post('answer', { text: r.q.name })).s === 400);
+  const shown = r.q.name;
+  r = (await A.post('answer', { right: false })).j;
+  ok('Wrong: the player on turn drinks 2', r.phase === 'result' && r.last.ok === false && r.last.kind === 'wrong' && r.last.name === shown && r.players[0].sips === 2 && r.players[1].sips === 0);
+  r = (await A.post('next')).j; await A.post('reveal'); r = (await A.post('answer', { right: true })).j;
+  ok('Correct: safe, and the streak grows', r.last.ok === true && r.last.kind === 'safe' && r.players[1].sips === 0 && r.players[1].streak === 1);
+  await wait(400); const n1 = readDb(project, data).drinks.anna.n;
+  ok('said-out-loud rounds count as rounds, not for the badges about being right or wrong', n1.rounds === n0.rounds + 2 && n1.dealt === n0.dealt && n1.treats === n0.treats && n1.flagMiss === n0.flagMiss);
+  t = (await A.post('start', { game: 'overunder', players: ['Tom', 'Ida'], say: true })).j;
+  ok('Over or under is always tapped, never said', t.say === false && (await A.post('reveal')).s === 400);
+  await A.post('end');
   // ---- sips in a drinks lobby count for the player's own badges
   const P = (p, u, b) => p.call('POST', '/api/party/' + u, b || {});
   const code = (await P(A, 'create')).j.code; await P(A, code + '/join'); await P(Z, code + '/join');
